@@ -1,12 +1,16 @@
 "use client";
 
 // ============================================================
-// Club-format pro forma.
+// Club-format pro forma — screen and printed sheet.
 //
-// A standalone screen. It imports the two club-format libs and the
-// formatters from lib/proforma.js, and nothing else from the app —
-// no shared components, no shared state. Deleting this file and the
-// two libs leaves everything else exactly as it was.
+// Laid out as a document rather than a dashboard, so Print produces
+// the thing on screen instead of a reflowed approximation. It borrows
+// the page furniture the rest of the app already prints with:
+// print-doc, print-section, print-break-before, print-keep, no-print,
+// and BrandMark from components/Brand.
+//
+// The only files it reads are the two club libs, the charts and the
+// brand mark. Nothing else in the app knows this screen exists.
 // ============================================================
 
 import { useMemo, useState } from "react";
@@ -16,6 +20,15 @@ import {
   pepperPlaceInputs,
   resolveLabel,
 } from "../../lib/proformaClubPresets";
+import { BrandMark } from "../../components/Brand";
+import {
+  BreakEvenCurve,
+  CashOnCashBars,
+  EquityCurve,
+  ExpenseBars,
+  IncomeWaterfall,
+  ScenarioCompare,
+} from "../../components/ClubCharts";
 
 const GREEN = "#00A651";
 
@@ -40,8 +53,8 @@ function Stat({ label, value, sub, good }) {
   );
 }
 
-// Fixed grid tracks rather than flex, so a label that wraps doesn't
-// drag its figure onto a second baseline.
+// Fixed grid tracks rather than flex — a label that wraps to two
+// lines would otherwise drop its figure to the second baseline.
 function Row({ label, value, tone = "normal", note }) {
   const styles = {
     normal: "text-neutral-800",
@@ -51,9 +64,7 @@ function Row({ label, value, tone = "normal", note }) {
   return (
     <div
       className={`print-keep grid grid-cols-[1fr_7rem] items-start gap-x-3 py-1.5 ${
-        tone === "total"
-          ? "border-b-2 border-neutral-900"
-          : "border-b border-neutral-200"
+        tone === "total" ? "border-b-2 border-neutral-900" : "border-b border-neutral-200"
       }`}
     >
       <div className={`text-[13px] leading-5 ${styles[tone]}`}>
@@ -67,17 +78,18 @@ function Row({ label, value, tone = "normal", note }) {
   );
 }
 
-function Panel({ title, children, note }) {
+function SectionTitle({ children, kicker }) {
   return (
-    <section className="rounded border border-neutral-200 bg-white">
-      <header className="border-b border-neutral-200 px-4 py-2.5">
-        <h2 className="text-[11px] font-bold uppercase tracking-wider text-neutral-900">
-          {title}
-        </h2>
-        {note && <p className="mt-0.5 text-[11px] text-neutral-500">{note}</p>}
-      </header>
-      <div className="px-4 py-3">{children}</div>
-    </section>
+    <div className="print-keep mb-3">
+      {kicker && (
+        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+          {kicker}
+        </div>
+      )}
+      <h2 className="text-[15px] font-black uppercase tracking-tight text-neutral-900">
+        {children}
+      </h2>
+    </div>
   );
 }
 
@@ -86,52 +98,123 @@ export default function ClubProFormaPage() {
   const [scenario, setScenario] = useState("base");
   const [subscription, setSubscription] = useState(25000);
 
-  // Off by default and never persisted, so a reload returns to the
-  // external label. The internal name can't ride along into a
-  // screenshot or a PDF by accident.
+  // Off by default and never persisted, so a reload drops back to the
+  // external label. Print also hides everything gated behind it, which
+  // is the point — the internal name can't ride onto paper by accident.
   const [internalView, setInternalView] = useState(false);
 
   const result = useMemo(() => runClubProForma(inputs), [inputs]);
   const s = result[scenario];
   const y1 = s.years[0];
   const cap = s.capitalization;
+  const p = inputs.property;
 
-  // The same deal run through a flat monthly catch-all, for the gap.
   const benchmarkNoi = useMemo(() => {
     const flat = buildBenchmarkExpenses(1000);
-    const alt = {
+    return runClubProForma({
       ...inputs,
       scenarios: {
         bear: { ...inputs.scenarios.bear, expenses: flat },
         base: { ...inputs.scenarios.base, expenses: flat },
         bull: { ...inputs.scenarios.bull, expenses: flat },
       },
-    };
-    return runClubProForma(alt)[scenario].years[0].noi;
+    })[scenario].years[0].noi;
   }, [inputs, scenario]);
 
   const dscrTight = s.minDscr < 1.2;
-  const p = inputs.property;
+  const scenarioLabel = SCENARIOS.find((x) => x.key === scenario).label;
+
+  const asOf = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
-      <header className="mb-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-              {resolveLabel(internalView)}
+    <div className="bg-neutral-100 p-4 font-sans sm:p-8">
+      <div className="print-doc mx-auto max-w-4xl bg-white shadow-xl">
+        {/* Masthead. Prints as-is — the dark plate and green rule are
+            forced through by the print rules in globals.css. */}
+        <div className="print-section bg-neutral-950 px-6 py-5 sm:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <BrandMark height={30} />
+                <span
+                  className="text-[10px] font-bold uppercase tracking-[0.3em]"
+                  style={{ color: GREEN }}
+                >
+                  Green Light Buying Machine
+                </span>
+              </div>
+              <h1 className="mt-1 text-2xl font-bold leading-none text-white sm:text-3xl">
+                {p.name}
+              </h1>
+              <div className="mt-1 text-sm text-neutral-400">
+                {p.city}, {p.state} · {p.beds} bed / {p.baths} bath
+                {p.sqft ? ` · ${p.sqft.toLocaleString()} sq ft` : ""}
+              </div>
             </div>
-            <h1 className="mt-0.5 text-2xl font-bold text-neutral-900">{p.name}</h1>
-            <p className="mt-0.5 text-[13px] text-neutral-600">
-              {p.beds} bed · {p.baths} bath
-              {p.sqft ? ` · ${p.sqft.toLocaleString()} sq ft` : ""} · {p.city}, {p.state}
-              {p.assessorSqft
-                ? ` — assessor shows ${p.assessorSqft.toLocaleString()}`
-                : ""}
-            </p>
+            <div className="text-right">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-neutral-500">
+                {resolveLabel(internalView)} · {scenarioLabel} case
+              </div>
+              <div className="text-3xl font-bold tabular-nums text-white">
+                {usd(cap.purchasePrice)}
+              </div>
+              <div className="text-[11px] text-neutral-400">
+                {inputs.exit.holdYears}-year hold · {asOf}
+              </div>
+            </div>
           </div>
+        </div>
 
-          <label className="no-print flex shrink-0 items-center gap-2 text-[11px] text-neutral-500">
+        <div className="print-section grid grid-cols-2 gap-4 border-b border-neutral-200 px-6 py-5 sm:grid-cols-4 sm:px-8">
+          <Stat
+            label="Levered IRR"
+            value={pct(s.leveredIrr)}
+            sub={`Unlevered ${pct(s.unleveredIrr)}`}
+          />
+          <Stat
+            label="Cash on cash, Yr 1"
+            value={pct(s.year1LeveredCashOnCash)}
+            sub={`on ${usd(cap.totalCapitalizedEquity)} in`}
+            good={s.year1LeveredCashOnCash > 0}
+          />
+          <Stat
+            label="Equity multiple"
+            value={multiple(s.leveredMoic)}
+            sub={`${usd(s.leveredProfit)} profit`}
+          />
+          <Stat
+            label="DSCR"
+            value={s.year1Dscr.toFixed(2)}
+            sub={dscrTight ? `dips to ${s.minDscr.toFixed(2)}` : "lender-ready"}
+            good={!dscrTight}
+          />
+        </div>
+
+        {/* Controls. Screen only. */}
+        <div className="no-print flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-6 py-3 sm:px-8">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+            Scenario
+          </span>
+          {SCENARIOS.map((sc) => (
+            <button
+              key={sc.key}
+              onClick={() => setScenario(sc.key)}
+              className={`rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
+                scenario === sc.key
+                  ? "text-white"
+                  : "bg-white text-neutral-500 ring-1 ring-neutral-300 hover:text-neutral-900"
+              }`}
+              style={scenario === sc.key ? { backgroundColor: GREEN } : undefined}
+            >
+              {sc.label}
+            </button>
+          ))}
+
+          <label className="ml-2 flex items-center gap-1.5 text-[11px] text-neutral-500">
             <input
               type="checkbox"
               checked={internalView}
@@ -139,246 +222,329 @@ export default function ClubProFormaPage() {
             />
             Internal view
           </label>
+
+          <button
+            onClick={() => window.print()}
+            className="ml-auto rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white transition hover:opacity-90"
+            style={{ backgroundColor: GREEN }}
+          >
+            Print / Save PDF
+          </button>
         </div>
 
         {internalView && (
-          <div className="mt-3 rounded border-l-4 border-neutral-900 bg-neutral-100 px-4 py-2 text-[12px] text-neutral-700">
-            Internal view is on. Don&rsquo;t screenshot, export or share this screen.
+          <div className="no-print border-b border-neutral-200 bg-neutral-100 px-6 py-2.5 text-[12px] text-neutral-700 sm:px-8">
+            <span className="font-bold">Internal view is on.</span> The two
+            benchmark panels below are visible on screen and are hidden from
+            print. Don&rsquo;t screenshot or share this screen.
           </div>
         )}
-      </header>
 
-      <div className="no-print mb-5 flex gap-1">
-        {SCENARIOS.map((sc) => (
-          <button
-            key={sc.key}
-            onClick={() => setScenario(sc.key)}
-            className={`rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
-              scenario === sc.key
-                ? "text-white"
-                : "bg-neutral-100 text-neutral-500 hover:text-neutral-800"
-            }`}
-            style={scenario === sc.key ? { backgroundColor: GREEN } : undefined}
-          >
-            {sc.label}
-          </button>
-        ))}
-      </div>
+        {dscrTight && (
+          <div className="print-section border-b border-neutral-200 bg-red-50 px-6 py-3 text-[13px] text-red-900 sm:px-8">
+            <span className="font-semibold">Coverage is tight.</span> DSCR bottoms
+            out at {s.minDscr.toFixed(2)}, under the 1.20 most DSCR lenders
+            require. Expect reduced proceeds or a rate add-on in this case.
+          </div>
+        )}
 
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat
-          label="Levered IRR"
-          value={pct(s.leveredIrr)}
-          sub={`Unlevered ${pct(s.unleveredIrr)}`}
-        />
-        <Stat
-          label="Cash-on-cash, Yr 1"
-          value={pct(s.year1LeveredCashOnCash)}
-          sub={`On ${usd(cap.totalCapitalizedEquity)}`}
-        />
-        <Stat
-          label="Equity multiple"
-          value={multiple(s.leveredMoic)}
-          sub={`Profit ${usd(s.leveredProfit)}`}
-        />
-        <Stat
-          label="DSCR, Yr 1"
-          value={s.year1Dscr.toFixed(2)}
-          sub={`Low year ${s.minDscr.toFixed(2)}`}
-          good={!dscrTight}
-        />
-      </div>
-
-      {dscrTight && (
-        <div className="mb-5 rounded border-l-4 border-red-600 bg-red-50 px-4 py-3 text-[13px] text-red-900">
-          Coverage bottoms out at {s.minDscr.toFixed(2)}, under the 1.20 most DSCR
-          lenders want. Expect lower proceeds or a rate add-on in this case.
+        <div className="border-b border-neutral-200 bg-neutral-50 px-6 py-2 text-[11px] leading-snug text-neutral-600 sm:px-8">
+          <span className="font-semibold uppercase tracking-[0.12em] text-neutral-500">
+            Basis:{" "}
+          </span>
+          Income is built room by room and reduced to net-to-owner before any
+          return is calculated — {pct(s.years[0].income.grossScheduledRent ? 1 - y1.income.netToOwner / y1.income.grossScheduledRent : 0)}{" "}
+          of gross scheduled rent is lost to vacancy, collections and PadSplit
+          fees. Occupancy is modeled at {pct(inputs.scenarios[scenario].income.occupancyPct, 0)}.
+          Rates, taxes, insurance and market rents move; these are projections,
+          not quotes.
         </div>
-      )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Panel title="Income — Year 1" note="Built room by room, down to what reaches the account.">
-          <Row label="Gross scheduled rent" value={usd(y1.income.grossScheduledRent)} />
-          <Row label="Vacancy" value={`(${usd(y1.income.vacancyLoss)})`} tone="minus" />
-          <Row label="Collections loss" value={`(${usd(y1.income.collectionsLoss)})`} tone="minus" />
-          <Row label="Gross collected" value={usd(y1.income.grossCollected)} />
-          <Row
-            label="PadSplit booking fees"
-            value={`(${usd(y1.income.platformBookingFees)})`}
-            tone="minus"
-            note="per move-in"
-          />
-          <Row
-            label="PadSplit service fee"
-            value={`(${usd(y1.income.platformServiceFees)})`}
-            tone="minus"
-          />
-          <Row label="Net to owner" value={usd(y1.income.netToOwner)} tone="total" />
-          <p className="mt-2 text-[11px] text-neutral-500">
-            {pct(1 - y1.income.netToOwner / y1.income.grossScheduledRent)} of gross
-            scheduled rent never arrives.
-          </p>
-        </Panel>
+        {/* ---------------- page one ---------------- */}
+        <div className="px-6 py-6 sm:px-8">
+          <div className="print-section mb-7">
+            <SectionTitle kicker="Where the rent goes">
+              Gross scheduled to net to owner
+            </SectionTitle>
+            <IncomeWaterfall income={y1.income} />
+            <p className="mt-2 text-[11px] leading-snug text-neutral-500">
+              Booking fees are charged per move-in on the full weekly rate, so
+              they do not fall with occupancy. A high-turnover year costs twice —
+              less rent collected and more fees paid on the churn.
+            </p>
+          </div>
 
-        <Panel title="Operating expenses — Year 1" note="Itemized, not one catch-all line.">
-          <Row label="Property taxes" value={usd(y1.expenses.propertyTaxes)} />
-          <Row label="Insurance" value={usd(y1.expenses.insurance)} />
-          <Row label="Utilities" value={usd(y1.expenses.utilities)} />
-          <Row label="Repairs & maintenance" value={usd(y1.expenses.repairsMaintenance)} />
-          <Row label="Turnover / make-ready" value={usd(y1.expenses.turnover)} />
-          <Row label="Common-area cleaning" value={usd(y1.expenses.commonAreaCleaning)} />
-          <Row label="Landscaping & pest" value={usd(y1.expenses.landscapingPest)} />
-          <Row label="Supplies" value={usd(y1.expenses.supplies)} />
-          {y1.expenses.management > 0 && (
-            <Row label="Management" value={usd(y1.expenses.management)} />
-          )}
-          <Row label="Capital reserve" value={usd(y1.expenses.capexReserve)} />
-          <Row label="Total expenses" value={usd(y1.expenses.total)} tone="total" />
-          <Row label="NOI" value={usd(y1.noi)} tone="total" />
-        </Panel>
-
-        <Panel title="Capitalization">
-          <Row label="Purchase price" value={usd(cap.purchasePrice)} />
-          <Row label="Debt" value={`(${usd(cap.loanAmount)})`} tone="minus" />
-          <Row label="Equity" value={usd(cap.equity)} />
-          <Row label="Closing costs" value={usd(cap.closingCosts)} />
-          <Row label="Loan costs" value={usd(cap.loanCosts)} />
-          <Row label="Vacancy reserves" value={usd(cap.vacancyReserves)} />
-          <Row label="Maintenance reserves" value={usd(cap.maintenanceReserves)} />
-          {cap.platformFee > 0 && <Row label="Platform fee" value={usd(cap.platformFee)} />}
-          {cap.conversionCapex > 0 && (
-            <Row label="Conversion capex" value={usd(cap.conversionCapex)} />
-          )}
-          {cap.furnishingCost > 0 && (
-            <Row label="Furnishing" value={usd(cap.furnishingCost)} />
-          )}
-          <Row label="Total capitalized equity" value={usd(cap.totalCapitalizedEquity)} tone="total" />
-          <p className="mt-2 text-[11px] text-neutral-500">
-            Reserves are{" "}
-            {inputs.capitalization.capitalizeReserves
-              ? "funded at close and sit in the equity denominator"
-              : "accrued from cash flow and left out of the denominator"}
-            . Confirm against the closing statement — it moves every figure above.
-          </p>
-        </Panel>
-
-        <Panel title="Investor position" note="Subscription times the levered multiple.">
-          <label className="block">
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
-              Subscription
-            </span>
-            <div className="mt-1 flex items-center rounded border border-neutral-300 focus-within:border-[#00A651]">
-              <span className="pl-2 text-sm text-neutral-500">$</span>
-              <input
-                type="number"
-                step={1000}
-                min={0}
-                value={subscription}
-                onChange={(e) => setSubscription(parseFloat(e.target.value) || 0)}
-                className="w-full bg-transparent px-2 py-1.5 text-sm text-neutral-900 outline-none"
+          <div className="print-section mb-7 grid gap-6 md:grid-cols-2">
+            <div>
+              <SectionTitle kicker="Year 1">Income</SectionTitle>
+              <Row label="Gross scheduled rent" value={usd(y1.income.grossScheduledRent)} />
+              <Row label="Vacancy" value={`(${usd(y1.income.vacancyLoss)})`} tone="minus" />
+              <Row
+                label="Collections loss"
+                value={`(${usd(y1.income.collectionsLoss)})`}
+                tone="minus"
               />
+              <Row label="Gross collected" value={usd(y1.income.grossCollected)} />
+              <Row
+                label="PadSplit booking fees"
+                value={`(${usd(y1.income.platformBookingFees)})`}
+                tone="minus"
+                note="per move-in"
+              />
+              <Row
+                label="PadSplit service fee"
+                value={`(${usd(y1.income.platformServiceFees)})`}
+                tone="minus"
+              />
+              <Row label="Net to owner" value={usd(y1.income.netToOwner)} tone="total" />
             </div>
-          </label>
 
-          <div className="mt-3">
-            <Row
-              label="Ownership share"
-              value={pct(subscription / cap.totalCapitalizedEquity, 2)}
+            <div>
+              <SectionTitle kicker="Year 1">Operating expenses</SectionTitle>
+              <Row label="Property taxes" value={usd(y1.expenses.propertyTaxes)} />
+              <Row label="Insurance" value={usd(y1.expenses.insurance)} />
+              <Row label="Utilities" value={usd(y1.expenses.utilities)} note="landlord-paid" />
+              <Row label="Repairs & maintenance" value={usd(y1.expenses.repairsMaintenance)} />
+              <Row label="Turnover / make-ready" value={usd(y1.expenses.turnover)} />
+              <Row label="Common-area cleaning" value={usd(y1.expenses.commonAreaCleaning)} />
+              <Row label="Landscaping & pest" value={usd(y1.expenses.landscapingPest)} />
+              <Row label="Supplies" value={usd(y1.expenses.supplies)} />
+              {y1.expenses.management > 0 && (
+                <Row label="Management" value={usd(y1.expenses.management)} />
+              )}
+              <Row label="Capital reserve" value={usd(y1.expenses.capexReserve)} />
+              <Row label="Total expenses" value={usd(y1.expenses.total)} tone="total" />
+              <Row label="NOI" value={usd(y1.noi)} tone="total" />
+            </div>
+          </div>
+
+          <div className="print-section mb-2">
+            <SectionTitle kicker="Year 1 · ranked">Expense stack</SectionTitle>
+            <ExpenseBars expenses={y1.expenses} />
+          </div>
+        </div>
+
+        {/* ---------------- page two ---------------- */}
+        <div className="print-break-before px-6 py-6 sm:px-8">
+          <div className="print-section mb-7">
+            <SectionTitle kicker="Hold period">Equity, after the debt is repaid</SectionTitle>
+            <EquityCurve
+              years={s.years}
+              purchasePrice={cap.purchasePrice}
+              equityBasis={cap.totalCapitalizedEquity}
             />
-            <Row
-              label={`Projected value, year ${inputs.exit.holdYears}`}
-              value={usd(s.projectedPositionValue(subscription))}
-              tone="total"
-            />
-            <Row
-              label="Projected gain"
-              value={usd(s.projectedPositionValue(subscription) - subscription)}
+            <p className="mt-2 text-[11px] leading-snug text-neutral-500">
+              The solid line is what the position is actually worth: property
+              value less the outstanding loan. The dashed line is gross property
+              value, shown for reference only — it is not a return.
+            </p>
+          </div>
+
+          <div className="print-section mb-7">
+            <SectionTitle kicker="By year">Cash-on-cash yield</SectionTitle>
+            <CashOnCashBars years={s.years} />
+          </div>
+
+          <div className="print-section mb-7">
+            <SectionTitle kicker="Cumulative position">Return of capital</SectionTitle>
+            <BreakEvenCurve
+              years={s.years}
+              equityBasis={cap.totalCapitalizedEquity}
+              breakEvenMonths={s.breakEvenMonths}
             />
           </div>
 
+          <div className="print-section">
+            <SectionTitle kicker="Bear · base · bull">Levered IRR by scenario</SectionTitle>
+            <ScenarioCompare result={result} metric="leveredIrr" format={(v) => pct(v)} />
+            <div className="mt-3">
+              <ScenarioCompare
+                result={result}
+                metric="leveredMoic"
+                format={(v) => multiple(v)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ---------------- page three ---------------- */}
+        <div className="print-break-before px-6 py-6 sm:px-8">
+          <div className="print-section mb-7 grid gap-6 md:grid-cols-2">
+            <div>
+              <SectionTitle kicker="Sources and uses">Capitalization</SectionTitle>
+              <Row label="Purchase price" value={usd(cap.purchasePrice)} />
+              <Row label="Debt" value={`(${usd(cap.loanAmount)})`} tone="minus" />
+              <Row label="Equity" value={usd(cap.equity)} />
+              <Row label="Closing costs" value={usd(cap.closingCosts)} />
+              <Row label="Loan costs" value={usd(cap.loanCosts)} />
+              <Row label="Vacancy reserves" value={usd(cap.vacancyReserves)} />
+              <Row label="Maintenance reserves" value={usd(cap.maintenanceReserves)} />
+              {cap.platformFee > 0 && <Row label="Platform fee" value={usd(cap.platformFee)} />}
+              {cap.conversionCapex > 0 && (
+                <Row label="Conversion capex" value={usd(cap.conversionCapex)} />
+              )}
+              {cap.furnishingCost > 0 && (
+                <Row label="Furnishing" value={usd(cap.furnishingCost)} />
+              )}
+              <Row
+                label="Total capitalized equity"
+                value={usd(cap.totalCapitalizedEquity)}
+                tone="total"
+              />
+              <p className="mt-2 text-[11px] leading-snug text-neutral-500">
+                Reserves are{" "}
+                {inputs.capitalization.capitalizeReserves
+                  ? "funded at close and sit in the equity denominator"
+                  : "accrued from cash flow and left out of the denominator"}
+                . Confirm against the closing statement — it moves every figure
+                on this sheet.
+              </p>
+            </div>
+
+            <div>
+              <SectionTitle kicker="Per subscription">Investor position</SectionTitle>
+              <label className="no-print block">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+                  Subscription
+                </span>
+                <div className="mt-1 flex items-center rounded border border-neutral-300 focus-within:border-[#00A651]">
+                  <span className="pl-2 text-sm text-neutral-500">$</span>
+                  <input
+                    type="number"
+                    step={1000}
+                    min={0}
+                    value={subscription}
+                    onChange={(e) => setSubscription(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-transparent px-2 py-1.5 text-sm text-neutral-900 outline-none"
+                  />
+                </div>
+              </label>
+
+              <div className="mt-3">
+                <Row label="Subscription" value={usd(subscription)} />
+                <Row
+                  label="Ownership share"
+                  value={pct(subscription / cap.totalCapitalizedEquity, 2)}
+                />
+                <Row
+                  label={`Projected value, year ${inputs.exit.holdYears}`}
+                  value={usd(s.projectedPositionValue(subscription))}
+                  tone="total"
+                />
+                <Row
+                  label="Projected gain"
+                  value={usd(s.projectedPositionValue(subscription) - subscription)}
+                />
+              </div>
+              <p className="mt-2 text-[11px] leading-snug text-neutral-500">
+                Subscription times the levered equity multiple, after the loan is
+                repaid and selling costs are taken out.
+              </p>
+            </div>
+          </div>
+
+          <div className="print-section">
+            <SectionTitle kicker={`${inputs.exit.holdYears}-year hold`}>Cash flows</SectionTitle>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-neutral-300 text-left">
+                  {["Yr", "Net to owner", "Expenses", "NOI", "Debt service", "Levered CF", "DSCR"].map(
+                    (h, i) => (
+                      <th
+                        key={h}
+                        className={`py-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-neutral-500 ${
+                          i === 0 ? "" : "text-right"
+                        }`}
+                      >
+                        {h}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {s.years.map((row) => (
+                  <tr key={row.year} className="print-keep border-b border-neutral-200">
+                    <td className="py-1.5 text-[12px] text-neutral-800">{row.year}</td>
+                    <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-800">
+                      {usd(row.income.netToOwner)}
+                    </td>
+                    <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-600">
+                      ({usd(row.expenses.total)})
+                    </td>
+                    <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-800">
+                      {usd(row.noi)}
+                    </td>
+                    <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-600">
+                      ({usd(row.debtService)})
+                    </td>
+                    <td className="py-1.5 text-right text-[12px] font-semibold tabular-nums text-neutral-900">
+                      {usd(row.leveredCashFlow)}
+                    </td>
+                    <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-800">
+                      {row.dscr.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Internal only, and no-print on top of that — these two
+              panels reference the benchmark method and must not reach
+              paper even with internal view left on. */}
           {internalView && (
-            <div className="mt-3 rounded border-l-4 border-neutral-900 bg-neutral-100 px-3 py-2.5 text-[11px] leading-relaxed text-neutral-700">
-              The published benchmark divides year-{inputs.exit.holdYears} gross
-              property value by capitalized equity and never subtracts the loan
-              payoff. On this deal that reads as{" "}
-              <strong>{pct(s.benchmarkParity.grossValueOverEquityPct)}</strong>,
-              overstating modeled levered profit by{" "}
-              <strong>{usd(s.benchmarkParity.overstatementVsLevered)}</strong>.
-              Internal only.
+            <div className="no-print mt-7 space-y-4">
+              <div className="rounded border-l-4 border-neutral-900 bg-neutral-100 px-4 py-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500">
+                  Internal · benchmark parity
+                </div>
+                <p className="mt-1 text-[12px] leading-relaxed text-neutral-700">
+                  The published template divides year-{inputs.exit.holdYears} gross
+                  property value by capitalized equity and never subtracts the
+                  loan payoff. On this deal that reads as{" "}
+                  <strong>{pct(s.benchmarkParity.grossValueOverEquityPct)}</strong>,
+                  overstating modeled levered profit by{" "}
+                  <strong>{usd(s.benchmarkParity.overstatementVsLevered)}</strong>.
+                </p>
+              </div>
+
+              <div className="rounded border-l-4 border-neutral-900 bg-neutral-100 px-4 py-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500">
+                  Internal · expense treatment
+                </div>
+                <div className="mt-2">
+                  <Row label="NOI, itemized stack" value={usd(y1.noi)} />
+                  <Row label="NOI, flat $1,000/mo catch-all" value={usd(benchmarkNoi)} />
+                  <Row
+                    label="Overstatement"
+                    value={usd(benchmarkNoi - y1.noi)}
+                    tone="total"
+                  />
+                </div>
+                <p className="mt-2 text-[11px] text-neutral-500">
+                  One flat line cannot absorb landlord-paid utilities, turnover,
+                  cleaning and reserves for a {p.beds}-bed house.
+                </p>
+              </div>
             </div>
           )}
-        </Panel>
-      </div>
-
-      {internalView && (
-        <div className="mt-4">
-          <Panel
-            title="Expense treatment — itemized vs. flat"
-            note="Internal. Same income, same debt; only the operating stack differs."
-          >
-            <Row label="NOI, itemized stack" value={usd(y1.noi)} />
-            <Row label="NOI, flat $1,000/mo catch-all" value={usd(benchmarkNoi)} />
-            <Row label="Overstatement" value={usd(benchmarkNoi - y1.noi)} tone="total" />
-            <p className="mt-2 text-[11px] text-neutral-500">
-              One flat line cannot absorb landlord-paid utilities, turnover,
-              cleaning and reserves for a {p.beds}-bed house.
-            </p>
-          </Panel>
         </div>
-      )}
 
-      <div className="mt-4 overflow-x-auto">
-        <Panel title="Cash flows">
-          <table className="w-full min-w-[620px]">
-            <thead>
-              <tr className="border-b border-neutral-300 text-left">
-                {["Year", "Net to owner", "Expenses", "NOI", "Debt service", "Levered CF", "DSCR"].map(
-                  (h, i) => (
-                    <th
-                      key={h}
-                      className={`py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500 ${
-                        i === 0 ? "" : "text-right"
-                      }`}
-                    >
-                      {h}
-                    </th>
-                  )
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {s.years.map((row) => (
-                <tr key={row.year} className="border-b border-neutral-200">
-                  <td className="py-1.5 text-[13px] text-neutral-800">{row.year}</td>
-                  <td className="py-1.5 text-right text-[13px] tabular-nums text-neutral-800">
-                    {usd(row.income.netToOwner)}
-                  </td>
-                  <td className="py-1.5 text-right text-[13px] tabular-nums text-neutral-600">
-                    ({usd(row.expenses.total)})
-                  </td>
-                  <td className="py-1.5 text-right text-[13px] tabular-nums text-neutral-800">
-                    {usd(row.noi)}
-                  </td>
-                  <td className="py-1.5 text-right text-[13px] tabular-nums text-neutral-600">
-                    ({usd(row.debtService)})
-                  </td>
-                  <td className="py-1.5 text-right text-[13px] font-semibold tabular-nums text-neutral-900">
-                    {usd(row.leveredCashFlow)}
-                  </td>
-                  <td className="py-1.5 text-right text-[13px] tabular-nums text-neutral-800">
-                    {row.dscr.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
+        {/* Closing band. Carries the mark onto the last sheet. */}
+        <div
+          className="print-keep flex items-center justify-between border-t-2 px-6 py-4 sm:px-8"
+          style={{ borderColor: GREEN }}
+        >
+          <div className="text-[9px] leading-snug text-neutral-500">
+            Figures are estimates for underwriting and are not a guarantee of
+            performance. Not investment advice.
+            <br />
+            Green Light Buying Machine — The Coliving Ecosystem
+          </div>
+          <BrandMark height={26} />
+        </div>
       </div>
-
-      <p className="mt-5 text-[11px] text-neutral-500">
-        Projections only. Not investment advice, and not a guarantee of
-        performance.
-      </p>
     </div>
   );
 }

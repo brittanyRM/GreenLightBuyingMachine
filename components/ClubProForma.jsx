@@ -96,7 +96,17 @@ function SectionTitle({ children, kicker }) {
 const HOLDS = [5, 7, 10];
 const TICKETS = [10000, 25000, 50000, 100000];
 
-export default function ClubProForma({ initialInputs, backHref, backLabel }) {
+export default function ClubProForma({
+  initialInputs,
+  backHref,
+  backLabel,
+  // "buyer" drops the controls and panels that only make sense on our
+  // side: the assumptions editor, the lens toggle, internal view, and
+  // the per-subscription investor block. A firm buying the whole house
+  // does its own investor math downstream.
+  audience = "seller",
+}) {
+  const isBuyer = audience === "buyer";
   // The model is editable now, so it's state rather than a frozen
   // seed. holdYears lives inside it; the buttons write through.
   const [base, setBase] = useState(initialInputs);
@@ -267,10 +277,12 @@ export default function ClubProForma({ initialInputs, backHref, backLabel }) {
             </button>
           ))}
 
+          {!isBuyer && (
           <span className="ml-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
             Lens
           </span>
-          {[
+          )}
+          {!isBuyer && [
             { id: "glbm", label: "GLBM underwriting" },
             { id: "template", label: "Syndicator template" },
           ].map((l) => (
@@ -297,6 +309,7 @@ export default function ClubProForma({ initialInputs, backHref, backLabel }) {
             </a>
           )}
 
+          {!isBuyer && (
           <button
             onClick={() => setShowAssumptions((v) => !v)}
             className={`rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
@@ -308,6 +321,7 @@ export default function ClubProForma({ initialInputs, backHref, backLabel }) {
           >
             {showAssumptions ? "Hide" : "Edit"} assumptions
           </button>
+          )}
 
           <button
             onClick={() => window.print()}
@@ -318,6 +332,8 @@ export default function ClubProForma({ initialInputs, backHref, backLabel }) {
           </button>
         </div>
 
+        {!isBuyer && (
+        <>
         {/* Investment. Its own row — changing the ticket is the thing
             most people came to do, and it shouldn't be buried on the
             third page next to the capitalization table. */}
@@ -364,15 +380,19 @@ export default function ClubProForma({ initialInputs, backHref, backLabel }) {
             </span>
           </span>
 
-          <label className="ml-auto flex items-center gap-1.5 text-[11px] text-neutral-500">
-            <input
-              type="checkbox"
-              checked={internalView}
-              onChange={(e) => setInternalView(e.target.checked)}
-            />
-            Internal view
-          </label>
+          {!isBuyer && (
+            <label className="ml-auto flex items-center gap-1.5 text-[11px] text-neutral-500">
+              <input
+                type="checkbox"
+                checked={internalView}
+                onChange={(e) => setInternalView(e.target.checked)}
+              />
+              Internal view
+            </label>
+          )}
         </div>
+        </>
+        )}
 
         {internalView && (
           <div className="no-print border-b border-neutral-200 bg-neutral-100 px-6 py-2.5 text-[12px] text-neutral-700 sm:px-8">
@@ -390,7 +410,7 @@ export default function ClubProForma({ initialInputs, backHref, backLabel }) {
           </div>
         )}
 
-        {showAssumptions && (
+        {!isBuyer && showAssumptions && (
           <ClubAssumptions
             model={base}
             setModel={setBase}
@@ -659,6 +679,7 @@ export default function ClubProForma({ initialInputs, backHref, backLabel }) {
               </p>
             </div>
 
+            {!isBuyer && (
             <div>
               <SectionTitle kicker={`${holdYears}-year hold`}>Investor position</SectionTitle>
               <Row label="Investment" value={usd(subscription)} />
@@ -699,6 +720,7 @@ export default function ClubProForma({ initialInputs, backHref, backLabel }) {
                 ))}
               </div>
             </div>
+            )}
           </div>
 
           <div className="print-section">

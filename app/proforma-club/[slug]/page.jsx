@@ -24,7 +24,9 @@ export default function ClubProFormaDeal({ params }) {
       .then((bundle) => {
         if (cancelled) return;
         const { deal, rooms, market } = bundle;
-        setInputs(inputsFromDeal({ deal, rooms, market }));
+        setInputs(
+          inputsFromDeal({ deal, rooms, market }, { audience: "seller" })
+        );
       })
       .catch((e) => !cancelled && setError(e.message));
     return () => {

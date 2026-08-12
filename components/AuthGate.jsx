@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "../lib/queries";
 
 // Buyer links are public by design — everything else needs a session.
-const PUBLIC_PREFIXES = ["/login", "/p/"];
+const PUBLIC_PREFIXES = ["/login", "/p/", "/buyers"];
 
 export default function AuthGate({ children }) {
   const router = useRouter();

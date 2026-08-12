@@ -12,6 +12,7 @@ const HIDDEN = ["/login", "/p/"];
 
 const LINKS = [
   { href: "/", label: "Deals" },
+  { href: "/proforma-club", label: "Pro forma" },
   { href: "/crm", label: "CRM" },
   { href: "/settings", label: "Settings" },
 ];

@@ -105,6 +105,10 @@ export default function ClubProFormaPage() {
   const [scenario, setScenario] = useState("base");
   const [subscription, setSubscription] = useState(25000);
 
+  // Off by default and never persisted, so a reload drops back to the
+  // external label. Print also hides everything gated behind it.
+  const [internalView, setInternalView] = useState(false);
+
   const holdYears = base.exit.holdYears;
   const setHoldYears = (h) =>
     setBase((m) => ({ ...m, exit: { ...m.exit, holdYears: h } }));

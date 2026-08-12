@@ -1,0 +1,285 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Print
+   
+   The browser's default is to strip backgrounds and colour to
+   save ink, which turns the dark bands, the green plates and
+   the footer into white boxes with invisible white text. That
+   is why a printed sheet never matched the screen. Everything
+   below forces the rendered colour through and fixes the page
+   geometry so nothing shifts between the two.
+   ============================================================ */
+
+@page {
+  size: Letter;
+  /* The sheets carry their own margins and bleed to the edge.
+     Browser margins on top of that push content onto page two. */
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Colour has to survive on every element, not just the root. */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print,
+  nav,
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  /* A stray empty container after the sheet is enough to make the
+     printer emit a second, blank page. */
+  .print-sheet:last-of-type ~ * {
+    display: none !important;
+  }
+
+  /* When a flyer is being printed, only the flyer prints.
+     Its ancestors are marked, and every other child of a marked
+     ancestor is hidden — so a note, a panel or another tab's content
+     sitting elsewhere in the route can't produce a second page. */
+  [data-print-keep] > *:not([data-print-keep]):not(.print-sheet) {
+    display: none !important;
+  }
+
+  /* Full-viewport wrappers print as their own page.
+     min-h-screen is 100vh, and 100vh in print is frequently taller
+     than the printable area — so the page wrapper alone was enough to
+     emit a second, empty sheet no matter what the flyer did. */
+  .min-h-screen,
+  [class*="min-h-"] {
+    min-height: 0 !important;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  /* Nothing should reserve height past the content. */
+  #__next,
+  main,
+  body > div {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  /* Screen chrome that shouldn't reach paper. */
+  .shadow,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
+
+  /* A SHEET is designed as one page — the flyer. It bleeds to the
+     edges and must never be split. */
+  .print-sheet {
+    width: 8.5in !important;
+    min-height: 11in;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .print-sheet ~ .print-sheet {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* The flyer is designed as one page. Pinning the height clipped the
+     overflow instead of fitting it — the closing paragraph was cut off
+     mid-sentence — so the sheet is scaled to fit instead. The scale is
+     measured in the browser before printing and set as a variable. */
+  /* The outer sheet is a real box the page can measure — its height is
+     set to the scaled height before printing. The transform lives on
+     the inner wrapper, because a transform changes what is drawn and
+     not what is measured: with it on the outer element the box stayed
+     full height, break-inside kept clipping the foot, and no amount of
+     scaling helped. */
+  .print-sheet {
+    overflow: hidden;
+    margin-left: 0 !important;
+    margin-right: auto !important;
+    /* Belt and braces: whatever the measurement produced, the sheet
+       cannot occupy more than a page. One pixel over is one page more. */
+    max-height: 10.9in !important;
+  }
+
+  .print-sheet-inner {
+    transform: scale(var(--print-scale, 1));
+    transform-origin: top left;
+  }
+
+  /* Tighten the flyer's vertical rhythm on paper. The sheet is 8.5in
+     wide and taller than 11in, so fitting the height shrinks the width
+     too and leaves a margin down the side. Recovering a hundred-odd
+     pixels of padding means less shrinking and a bigger sheet. */
+  .print-sheet-inner .py-6 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .print-sheet-inner .py-5 {
+    padding-top: 0.85rem !important;
+    padding-bottom: 0.85rem !important;
+  }
+
+  .print-sheet-inner .mb-6 {
+    margin-bottom: 1rem !important;
+  }
+
+  .print-sheet-inner .mt-6 {
+    margin-top: 1rem !important;
+  }
+
+  /* Corner marks removed. They scaled with the sheet and landed
+     inside the margin, next to the logo, reading as an artefact — and
+     the sheet now fits a page on its own, which is what they were
+     there to help with. */
+
+
+
+  /* A DOC runs as long as it needs to — the pro forma. It has to be
+     allowed to break, or the browser tries to squeeze the whole thing
+     onto one page and clips the overflow. It carries its own margin,
+     since @page is set to zero for the flyer's bleed. */
+  .print-doc {
+    width: 8.5in !important;
+    max-width: none !important;
+    margin: 0 auto !important;
+    padding: 0.5in 0.55in !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    break-inside: auto;
+  }
+
+  /* Blocks that look broken when split down the middle. */
+  .print-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* A heading stranded at the foot of a page is the usual tell that
+     something was printed rather than designed. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  p,
+  li,
+  dl {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* A block taller than about half a page can't be kept whole without
+     leaving a large gap, so only guard what genuinely fits. The dark
+     stat panels and comp charts are well under this. */
+  .print-section {
+    max-height: none;
+  }
+
+  /* Line items keep their label and figures together. */
+  .print-keep {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Two columns on an 8.5in page leaves the statement about 80px for
+     its labels once the monthly, annual and percent columns take their
+     fixed widths — so "Gross scheduled rent" wrapped over three lines.
+     One column on paper gives the labels the room they need. */
+  .print-single {
+    display: block !important;
+  }
+
+  .print-single > * + * {
+    margin-top: 1.5rem;
+  }
+
+  /* Force a new page where the content asks for one. The first such
+     block on a sheet shouldn't push a blank page ahead of itself. */
+  .print-break-before {
+    break-before: page;
+    page-break-before: always;
+
+    /* A container's padding applies once, at the start and end of the
+       element — not again at every page break. So page one got the
+       half-inch from .print-doc and pages two and three started hard
+       against the paper edge. Each forced break carries its own top
+       margin to match. */
+    padding-top: 0.5in;
+  }
+
+  .print-break-before:first-child {
+    break-before: auto;
+    page-break-before: auto;
+    padding-top: 0;
+  }
+
+  /* The screen spacing above a heading would stack on top of that. */
+  .print-break-before > h2:first-child,
+  .print-break-before > h2 {
+    margin-top: 0 !important;
+  }
+
+  /* Continuation label above each section that starts a fresh page,
+     so a loose page still says which property it belongs to. */
+  .print-continued {
+    display: block !important;
+  }
+
+  /* Tables, cards and figures shouldn't be sliced mid-row. */
+  .print-keep,
+  tr,
+  thead,
+  img,
+  figure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  a[href]::after {
+    content: "" !important;
+  }
+}
+
+/* Shown only on paper — brand headers and footers that would be
+   redundant on screen, where the nav already carries the logo. */
+.print-only,
+.print-continued {
+  display: none;
+}
+
+@media print {
+  .print-only {
+    display: block !important;
+  }
+}

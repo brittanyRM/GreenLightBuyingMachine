@@ -13,6 +13,7 @@ app/
   layout.jsx  globals.css       shell + Tailwind
   deals/new/page.jsx            new deal
   deals/[slug]/page.jsx         the workspace — tabs across all five outputs
+  login/page.jsx                email + password sign in
   crm/page.jsx                  pipeline board, contacts, tasks
   crm/[id]/page.jsx             contact timeline and detail
   settings/page.jsx             connect Google, manage buyers, market freshness
@@ -25,8 +26,21 @@ supabase/migrations/
                                 storage buckets, RLS, triggers
   003_google_workspace.sql      email_accounts, Gmail threading, reply views
   004_crm.sql                   deal_interests, activities, tasks, auto-log triggers
+  005_target_config.sql         target bedroom/bath counts on deals
+  006_storage_policies.sql      storage.objects access
+  007_flyer_assets.sql          finishes, marketed floor plan, finish library
+  008_room_geometry.sql         plan_x/y/w/h on deal_rooms
+  009_brand_defaults.sql        org brand + plan style reference
+  010_render_notes.sql          per-deal instructions for the plan renderer
+  011_opex_per_room.sql         per-room operating cost, replaces the flat utility keys
+  012_floor_plan_path.sql       sketch storage path; signed URLs are generated on read
+  013_lender_terms.sql          origination, closing and T&I as rates; tiered interest
 
 lib/
+  renderPrompt.js               the floor plan render prompt — the product standard
+  rooms.js                      the color naming convention
+  layout.js                     room subdivision geometry
+  supabaseAdmin.js              service-role client, lazy-initialized
   crm.js                        pipeline, timeline, tasks
   gmail.js                      Gmail send, MIME building, reply detection
   proforma.js                   calculation engine — the single source of truth
@@ -34,6 +48,8 @@ lib/
   email.js                      buyer email templates + preflight warnings
 
 components/
+  DocumentIntake.jsx            drop the packet, review, fill the form
+  AuthGate.jsx                  session check, redirects to /login
   PipelineBoard.jsx             drag-and-drop kanban
   ContactDetail.jsx             timeline, tasks, deals per buyer
   DealForm.jsx                  intake, keyed off the source documents
@@ -42,6 +58,10 @@ components/
   DealFlyer.jsx                 turnkey flyer, print to PDF
   EmailComposer.jsx             buyer email with preflight checks
 
+app/api/extract-deal/route.js  reads the deal packet, returns form fields
+app/api/beautify-plan/route.js refines the drawn layout
+app/api/render-plan/route.js   restyles the plan as a marketing image
+app/api/read-footprint/route.js vision pass over the assessor sketch
 app/api/auth/google/route.js   OAuth consent
 app/api/auth/google/callback/  stores the refresh token
 app/api/send-deal/route.js     sends via Gmail, attaches docs, logs the thread
@@ -143,6 +163,122 @@ on conflict (zip) do update set
   and a webhook route.
 - Scale calibration on the sketch. Boxes are proportional, not measured. Add if
   you need square footage per room for code compliance.
+
+## Reading the packet
+
+Drop the assessor record, MLS comps, PadSplit market screenshot, and the
+marked-up sketch onto the intake form. `/api/extract-deal` sends them to Claude
+and returns structured fields — including handwriting, which is usually where
+the operative numbers live: closing dates, price, room counts, marketed square
+footage.
+
+Set `ANTHROPIC_API_KEY` in Vercel. Without it the route returns a clear error
+and the form still works by hand.
+
+**It fills, it does not save.** Every extracted field lands in the form with a
+checkbox so you can drop anything wrong before applying, and nothing reaches the
+database until you press Save Deal. A wrong square footage that made it into a
+buyer email would be worse than typing it yourself.
+
+The prompt is instructed to flag disagreements rather than resolve them. When
+the assessor says living area 1,739 plus 891 added but the sketch is marked
+2,242, both numbers appear and you decide — that gap is a real question about
+what stays conditioned space, not a transcription error to smooth over.
+
+**Target vs drawn.** The intake form has target bedrooms, baths, and ensuites —
+the conversion you're underwriting to, recorded before anything is drawn.
+`deals.bedrooms` still comes from the sketch and is the count every document
+uses. The sketch header shows both and flags the gap while there are rooms left
+to draw, so the plan and the layout reconcile deliberately rather than by
+accident.
+
+## Room naming
+
+Rooms are named by color in a fixed order: Orange-1, Yellow-2, Green-3, Blue-4,
+Indigo-5, Violet-6, Gold-7, Silver-8, Bronze-9, Brass-10, then Copper and Pearl.
+
+This is a real operational convention, not decoration. A member who moves
+between properties already knows what Orange means. A maintenance ticket for
+"Blue" needs no floor plan to interpret. Cleaners work the same list at every
+house. `lib/rooms.js` holds the order and the hex for each, so the sketch, the
+flyer, and the room schedule all agree.
+
+Past twelve rooms it cycles with a suffix — Orange2-13.
+
+## Suggesting a layout
+
+Upload the assessor sketch, set a target on the Record tab, then press
+**Suggest layout**. It drafts bedrooms and baths across the footprint.
+
+The work is split deliberately. `/api/read-footprint` does perception only —
+it identifies each rectangle and reads the dimension labels, returning both
+image coordinates and real feet. `lib/layout.js` does the geometry, recursively
+splitting rectangles along their longer axis.
+
+That split matters. A vision model asked to place nine bedrooms will overlap
+them, leave gaps, and hang rooms off the side of the building. Code splitting
+rectangles cannot — every room tiles cleanly by construction. The model is good
+at reading a sketch and bad at packing boxes; the code is the reverse.
+
+The draft is proportional to the footprint, not to real interior walls, so it
+is a starting point to drag rather than a plan. What it is genuinely good at is
+the reality check: it reports average bedroom square footage and warns when the
+target doesn't fit. Nine bedrooms in 1,739 sq ft averages 139 sq ft before
+common area — worth knowing before it reaches a pro forma.
+
+Carports are included as convertible area, since that's usually where the added
+square footage comes from. Covered patios are excluded.
+
+## The floor plan, in three steps
+
+**As drawn** — your rooms where you placed them on the assessor sketch. True to the
+building. This is the source of truth; the other two derive from it.
+
+**Make it pretty** — sends the layout to be tidied: walls aligned, bedrooms squared
+up, a hallway threaded through. The response is checked room by room against what
+you drew and rejected if the list changed, because a flyer that quietly gains a
+bedroom is worse than an ugly plan.
+
+**Render** — rasterises whichever plan is on screen and sends it to an image model
+as a *base image* to restyle. Image-to-image is the whole trick: asked to draw a
+floor plan from a description, these models produce eleven bedrooms and misspelled
+labels; asked to repaint an existing one, they mostly keep the structure.
+
+Set `GOOGLE_AI_API_KEY` (Gemini 3 Pro Image) or `OPENAI_API_KEY` (GPT Image 2).
+Either works, roughly four to thirteen cents a render.
+
+It can still drift. Count the rooms and read the labels before anything goes to a
+buyer — the prompt names every room explicitly for that reason, but no prompt makes
+this guaranteed. For a property that's already renovated, a Cubicasa scan beats all
+three; upload it on the Record tab and the flyer prefers it.
+
+## Authentication
+
+RLS policies grant access to the `authenticated` role, so the app needs a
+signed-in session for anything except public buyer links. Without one, Supabase
+rejects writes — which is the policy doing its job, not a bug.
+
+**Setup:** Supabase → Authentication → Providers → enable **Email**. Turn off
+"Confirm email" for an internal team, or you'll be chasing confirmation links.
+Then Authentication → Users → **Add user** for each person, with a password.
+
+There's no public sign-up route on purpose. Accounts are created by hand in
+Supabase; this is a tool for a small team, not a product with registration.
+
+`AuthGate` in the layout checks the session on every route. `/login` and
+`/p/[token]` are exempt — buyer pro forma links must work without an account,
+which is what the anon SELECT policies in 002 are for.
+
+## A note on client initialization
+
+Both Supabase clients are created on first use, not at import time. Next.js
+evaluates every module while collecting page data during a build, so a
+top-level `createClient()` makes the build itself require credentials. It
+doesn't — a missing variable now surfaces as a clear runtime error on the
+request that needed it.
+
+Keep that pattern if you add routes: import `admin` from `lib/supabaseAdmin`
+and call `admin()` inside the handler.
 
 ## The CRM
 

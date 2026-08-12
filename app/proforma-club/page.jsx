@@ -16,11 +16,12 @@
 import { useMemo, useState } from "react";
 import { runClubProForma, usd, pct, multiple } from "../../lib/proformaClub";
 import {
-  buildBenchmarkExpenses,
   pepperPlaceInputs,
   resolveLabel,
+  toTemplateLens,
 } from "../../lib/proformaClubPresets";
 import { BrandMark } from "../../components/Brand";
+import ClubAssumptions from "../../components/ClubAssumptions";
 import {
   BreakEvenCurve,
   CashOnCashBars,
@@ -97,30 +98,37 @@ const HOLDS = [5, 7, 10];
 const TICKETS = [10000, 25000, 50000, 100000];
 
 export default function ClubProFormaPage() {
-  const [base] = useState(() => pepperPlaceInputs());
+  // The model is editable now, so it's state rather than a frozen
+  // seed. holdYears lives inside it; the buttons write through.
+  const [base, setBase] = useState(() => pepperPlaceInputs());
+  const [showAssumptions, setShowAssumptions] = useState(false);
   const [scenario, setScenario] = useState("base");
-  const [holdYears, setHoldYears] = useState(10);
   const [subscription, setSubscription] = useState(25000);
 
-  // Hold period rebuilds the model rather than truncating it — a
-  // 5-year hold sells in year 5, so that year carries the sale
-  // proceeds and the IRR is a different number, not the 10-year
-  // figure with rows hidden.
-  const inputs = useMemo(
-    () => ({ ...base, exit: { ...base.exit, holdYears } }),
-    [base, holdYears]
-  );
+  const holdYears = base.exit.holdYears;
+  const setHoldYears = (h) =>
+    setBase((m) => ({ ...m, exit: { ...m.exit, holdYears: h } }));
+
+  const inputs = base;
 
   // A refinance scheduled on or after the sale year never happens.
-  const refiApplies =
-    base.refinance.enabled && base.refinance.year < holdYears;
+  const refiApplies = base.refinance.enabled && base.refinance.year < holdYears;
 
-  // Off by default and never persisted, so a reload drops back to the
-  // external label. Print also hides everything gated behind it, which
-  // is the point — the internal name can't ride onto paper by accident.
-  const [internalView, setInternalView] = useState(false);
+  // Two lenses on the same house.
+  //
+  // "glbm" is the real operating stack. "template" is how a
+  // syndicator's calculator reads it — one flat monthly catch-all,
+  // management at 8%. The second number is always the better one,
+  // which is exactly why a buyer needs to see both: without the
+  // comparison, honest underwriting just looks like a worse deal.
+  const [lens, setLens] = useState("glbm");
 
-  const result = useMemo(() => runClubProForma(inputs), [inputs]);
+  const modelInputs = useMemo(
+    () => (lens === "template" ? toTemplateLens(inputs) : inputs),
+    [inputs, lens]
+  );
+
+  const result = useMemo(() => runClubProForma(modelInputs), [modelInputs]);
   const s = result[scenario];
   const y1 = s.years[0];
   const cap = s.capitalization;
@@ -132,25 +140,18 @@ export default function ClubProFormaPage() {
   const holdComparison = useMemo(
     () =>
       HOLDS.map((years) => {
-        const r = runClubProForma({ ...base, exit: { ...base.exit, holdYears: years } })[
-          scenario
-        ];
+        const withHold = { ...base, exit: { ...base.exit, holdYears: years } };
+        const r = runClubProForma(
+          lens === "template" ? toTemplateLens(withHold) : withHold
+        )[scenario];
         return { years, moic: r.leveredMoic, irr: r.leveredIrr };
       }),
-    [base, scenario]
+    [base, scenario, lens]
   );
 
-  const benchmarkNoi = useMemo(() => {
-    const flat = buildBenchmarkExpenses(1000);
-    return runClubProForma({
-      ...inputs,
-      scenarios: {
-        bear: { ...inputs.scenarios.bear, expenses: flat },
-        base: { ...inputs.scenarios.base, expenses: flat },
-        bull: { ...inputs.scenarios.bull, expenses: flat },
-      },
-    })[scenario].years[0].noi;
-  }, [inputs, scenario]);
+  // The same house under the other lens, for the delta callout.
+  const templateResult = useMemo(() => runClubProForma(toTemplateLens(inputs)), [inputs]);
+  const glbmResult = useMemo(() => runClubProForma(inputs), [inputs]);
 
   const dscrTight = s.minDscr < 1.2;
   const scenarioLabel = SCENARIOS.find((x) => x.key === scenario).label;
@@ -263,6 +264,39 @@ export default function ClubProFormaPage() {
             </button>
           ))}
 
+          <span className="ml-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+            Lens
+          </span>
+          {[
+            { id: "glbm", label: "GLBM underwriting" },
+            { id: "template", label: "Syndicator template" },
+          ].map((l) => (
+            <button
+              key={l.id}
+              onClick={() => setLens(l.id)}
+              className={`rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
+                lens === l.id
+                  ? "text-white"
+                  : "bg-white text-neutral-500 ring-1 ring-neutral-300 hover:text-neutral-900"
+              }`}
+              style={lens === l.id ? { backgroundColor: GREEN } : undefined}
+            >
+              {l.label}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setShowAssumptions((v) => !v)}
+            className={`rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
+              showAssumptions
+                ? "text-white"
+                : "bg-white text-neutral-500 ring-1 ring-neutral-300 hover:text-neutral-900"
+            }`}
+            style={showAssumptions ? { backgroundColor: "#0A0A0A" } : undefined}
+          >
+            {showAssumptions ? "Hide" : "Edit"} assumptions
+          </button>
+
           <button
             onClick={() => window.print()}
             className="ml-auto rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white transition hover:opacity-90"
@@ -344,16 +378,132 @@ export default function ClubProFormaPage() {
           </div>
         )}
 
-        <div className="border-b border-neutral-200 bg-neutral-50 px-6 py-2 text-[11px] leading-snug text-neutral-600 sm:px-8">
+        {showAssumptions && (
+          <ClubAssumptions
+            model={base}
+            setModel={setBase}
+            onReset={() => setBase(pepperPlaceInputs())}
+            perBedOpex={glbmResult[scenario].years[0].expenses.total / (p.beds || 1)}
+          />
+        )}
+
+        {/* Basis. Prints — a buyer holding the sheet needs to know
+            which stack produced the numbers above it. */}
+        <div className="border-b border-neutral-200 bg-neutral-50 px-6 py-2.5 text-[11px] leading-snug text-neutral-600 sm:px-8">
           <span className="font-semibold uppercase tracking-[0.12em] text-neutral-500">
-            Basis:{" "}
+            Expense basis:{" "}
           </span>
+          {lens === "glbm" ? (
+            <>
+              Every operating line is itemized — landlord-paid utilities,
+              turnover, common-area cleaning, landscaping, pest, supplies and a
+              capital reserve, at {usd(y1.expenses.total / p.beds)} per bed per
+              year. Most syndicated offerings model this as one flat monthly
+              line, which reads{" "}
+              <strong className="text-neutral-900">
+                {usd(templateResult[scenario].years[0].noi - glbmResult[scenario].years[0].noi)}
+              </strong>{" "}
+              higher in year-1 NOI on this house. Both are shown so the figures
+              can be compared like for like.
+            </>
+          ) : (
+            <>
+              Operating costs modeled the way a syndicated offering typically
+              does — a flat $1,000/month catch-all plus management at 8%. Shown
+              for comparability with offerings underwritten this way. Green
+              Light Buying Machine&rsquo;s own figures itemize the stack and
+              come in{" "}
+              <strong className="text-neutral-900">
+                {usd(templateResult[scenario].years[0].noi - glbmResult[scenario].years[0].noi)}
+              </strong>{" "}
+              lower on year-1 NOI.
+            </>
+          )}
+          <br />
           Income is built room by room and reduced to net-to-owner before any
-          return is calculated — {pct(s.years[0].income.grossScheduledRent ? 1 - y1.income.netToOwner / y1.income.grossScheduledRent : 0)}{" "}
-          of gross scheduled rent is lost to vacancy, collections and PadSplit
-          fees. Occupancy is modeled at {pct(inputs.scenarios[scenario].income.occupancyPct, 0)}.
-          Rates, taxes, insurance and market rents move; these are projections,
-          not quotes.
+          return is calculated —{" "}
+          {pct(1 - y1.income.netToOwner / y1.income.grossScheduledRent)} of gross
+          scheduled rent is lost to vacancy, collections and PadSplit fees.
+          Occupancy is modeled at{" "}
+          {pct(modelInputs.scenarios[scenario].income.occupancyPct, 0)}
+          {p.zip ? ` — the ${p.zip} average` : ""}. Rates, taxes, insurance and
+          market rents move; these are projections, not quotes.
+        </div>
+
+        {/* Side-by-side. This is the sheet's argument: the same house
+            under both conventions, with the gap named rather than
+            left for the buyer to discover. */}
+        <div className="print-section border-b border-neutral-200 px-6 py-4 sm:px-8">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+            Same house · both conventions · {scenarioLabel} case
+          </div>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-neutral-300 text-left">
+                <th className="py-1.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-neutral-500">
+                  Year 1
+                </th>
+                <th className="py-1.5 text-right text-[9px] font-semibold uppercase tracking-[0.1em] text-neutral-500">
+                  Syndicator template
+                </th>
+                <th className="py-1.5 text-right text-[9px] font-semibold uppercase tracking-[0.1em] text-neutral-500">
+                  GLBM underwriting
+                </th>
+                <th className="py-1.5 text-right text-[9px] font-semibold uppercase tracking-[0.1em] text-neutral-500">
+                  Difference
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                [
+                  "Operating expenses",
+                  templateResult[scenario].years[0].expenses.total,
+                  glbmResult[scenario].years[0].expenses.total,
+                ],
+                [
+                  "Net operating income",
+                  templateResult[scenario].years[0].noi,
+                  glbmResult[scenario].years[0].noi,
+                ],
+              ].map(([label, t, g]) => (
+                <tr key={label} className="border-b border-neutral-200">
+                  <td className="py-1.5 text-[12px] text-neutral-800">{label}</td>
+                  <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-600">
+                    {usd(t)}
+                  </td>
+                  <td className="py-1.5 text-right text-[12px] font-semibold tabular-nums text-neutral-900">
+                    {usd(g)}
+                  </td>
+                  <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-600">
+                    {g - t >= 0 ? "+" : "−"}
+                    {usd(Math.abs(g - t))}
+                  </td>
+                </tr>
+              ))}
+              <tr className="border-b-2 border-neutral-900">
+                <td className="py-1.5 text-[12px] font-bold text-neutral-900">
+                  Levered IRR, {holdYears} yr
+                </td>
+                <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-600">
+                  {pct(templateResult[scenario].leveredIrr)}
+                </td>
+                <td className="py-1.5 text-right text-[12px] font-bold tabular-nums text-neutral-900">
+                  {pct(glbmResult[scenario].leveredIrr)}
+                </td>
+                <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-600">
+                  {pct(
+                    glbmResult[scenario].leveredIrr - templateResult[scenario].leveredIrr
+                  )}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="mt-2 text-[11px] leading-snug text-neutral-500">
+            The right-hand column is the one to underwrite against. It already
+            carries the utility, turnover and reserve load a nine-bed house
+            actually generates, so it does not need a haircut applied on top.
+          </p>
         </div>
 
         {/* ---------------- page one ---------------- */}
@@ -607,20 +757,27 @@ export default function ClubProFormaPage() {
 
               <div className="rounded border-l-4 border-neutral-900 bg-neutral-100 px-4 py-3">
                 <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500">
-                  Internal · expense treatment
+                  Internal · lens delta
                 </div>
                 <div className="mt-2">
-                  <Row label="NOI, itemized stack" value={usd(y1.noi)} />
-                  <Row label="NOI, flat $1,000/mo catch-all" value={usd(benchmarkNoi)} />
+                  <Row label="NOI, GLBM stack" value={usd(glbmResult[scenario].years[0].noi)} />
                   <Row
-                    label="Overstatement"
-                    value={usd(benchmarkNoi - y1.noi)}
+                    label="NOI, syndicator template"
+                    value={usd(templateResult[scenario].years[0].noi)}
+                  />
+                  <Row
+                    label="Template runs higher by"
+                    value={usd(
+                      templateResult[scenario].years[0].noi -
+                        glbmResult[scenario].years[0].noi
+                    )}
                     tone="total"
                   />
                 </div>
                 <p className="mt-2 text-[11px] text-neutral-500">
-                  One flat line cannot absorb landlord-paid utilities, turnover,
-                  cleaning and reserves for a {p.beds}-bed house.
+                  Keep this panel off anything a buyer sees. The side-by-side
+                  table above is the version to present — it states the gap
+                  without characterising anyone else&rsquo;s underwriting.
                 </p>
               </div>
             </div>

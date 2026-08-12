@@ -93,10 +93,27 @@ function SectionTitle({ children, kicker }) {
   );
 }
 
+const HOLDS = [5, 7, 10];
+const TICKETS = [10000, 25000, 50000, 100000];
+
 export default function ClubProFormaPage() {
-  const [inputs] = useState(() => pepperPlaceInputs());
+  const [base] = useState(() => pepperPlaceInputs());
   const [scenario, setScenario] = useState("base");
+  const [holdYears, setHoldYears] = useState(10);
   const [subscription, setSubscription] = useState(25000);
+
+  // Hold period rebuilds the model rather than truncating it — a
+  // 5-year hold sells in year 5, so that year carries the sale
+  // proceeds and the IRR is a different number, not the 10-year
+  // figure with rows hidden.
+  const inputs = useMemo(
+    () => ({ ...base, exit: { ...base.exit, holdYears } }),
+    [base, holdYears]
+  );
+
+  // A refinance scheduled on or after the sale year never happens.
+  const refiApplies =
+    base.refinance.enabled && base.refinance.year < holdYears;
 
   // Off by default and never persisted, so a reload drops back to the
   // external label. Print also hides everything gated behind it, which
@@ -108,6 +125,20 @@ export default function ClubProFormaPage() {
   const y1 = s.years[0];
   const cap = s.capitalization;
   const p = inputs.property;
+
+  // Each hold is its own run — the multiple changes because the exit
+  // moves, not because the cash flows are being sliced differently.
+  // Independent of subscription, so it survives typing in the box.
+  const holdComparison = useMemo(
+    () =>
+      HOLDS.map((years) => {
+        const r = runClubProForma({ ...base, exit: { ...base.exit, holdYears: years } })[
+          scenario
+        ];
+        return { years, moic: r.leveredMoic, irr: r.leveredIrr };
+      }),
+    [base, scenario]
+  );
 
   const benchmarkNoi = useMemo(() => {
     const flat = buildBenchmarkExpenses(1000);
@@ -214,14 +245,23 @@ export default function ClubProFormaPage() {
             </button>
           ))}
 
-          <label className="ml-2 flex items-center gap-1.5 text-[11px] text-neutral-500">
-            <input
-              type="checkbox"
-              checked={internalView}
-              onChange={(e) => setInternalView(e.target.checked)}
-            />
-            Internal view
-          </label>
+          <span className="ml-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+            Hold
+          </span>
+          {HOLDS.map((h) => (
+            <button
+              key={h}
+              onClick={() => setHoldYears(h)}
+              className={`rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
+                holdYears === h
+                  ? "text-white"
+                  : "bg-white text-neutral-500 ring-1 ring-neutral-300 hover:text-neutral-900"
+              }`}
+              style={holdYears === h ? { backgroundColor: GREEN } : undefined}
+            >
+              {h} yr
+            </button>
+          ))}
 
           <button
             onClick={() => window.print()}
@@ -230,6 +270,62 @@ export default function ClubProFormaPage() {
           >
             Print / Save PDF
           </button>
+        </div>
+
+        {/* Investment. Its own row — changing the ticket is the thing
+            most people came to do, and it shouldn't be buried on the
+            third page next to the capitalization table. */}
+        <div className="no-print flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-6 py-3 sm:px-8">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+            Investment
+          </span>
+          {TICKETS.map((t) => (
+            <button
+              key={t}
+              onClick={() => setSubscription(t)}
+              className={`rounded px-3 py-1.5 text-[11px] font-bold tabular-nums uppercase tracking-wider transition ${
+                subscription === t
+                  ? "text-white"
+                  : "bg-white text-neutral-500 ring-1 ring-neutral-300 hover:text-neutral-900"
+              }`}
+              style={subscription === t ? { backgroundColor: GREEN } : undefined}
+            >
+              {usd(t)}
+            </button>
+          ))}
+
+          <div className="flex items-center rounded border border-neutral-300 bg-white focus-within:border-[#00A651]">
+            <span className="pl-2 text-sm text-neutral-500">$</span>
+            <input
+              type="number"
+              step={1000}
+              min={0}
+              value={subscription}
+              onChange={(e) => setSubscription(parseFloat(e.target.value) || 0)}
+              className="w-28 bg-transparent px-2 py-1.5 text-sm tabular-nums text-neutral-900 outline-none"
+              aria-label="Investment amount"
+            />
+          </div>
+
+          <span className="ml-1 text-[12px] text-neutral-600">
+            → <strong className="tabular-nums text-neutral-900">
+              {usd(s.projectedPositionValue(subscription))}
+            </strong>{" "}
+            at year {holdYears}
+            <span className="text-neutral-400">
+              {" "}
+              ({multiple(s.leveredMoic)})
+            </span>
+          </span>
+
+          <label className="ml-auto flex items-center gap-1.5 text-[11px] text-neutral-500">
+            <input
+              type="checkbox"
+              checked={internalView}
+              onChange={(e) => setInternalView(e.target.checked)}
+            />
+            Internal view
+          </label>
         </div>
 
         {internalView && (
@@ -402,44 +498,44 @@ export default function ClubProFormaPage() {
             </div>
 
             <div>
-              <SectionTitle kicker="Per subscription">Investor position</SectionTitle>
-              <label className="no-print block">
-                <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
-                  Subscription
-                </span>
-                <div className="mt-1 flex items-center rounded border border-neutral-300 focus-within:border-[#00A651]">
-                  <span className="pl-2 text-sm text-neutral-500">$</span>
-                  <input
-                    type="number"
-                    step={1000}
-                    min={0}
-                    value={subscription}
-                    onChange={(e) => setSubscription(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-transparent px-2 py-1.5 text-sm text-neutral-900 outline-none"
-                  />
-                </div>
-              </label>
-
-              <div className="mt-3">
-                <Row label="Subscription" value={usd(subscription)} />
-                <Row
-                  label="Ownership share"
-                  value={pct(subscription / cap.totalCapitalizedEquity, 2)}
-                />
-                <Row
-                  label={`Projected value, year ${inputs.exit.holdYears}`}
-                  value={usd(s.projectedPositionValue(subscription))}
-                  tone="total"
-                />
-                <Row
-                  label="Projected gain"
-                  value={usd(s.projectedPositionValue(subscription) - subscription)}
-                />
-              </div>
+              <SectionTitle kicker={`${holdYears}-year hold`}>Investor position</SectionTitle>
+              <Row label="Investment" value={usd(subscription)} />
+              <Row
+                label="Ownership share"
+                value={pct(subscription / cap.totalCapitalizedEquity, 2)}
+              />
+              <Row label="Equity multiple" value={multiple(s.leveredMoic)} />
+              <Row
+                label={`Projected value, year ${holdYears}`}
+                value={usd(s.projectedPositionValue(subscription))}
+                tone="total"
+              />
+              <Row
+                label="Projected gain"
+                value={usd(s.projectedPositionValue(subscription) - subscription)}
+              />
               <p className="mt-2 text-[11px] leading-snug text-neutral-500">
-                Subscription times the levered equity multiple, after the loan is
+                Investment times the levered equity multiple, after the loan is
                 repaid and selling costs are taken out.
+                {refiApplies
+                  ? ` A year-${base.refinance.year} refinance returns capital along the way.`
+                  : ` No refinance — the year-${base.refinance.year} refinance falls on or after the sale, so it never happens.`}
               </p>
+
+              <div className="mt-4">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+                  Same investment, by hold period
+                </div>
+                {holdComparison.map((h) => (
+                  <Row
+                    key={h.years}
+                    label={`${h.years} years`}
+                    value={usd(subscription * h.moic)}
+                    note={`${pct(h.irr)} IRR`}
+                    tone={h.years === holdYears ? "total" : "normal"}
+                  />
+                ))}
+              </div>
             </div>
           </div>
 

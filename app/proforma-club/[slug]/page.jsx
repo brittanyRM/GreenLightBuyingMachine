@@ -37,6 +37,7 @@ export default function ClubProFormaDeal({ params }) {
   const [recipient, setRecipient] = useState("");
   const [label, setLabel] = useState("");
   const [expiresDays, setExpiresDays] = useState("");
+  const [allowAdjust, setAllowAdjust] = useState(true);
   const [share, setShare] = useState(null);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
@@ -109,6 +110,7 @@ export default function ClubProFormaDeal({ params }) {
           recipient: recipient || null,
           label: label || null,
           expires_days: expiresDays ? Number(expiresDays) : null,
+          allow_adjust: allowAdjust,
           inputs: frozen,
         }),
       });
@@ -277,6 +279,15 @@ export default function ClubProFormaDeal({ params }) {
                 </select>
               </label>
 
+              <label className="flex items-center gap-1.5 pb-2 text-[12px] text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={allowAdjust}
+                  onChange={(e) => setAllowAdjust(e.target.checked)}
+                />
+                Let them stress-test the assumptions
+              </label>
+
               <button
                 onClick={createShareLink}
                 disabled={sharing}
@@ -294,6 +305,9 @@ export default function ClubProFormaDeal({ params }) {
                 Freezes the assumptions as they stand — {usd(deal.list_price)}{" "}
                 list price, {activeInputs.exit.holdYears}-year hold. No basis,
                 no internal panels.
+                {allowAdjust
+                  ? " They can change assumptions to stress-test; the sheet flags itself as adjusted and their edits never overwrite yours."
+                  : " Assumptions are locked — they see the figures exactly as sent."}
               </span>
             </div>
           )}

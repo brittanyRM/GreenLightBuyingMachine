@@ -499,7 +499,7 @@ export function CompsTable({ comps = [], listPrice, sqft }) {
 // ---------- closing bar ----------
 
 // The flyer's dark foot, so the two documents end the same way.
-export function FlyerFooter({ deal = {}, market = null, hasOwnPhotos, defaults = null }) {
+export function FlyerFooter({ deal = {}, market = null, hasOwnPhotos, defaults = null, adjusted = false }) {
   const about = defaults?.flyer_copy?.about;
   const closing = defaults?.flyer_copy?.closing;
   return (
@@ -569,6 +569,13 @@ export function FlyerFooter({ deal = {}, market = null, hasOwnPhotos, defaults =
           <span className="text-[20px] text-white">⌂</span>
         </div>
       </div>
+
+      {adjusted && (
+        <p className="pt-3 text-center text-[8px] font-bold uppercase tracking-wide text-amber-800">
+          This copy reflects assumptions adjusted by the recipient and is not
+          the version issued by Green Light Buying Machine.
+        </p>
+      )}
 
       <p className="pt-4 text-center text-[7px] leading-relaxed text-neutral-500">
         {hasOwnPhotos

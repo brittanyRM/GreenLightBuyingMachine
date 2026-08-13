@@ -128,6 +128,10 @@ export default function ClubProForma({
   // Called whenever the editable model changes, so a parent can share
   // exactly what's on screen rather than rebuilding from the record.
   onModelChange = null,
+  // Let a buyer stress-test the figures. Their edits live in the
+  // browser only — nothing is written back, and the sheet marks
+  // itself as adjusted so their number can't be read as ours.
+  allowAdjust = false,
 }) {
   const isBuyer = audience === "buyer";
   // The model is editable now, so it's state rather than a frozen
@@ -146,6 +150,11 @@ export default function ClubProForma({
     setBase((m) => ({ ...m, exit: { ...m.exit, holdYears: h } }));
 
   const inputs = base;
+
+  // Compared against the inputs as received, so the banner appears on
+  // any change and clears on reset.
+  const isAdjusted =
+    allowAdjust && JSON.stringify(base) !== JSON.stringify(initialInputs);
 
   useEffect(() => {
     if (onModelChange) onModelChange(base);
@@ -281,6 +290,30 @@ export default function ClubProForma({
         </div>
         )}
 
+        {isAdjusted && (
+          <div
+            className="print-section border-b-2 px-6 py-3 sm:px-8"
+            style={{ borderColor: "#B45309", backgroundColor: "#FFFBEB" }}
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-800">
+                Your adjusted figures
+              </span>
+              <span className="flex-1 text-[12px] leading-snug text-amber-900">
+                Every number on this sheet now reflects assumptions you changed,
+                not the figures as issued by Green Light Buying Machine.
+              </span>
+              <button
+                onClick={() => setBase(initialInputs)}
+                className="no-print rounded px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white"
+                style={{ backgroundColor: "#B45309" }}
+              >
+                Reset to figures as sent
+              </button>
+            </div>
+          </div>
+        )}
+
         {isBuyer && (
           <HeadlineMetrics
             scenario={s}
@@ -380,7 +413,7 @@ export default function ClubProForma({
             </a>
           )}
 
-          {!isBuyer && (
+          {(!isBuyer || allowAdjust) && (
           <button
             onClick={() => setShowAssumptions((v) => !v)}
             className={`rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
@@ -481,7 +514,7 @@ export default function ClubProForma({
           </div>
         )}
 
-        {!isBuyer && showAssumptions && (
+        {(!isBuyer || allowAdjust) && showAssumptions && (
           <ClubAssumptions
             model={base}
             setModel={setBase}
@@ -913,6 +946,7 @@ export default function ClubProForma({
             market={market}
             hasOwnPhotos={!!deal.hero_image_url}
             defaults={defaults}
+            adjusted={isAdjusted}
           />
         )}
 

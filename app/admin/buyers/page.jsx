@@ -84,6 +84,7 @@ export default function BuyerAdmin() {
   const [needsOptions, setNeedsOptions] = useState(false);
   const [optDraft, setOptDraft] = useState({});
   const [editingOpt, setEditingOpt] = useState(null);
+  const [optError, setOptError] = useState(null);
 
   const [newOrg, setNewOrg] = useState("");
   const [newUser, setNewUser] = useState({});
@@ -201,9 +202,16 @@ export default function BuyerAdmin() {
       setBoxOpen((s2) => ({ ...s2, [orgId]: false }));
     });
 
-  const saveOption = () =>
-    run(async () => {
-      if (!optDraft.label) throw new Error("Give the option a name.");
+  const saveOption = () => {
+    // Checked here rather than thrown up to the page-level banner —
+    // an error 900px from the button that caused it isn't an error
+    // message, it's a puzzle.
+    if (!optDraft.label?.trim()) {
+      setOptError("Name is required — it's what the buyer sees as the heading.");
+      return;
+    }
+    setOptError(null);
+    return run(async () => {
       await api("/api/buyer/admin/financing", {
         method: "POST",
         body: { ...optDraft, id: editingOpt || undefined },
@@ -211,6 +219,7 @@ export default function BuyerAdmin() {
       setOptDraft({});
       setEditingOpt(null);
     });
+  };
 
   const deleteOption = (id) =>
     run(() => api("/api/buyer/admin/financing", { method: "DELETE", body: { id } }));
@@ -650,12 +659,26 @@ export default function BuyerAdmin() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Field
-                label="Name"
-                value={optDraft.label || ""}
-                onChange={(e) => setOptDraft((d) => ({ ...d, label: e.target.value }))}
-                placeholder="DSCR — 30 yr"
-              />
+              <div>
+                <label className="block">
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                    Name <span style={{ color: "#B91C1C" }}>*</span>
+                  </span>
+                  <input
+                    value={optDraft.label || ""}
+                    onChange={(e) => {
+                      setOptError(null);
+                      setOptDraft((d) => ({ ...d, label: e.target.value }));
+                    }}
+                    placeholder="DSCR — 30 yr"
+                    className="mt-1 w-full rounded border px-2.5 py-2 text-[13px] outline-none focus:border-[#00A651]"
+                    style={{ borderColor: optError ? "#B91C1C" : "#D4D4D4" }}
+                  />
+                </label>
+                <span className="mt-0.5 block text-[10px] text-neutral-400">
+                  Required — the heading a buyer sees
+                </span>
+              </div>
               <Field
                 label="Lender"
                 value={optDraft.lender_name || ""}
@@ -741,10 +764,16 @@ export default function BuyerAdmin() {
                   Cancel
                 </button>
               )}
-              <span className="text-[11px] text-neutral-500">
-                Contact details are shown to buyers — only list people happy to
-                be approached.
-              </span>
+              {optError ? (
+                <span className="text-[12px] font-semibold" style={{ color: "#B91C1C" }}>
+                  {optError}
+                </span>
+              ) : (
+                <span className="text-[11px] text-neutral-500">
+                  Contact details are shown to buyers — only list people happy
+                  to be approached.
+                </span>
+              )}
             </div>
           </div>
 

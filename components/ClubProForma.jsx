@@ -17,7 +17,7 @@
 // ============================================================
 
 import { useEffect, useMemo, useState } from "react";
-import { runClubProForma, usd, pct, multiple } from "../lib/proformaClub";
+import { runClubProForma, downPaymentOptions, usd, pct, multiple } from "../lib/proformaClub";
 import { resolveLabel, toTemplateLens } from "../lib/proformaClubPresets";
 import { BrandMark } from "./Brand";
 import ClubAssumptions from "./ClubAssumptions";
@@ -30,6 +30,7 @@ import {
   HeadlineMetrics,
   IncludedBar,
   PropertyFacts,
+  DownPaymentOptions,
   PropertyGallery,
   ScenarioBasis,
 } from "./ClubPresentation";
@@ -345,6 +346,21 @@ export default function ClubProForma({
             gallery={deal.gallery}
             address={deal.address_line}
             defaults={defaults}
+          />
+        )}
+
+        {isBuyer && (
+          <DownPaymentOptions
+            noi={y1.noi}
+            options={downPaymentOptions({
+              price: cap.purchasePrice,
+              noi: y1.noi,
+              points: modelInputs.capitalization.loanCostPct,
+              closingCosts:
+                modelInputs.capitalization.purchasePrice *
+                modelInputs.capitalization.closingCostPct,
+              termMonths: modelInputs.debt.amortizationMonths,
+            })}
           />
         )}
 

@@ -628,6 +628,123 @@ export function CompsTable({ comps = [], listPrice, sqft }) {
   );
 }
 
+// ---------- down payment options ----------
+
+// Built from the same rate card the deal-page pro forma uses, so the
+// two documents can't quote different financing on one house. This is
+// part of the underwriting, not a lender advert — it renders whether
+// or not a lender option row exists.
+export function DownPaymentOptions({ options = [], noi }) {
+  if (!options.length) return null;
+
+  const best = options.reduce(
+    (a, b) => ((b.cashOnCash ?? -1) > (a.cashOnCash ?? -1) ? b : a),
+    options[0]
+  );
+  const lightest = options.reduce((a, b) => (b.downPct < a.downPct ? b : a), options[0]);
+  const heaviest = options.reduce((a, b) => (b.downPct > a.downPct ? b : a), options[0]);
+
+  const rows = [
+    ["Down payment", (o) => usd(o.down)],
+    ["Loan amount", (o) => usd(o.loan)],
+    ["Rate", (o) => `${(o.rate * 100).toFixed(3)}%`],
+    ["Origination", (o) => usd(o.origination)],
+    ["Closing costs", (o) => usd(o.closingCosts)],
+    ["Total cash to close", (o) => usd(o.cashIn), true],
+    ["Debt service / mo", (o) => `(${usd(o.payment)})`],
+    ["Cash flow / mo", (o) => usd(o.cashFlow / 12), false, true],
+    ["Cash on cash", (o) => pct(o.cashOnCash)],
+    ["DSCR", (o) => (o.dscr ?? 0).toFixed(2)],
+  ];
+
+  return (
+    <div className="print-section px-8 pb-4">
+      <FlyerHeading>Down Payment Options</FlyerHeading>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[460px]">
+          <thead>
+            <tr className="border-b border-neutral-400 text-left">
+              <th />
+              {options.map((o) => (
+                <th
+                  key={o.downPct}
+                  className="py-1.5 text-right text-[12px] font-black text-neutral-900"
+                >
+                  {Math.round(o.downPct * 100)}% down
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([label, fn, bold, green]) => (
+              <tr
+                key={label}
+                className={bold ? "border-b-2 border-neutral-900" : "border-b border-neutral-200"}
+              >
+                <td className={`py-1.5 text-[12px] ${bold ? "font-bold text-neutral-900" : "text-neutral-700"}`}>
+                  {label}
+                </td>
+                {options.map((o) => (
+                  <td
+                    key={o.downPct}
+                    className={`py-1.5 text-right text-[12px] tabular-nums ${
+                      bold ? "font-bold text-neutral-900" : "text-neutral-800"
+                    }`}
+                    style={green ? { color: GREEN, fontWeight: 600 } : undefined}
+                  >
+                    {fn(o)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {options.map((o) => (
+          <div
+            key={o.downPct}
+            className="print-keep rounded-lg border px-3 py-2.5"
+            style={{
+              borderColor: o.downPct === best.downPct ? GREEN : "#E5E7EB",
+              backgroundColor: o.downPct === best.downPct ? "#F2FAF5" : "white",
+            }}
+          >
+            <div className="flex items-baseline gap-2">
+              <span className="text-[13px] font-bold text-neutral-900">
+                {Math.round(o.downPct * 100)}% down
+              </span>
+              {o.downPct === best.downPct && (
+                <span className="text-[8px] font-black uppercase tracking-wider" style={{ color: GREEN }}>
+                  Best return
+                </span>
+              )}
+            </div>
+            <div className="mt-0.5 text-[11px] tabular-nums text-neutral-600">
+              {usd(o.cashIn)} in · {pct(o.cashOnCash)} back
+            </div>
+            <p className="mt-1.5 text-[11px] leading-snug text-neutral-600">
+              {o.downPct === lightest.downPct
+                ? "Least cash in, most leverage. Highest rate and thinnest coverage — the tier a lender scrutinises most."
+                : o.downPct === heaviest.downPct
+                ? "Most cash in, cheapest rate, strongest coverage. Easiest to get written."
+                : "The middle, where the rate improvement is usually largest relative to the extra equity."}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
+        Same price and term throughout. Origination is a point charge on the
+        loan, so it falls as the down payment rises; closing costs are fixed.
+        Cash flow and coverage use the net operating income above.
+      </p>
+    </div>
+  );
+}
+
 // ---------- closing bar ----------
 
 // The flyer's dark foot, so the two documents end the same way.

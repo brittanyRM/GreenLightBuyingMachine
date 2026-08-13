@@ -165,6 +165,11 @@ export default function ClubProForma({
   // external label. Print also hides everything gated behind it.
   const [internalView, setInternalView] = useState(false);
 
+  // Occupancy is the assumption a buyer most wants to push on, so it
+  // gets its own control rather than being buried in the panel.
+  // null follows the selected case; a number overrides it.
+  const [occupancyOverride, setOccupancyOverride] = useState(null);
+
   const holdYears = base.exit.holdYears;
   const setHoldYears = (h) =>
     setBase((m) => ({ ...m, exit: { ...m.exit, holdYears: h } }));
@@ -256,12 +261,15 @@ export default function ClubProForma({
         comps,
         orgRows,
         scenario: activeScenario === "glbm" ? "glbm" : "market",
-        overrides: { price: modelInputs.capitalization.purchasePrice },
+        overrides: {
+          price: modelInputs.capitalization.purchasePrice,
+          ...(occupancyOverride != null ? { vacancy: 1 - occupancyOverride } : {}),
+        },
       });
     } catch {
       return null;
     }
-  }, [deal, rooms, market, comps, orgRows, activeScenario, modelInputs]);
+  }, [deal, rooms, market, comps, orgRows, activeScenario, modelInputs, occupancyOverride]);
 
   // Each hold is its own run — the multiple changes because the exit
   // moves, not because the cash flows are being sliced differently.
@@ -426,6 +434,25 @@ export default function ClubProForma({
           />
         )}
 
+        {occupancyOverride != null && (
+          <div
+            className="print-section border-b-2 px-6 py-2.5 sm:px-8"
+            style={{ borderColor: "#B45309", backgroundColor: "#FFFBEB" }}
+          >
+            <span className="text-[12px] text-amber-900">
+              <strong>Occupancy set to {Math.round(occupancyOverride * 100)}%.</strong>{" "}
+              Every figure below reflects that, not the case above.
+            </span>
+            <button
+              onClick={() => setOccupancyOverride(null)}
+              className="no-print ml-3 text-[11px] underline underline-offset-2"
+              style={{ color: "#B45309" }}
+            >
+              Reset
+            </button>
+          </div>
+        )}
+
         {isBuyer && core && <RoomRevenueStack p={core} market={market} />}
         {isBuyer && core && <IncomeAndExpenses p={core} />}
         {isBuyer && core && <NetPerformance p={core} />}
@@ -492,6 +519,24 @@ export default function ClubProForma({
               {h} yr
             </button>
           ))}
+
+          <span className="ml-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+            Occupancy
+          </span>
+          <select
+            value={occupancyOverride ?? ""}
+            onChange={(e) =>
+              setOccupancyOverride(e.target.value === "" ? null : Number(e.target.value))
+            }
+            className="rounded border border-neutral-300 bg-white px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-700"
+          >
+            <option value="">As modelled</option>
+            {[0.8, 0.85, 0.9, 0.92, 0.95, 0.97].map((o) => (
+              <option key={o} value={o}>
+                {Math.round(o * 100)}%
+              </option>
+            ))}
+          </select>
 
           {!isBuyer && (
           <span className="ml-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">

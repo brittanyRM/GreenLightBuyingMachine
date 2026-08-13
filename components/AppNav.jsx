@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/", label: "Deals" },
   { href: "/proforma-club", label: "Pro forma" },
   { href: "/crm", label: "CRM" },
+  { href: "/admin/buyers", label: "Buyers" },
   { href: "/settings", label: "Settings" },
 ];
 

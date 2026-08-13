@@ -362,7 +362,7 @@ export function PropertyFacts({ deal = {}, beds, baths }) {
 // Deliberately shows the drivers rather than a haircut percentage —
 // occupancy, collections and turnover are things a buyer can check
 // against PadSplit's own market data.
-export function ScenarioBasis({ scenario, income, expenses, exit, marketOccupancy }) {
+export function ScenarioBasis({ scenario, income, expenses, exit, marketOccupancy, adjustable, onAdjust }) {
   const rows = [
     {
       label: "Occupancy",
@@ -426,6 +426,29 @@ export function ScenarioBasis({ scenario, income, expenses, exit, marketOccupanc
         expense stack. Only the operating assumptions above differ — the top
         line is calculated from them rather than adjusted by a flat percentage.
       </p>
+
+      {/* An analyst who doesn't notice the edit control assumes the
+          numbers are fixed, which defeats the point of offering it.
+          Screen only — on paper there is nothing to click. */}
+      {adjustable && (
+        <div
+          className="no-print mt-3 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3"
+          style={{ borderColor: GREEN, backgroundColor: "#F2FAF5" }}
+        >
+          <span className="flex-1 text-[12px] leading-snug text-neutral-800">
+            <strong>These are our assumptions.</strong> Change any of them to
+            test the deal against yours — occupancy, turnover, the expense
+            lines, the financing. Nothing you change is saved to our copy.
+          </span>
+          <button
+            onClick={onAdjust}
+            className="shrink-0 rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white"
+            style={{ backgroundColor: GREEN }}
+          >
+            Adjust assumptions
+          </button>
+        </div>
+      )}
     </div>
   );
 }

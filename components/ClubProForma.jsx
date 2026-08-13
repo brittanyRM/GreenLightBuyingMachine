@@ -334,6 +334,8 @@ export default function ClubProForma({
             expenses={modelInputs.scenarios[scenario].expenses}
             exit={modelInputs.scenarios[scenario].exit}
             marketOccupancy={market ? Number(market.avg_occupancy) : null}
+            adjustable={allowAdjust}
+            onAdjust={() => setShowAssumptions(true)}
           />
         )}
 

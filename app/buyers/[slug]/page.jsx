@@ -55,7 +55,6 @@ export default function BuyerDeal({ params }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [kind, setKind] = useState("interested");
-  const [offer, setOffer] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -99,7 +98,7 @@ export default function BuyerDeal({ params }) {
         body: JSON.stringify({
           slug: params.slug,
           kind,
-          offer_price: kind === "offer" && offer ? Number(offer) : null,
+          offer_price: null,
           note: note || null,
         }),
       });
@@ -180,7 +179,6 @@ export default function BuyerDeal({ params }) {
               <div className="mt-4 flex flex-wrap gap-2">
                 {[
                   { id: "interested", label: "Raise my hand" },
-                  { id: "offer", label: "Submit an offer" },
                   { id: "passed", label: "Pass on this one" },
                 ].map((k) => (
                   <button
@@ -197,25 +195,6 @@ export default function BuyerDeal({ params }) {
                   </button>
                 ))}
               </div>
-
-              {kind === "offer" && (
-                <div className="mt-3">
-                  <label className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-                    Offer price
-                  </label>
-                  <div className="mt-1 flex max-w-[12rem] items-center rounded border border-neutral-300 focus-within:border-[#00A651]">
-                    <span className="pl-2 text-sm text-neutral-500">$</span>
-                    <input
-                      type="number"
-                      step={1000}
-                      value={offer}
-                      onChange={(e) => setOffer(e.target.value)}
-                      placeholder={data.deal.list_price ? String(data.deal.list_price) : ""}
-                      className="w-full bg-transparent px-2 py-1.5 text-sm tabular-nums outline-none"
-                    />
-                  </div>
-                </div>
-              )}
 
               <div className="mt-3">
                 <label className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">

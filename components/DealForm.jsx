@@ -163,7 +163,7 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
       const NUM_FIELDS = [
         "year_built", "lot_sqft", "lot_acres", "living_area_sqft", "added_sqft",
         "post_reno_sqft", "assessed_tax_amount", "bathrooms", "purchase_price",
-        "list_price", "rehab_budget", "furniture_budget", "target_bedrooms",
+        "assumption_overrides", "list_price", "rehab_budget", "furniture_budget", "target_bedrooms",
         "target_bathrooms", "target_ensuites", "bedrooms", "ensuite_count",
       ];
       const clean = { ...d };
@@ -271,13 +271,22 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
 
       <Section title="Target conversion" source="what you're underwriting to">
         <Input label="Target bedrooms" type="number" value={d.target_bedrooms} onChange={set("target_bedrooms")} hint="e.g. 9" />
-        <Input label="Target baths" type="number" step={0.5} value={d.target_bathrooms} onChange={set("target_bathrooms")} hint="e.g. 4" />
-        <Input label="Of those, ensuites" type="number" value={d.target_ensuites} onChange={set("target_ensuites")} hint="e.g. 2" />
+        <Input label="Target baths" type="number" step={0.5} value={d.target_bathrooms} onChange={set("target_bathrooms")} hint="common baths only — ensuites are counted below" />
+        <Input label="Of those, ensuites" type="number" value={d.target_ensuites} onChange={set("target_ensuites")} hint="each adds a bathroom to the total" />
         <div className="col-span-2 flex items-end sm:col-span-1">
           <div className="w-full rounded bg-neutral-950 px-3 py-2">
             <div className="text-[9px] uppercase tracking-wider text-neutral-500">Conversion</div>
             <div className="text-lg font-bold tabular-nums" style={{ color: "#00A651" }}>
-              {d.target_bedrooms || "?"} / {d.target_bathrooms || "?"}
+              {d.target_bedrooms || "?"} /{" "}
+              {(() => {
+                // An ensuite bedroom contains a bathroom, so the badge
+                // shows the total. Entering 1 common bath and 6 ensuites
+                // is a 7-bath house, and the floor plan says so.
+                const common = Number(d.target_bathrooms) || 0;
+                const ens = Number(d.target_ensuites) || 0;
+                if (!common && !ens) return "?";
+                return ens && ens <= common ? common : common + ens;
+              })()}
             </div>
           </div>
         </div>
@@ -321,6 +330,53 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
       </Section>
 
       {d.id && <MediaUploader deal={d} onSaved={(saved) => setD((p) => ({ ...p, ...saved }))} />}
+
+      {/* Per-deal overrides. Every figure the pro forma uses, settable
+          here from what this house actually costs. Blank falls back to
+          the org standard, so an empty field is not zero. */}
+      <Section title="Underwriting overrides" source="blank uses the org standard">
+        <div className="col-span-2 mb-1 sm:col-span-4">
+          <p className="text-[11px] leading-snug text-neutral-500">
+            Anything set here overrides the standard for this property only,
+            and flows to the pro forma, the flyer, the buyer sheet and every
+            share link. Leave a field blank to keep using the standard.
+          </p>
+        </div>
+
+        {[
+          ["property_taxes_annual", "Property taxes / yr", "$", "from the assessed bill x reclass"],
+          ["insurance_annual", "Insurance / yr", "$", "org: insurance_annual"],
+          ["opex_per_room", "Opex per room / mo", "$", "org: opex_per_room"],
+          ["utilities_annual", "Utilities / yr", "$", "overrides opex split"],
+          ["repairs_annual", "Repairs & maintenance / yr", "$", "no org default"],
+          ["turnover_annual", "Turnover / make-ready / yr", "$", "no org default"],
+          ["vacancy_rate", "Vacancy rate", "", "0.05 = 5%"],
+          ["maintenance_rate", "Capital reserve rate", "", "0.02 = 2% of net"],
+          ["interest_rate", "Interest rate", "", "0.065 = 6.5%"],
+          ["ltv", "Loan to value", "", "0.75 = 75%"],
+          ["origination_points", "Origination", "", "0.015 = 1.5%"],
+          ["closing_costs", "Closing costs", "$", "org: closing_costs"],
+        ].map(([key, label, prefix, hint]) => (
+          <Input
+            key={key}
+            label={label}
+            type="number"
+            step="any"
+            prefix={prefix || undefined}
+            value={d.assumption_overrides?.[key] ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              setD((p) => {
+                const next = { ...(p.assumption_overrides || {}) };
+                if (v === "") delete next[key];
+                else next[key] = Number(v);
+                return { ...p, assumption_overrides: next };
+              });
+            }}
+            hint={hint}
+          />
+        ))}
+      </Section>
 
       <Section title="Comps" source="flexmls summary">
         <div className="col-span-2 sm:col-span-4">

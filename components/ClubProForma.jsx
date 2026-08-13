@@ -22,6 +22,12 @@ import { resolveLabel, toTemplateLens } from "../lib/proformaClubPresets";
 import { BrandMark } from "./Brand";
 import ClubAssumptions from "./ClubAssumptions";
 import {
+  CompsTable,
+  HeadlineMetrics,
+  PropertyFacts,
+  PropertyGallery,
+} from "./ClubPresentation";
+import {
   BreakEvenCurve,
   CashOnCashBars,
   EquityCurve,
@@ -105,6 +111,10 @@ export default function ClubProForma({
   // the per-subscription investor block. A firm buying the whole house
   // does its own investor math downstream.
   audience = "seller",
+  // Raw deal row and comps, when the caller has them. Buyer view leads
+  // with the property; seller view doesn't need the photography.
+  deal = null,
+  comps = [],
 }) {
   const isBuyer = audience === "buyer";
   // The model is editable now, so it's state rather than a frozen
@@ -214,6 +224,7 @@ export default function ClubProForma({
           </div>
         </div>
 
+        {!isBuyer && (
         <div className="print-section grid grid-cols-2 gap-4 border-b border-neutral-200 px-6 py-5 sm:grid-cols-4 sm:px-8">
           <Stat
             label="Levered IRR"
@@ -238,6 +249,25 @@ export default function ClubProForma({
             good={!dscrTight}
           />
         </div>
+        )}
+
+        {isBuyer && deal && (
+          <PropertyGallery
+            heroUrl={deal.hero_image_url}
+            gallery={deal.gallery}
+            floorPlanUrl={deal.floor_plan_url}
+            address={deal.address_line}
+          />
+        )}
+
+        {isBuyer && (
+          <HeadlineMetrics
+            scenario={s}
+            holdYears={holdYears}
+            listPrice={cap.purchasePrice}
+            grossAnnual={y1.income.grossScheduledRent}
+          />
+        )}
 
         {/* Controls. Screen only. */}
         <div className="no-print flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-6 py-3 sm:px-8">
@@ -540,6 +570,24 @@ export default function ClubProForma({
 
         {/* ---------------- page one ---------------- */}
         <div className="px-6 py-6 sm:px-8">
+          {isBuyer && deal && (
+            <div className="print-section mb-7">
+              <SectionTitle kicker="The property">Specifications</SectionTitle>
+              <PropertyFacts deal={deal} beds={p.beds} baths={p.baths} />
+            </div>
+          )}
+
+          {isBuyer && comps.length > 0 && (
+            <div className="print-section mb-7">
+              <SectionTitle kicker="Recent nearby sales">Comparable properties</SectionTitle>
+              <CompsTable
+                comps={comps}
+                listPrice={cap.purchasePrice}
+                sqft={p.sqft}
+              />
+            </div>
+          )}
+
           <div className="print-section mb-7">
             <SectionTitle kicker="Where the rent goes">
               Gross scheduled to net to owner

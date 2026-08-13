@@ -80,6 +80,8 @@ export default function BuyerDeal({ params }) {
         backHref="/buyers"
         backLabel="All properties"
         audience="buyer"
+        deal={data.deal}
+        comps={data.comps || []}
       />
 
       <div className="mx-auto max-w-4xl px-4 pb-12 sm:px-8">

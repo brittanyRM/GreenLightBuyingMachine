@@ -23,7 +23,11 @@ import { BrandMark } from "./Brand";
 import ClubAssumptions from "./ClubAssumptions";
 import {
   CompsTable,
+  FlyerFooter,
+  FlyerHeading,
+  FlyerMasthead,
   HeadlineMetrics,
+  IncludedBar,
   PropertyFacts,
   PropertyGallery,
 } from "./ClubPresentation";
@@ -115,6 +119,7 @@ export default function ClubProForma({
   // with the property; seller view doesn't need the photography.
   deal = null,
   comps = [],
+  market = null,
 }) {
   const isBuyer = audience === "buyer";
   // The model is editable now, so it's state rather than a frozen
@@ -188,8 +193,16 @@ export default function ClubProForma({
   return (
     <div className="bg-neutral-100 p-4 font-sans sm:p-8">
       <div className="print-doc mx-auto max-w-4xl bg-white shadow-xl">
-        {/* Masthead. Prints as-is — the dark plate and green rule are
-            forced through by the print rules in globals.css. */}
+        {isBuyer && deal ? (
+          <FlyerMasthead
+            deal={deal}
+            beds={p.beds}
+            baths={p.baths}
+            sqft={p.sqft}
+            price={cap.purchasePrice}
+            scenarioLabel={scenarioLabel}
+          />
+        ) : (
         <div className="print-section bg-neutral-950 px-6 py-5 sm:px-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -223,6 +236,7 @@ export default function ClubProForma({
             </div>
           </div>
         </div>
+        )}
 
         {!isBuyer && (
         <div className="print-section grid grid-cols-2 gap-4 border-b border-neutral-200 px-6 py-5 sm:grid-cols-4 sm:px-8">
@@ -251,21 +265,23 @@ export default function ClubProForma({
         </div>
         )}
 
-        {isBuyer && deal && (
-          <PropertyGallery
-            heroUrl={deal.hero_image_url}
-            gallery={deal.gallery}
-            floorPlanUrl={deal.floor_plan_url}
-            address={deal.address_line}
-          />
-        )}
-
         {isBuyer && (
           <HeadlineMetrics
             scenario={s}
             holdYears={holdYears}
             listPrice={cap.purchasePrice}
             grossAnnual={y1.income.grossScheduledRent}
+            netAnnual={y1.income.netToOwner}
+          />
+        )}
+
+        {isBuyer && <IncludedBar />}
+
+        {isBuyer && deal && (
+          <PropertyGallery
+            gallery={deal.gallery}
+            floorPlanUrl={deal.floor_plan_url}
+            address={deal.address_line}
           />
         )}
 
@@ -572,14 +588,14 @@ export default function ClubProForma({
         <div className="px-6 py-6 sm:px-8">
           {isBuyer && deal && (
             <div className="print-section mb-7">
-              <SectionTitle kicker="The property">Specifications</SectionTitle>
+              <FlyerHeading>Specifications</FlyerHeading>
               <PropertyFacts deal={deal} beds={p.beds} baths={p.baths} />
             </div>
           )}
 
           {isBuyer && comps.length > 0 && (
             <div className="print-section mb-7">
-              <SectionTitle kicker="Recent nearby sales">Comparable properties</SectionTitle>
+              <FlyerHeading>Comparable Sales</FlyerHeading>
               <CompsTable
                 comps={comps}
                 listPrice={cap.purchasePrice}
@@ -866,7 +882,12 @@ export default function ClubProForma({
           )}
         </div>
 
-        {/* Closing band. Carries the mark onto the last sheet. */}
+        {isBuyer && deal && (
+          <FlyerFooter deal={deal} market={market} hasOwnPhotos={!!deal.hero_image_url} />
+        )}
+
+        {!isBuyer && (
+        /* Closing band. Carries the mark onto the last sheet. */
         <div
           className="print-keep flex items-center justify-between border-t-2 px-6 py-4 sm:px-8"
           style={{ borderColor: GREEN }}
@@ -879,6 +900,7 @@ export default function ClubProForma({
           </div>
           <BrandMark height={26} />
         </div>
+        )}
       </div>
     </div>
   );

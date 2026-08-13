@@ -82,6 +82,7 @@ export default function BuyerDeal({ params }) {
         audience="buyer"
         deal={data.deal}
         comps={data.comps || []}
+        market={data.market}
       />
 
       <div className="mx-auto max-w-4xl px-4 pb-12 sm:px-8">

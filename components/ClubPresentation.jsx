@@ -184,6 +184,81 @@ export function HeadlineMetrics({ scenario, holdYears, listPrice, grossAnnual, n
   );
 }
 
+// ---------- occupancy control ----------
+
+// The assumption everything else hangs off, so it sits with the
+// headline figures rather than in a control bar further down. A slider
+// because the useful action is sweeping a range to find where coverage
+// breaks, not picking one value from a list.
+export function OccupancyControl({ value, modelled, onChange, dscr }) {
+  const shown = value ?? modelled;
+  const overridden = value != null && Math.abs(value - modelled) > 0.001;
+
+  return (
+    <div
+      className="no-print border-b px-8 py-3"
+      style={{
+        borderColor: overridden ? "#B45309" : "#E5E7EB",
+        backgroundColor: overridden ? "#FFFBEB" : "#FAFAFA",
+      }}
+    >
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="min-w-[6.5rem]">
+          <div className="text-[9px] font-black uppercase tracking-[0.14em] text-neutral-500">
+            Occupancy
+          </div>
+          <div className="text-[22px] font-bold leading-none tabular-nums text-neutral-900">
+            {Math.round(shown * 100)}%
+          </div>
+        </div>
+
+        <input
+          type="range"
+          min={70}
+          max={100}
+          step={1}
+          value={Math.round(shown * 100)}
+          onChange={(e) => onChange(Number(e.target.value) / 100)}
+          className="h-1 min-w-[180px] flex-1 cursor-pointer accent-[#00A651]"
+          aria-label="Occupancy"
+        />
+
+        <div className="text-[11px] leading-snug text-neutral-600">
+          {overridden ? (
+            <>
+              <strong>Your figure</strong>, not the modelled{" "}
+              {Math.round(modelled * 100)}%.{" "}
+              <button
+                onClick={() => onChange(null)}
+                className="underline underline-offset-2"
+                style={{ color: "#B45309" }}
+              >
+                Reset
+              </button>
+            </>
+          ) : (
+            <>Modelled at {Math.round(modelled * 100)}%. Drag to test it.</>
+          )}
+          {dscr != null && Number.isFinite(dscr) && (
+            <>
+              {" · "}
+              <span
+                style={{
+                  color: dscr < 1.2 ? "#B91C1C" : "#4B5563",
+                  fontWeight: dscr < 1.2 ? 700 : 400,
+                }}
+              >
+                DSCR {dscr.toFixed(2)}
+                {dscr < 1.2 ? " — below most lender floors" : ""}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------- what's included ----------
 
 // The flyer's ink bar, carried across so the two documents read as a

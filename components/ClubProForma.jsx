@@ -39,6 +39,7 @@ import {
   IncludedBar,
   PropertyFacts,
   DownPaymentOptions,
+  OccupancyControl,
   PropertyGallery,
   ScenarioBasis,
 } from "./ClubPresentation";
@@ -224,10 +225,23 @@ export default function ClubProForma({
   // comparison, honest underwriting just looks like a worse deal.
   const [lens, setLens] = useState("glbm");
 
-  const modelInputs = useMemo(
-    () => (lens === "template" ? toTemplateLens(inputs) : inputs),
-    [inputs, lens]
-  );
+  const modelInputs = useMemo(() => {
+    const withLens = lens === "template" ? toTemplateLens(inputs) : inputs;
+    if (occupancyOverride == null) return withLens;
+
+    // The headline cards come from the club engine, the tables from
+    // computeProForma. Both have to move together or the sheet
+    // contradicts itself mid-page.
+    return {
+      ...withLens,
+      scenarios: Object.fromEntries(
+        Object.entries(withLens.scenarios).map(([k, sc]) => [
+          k,
+          { ...sc, income: { ...sc.income, occupancyPct: occupancyOverride } },
+        ])
+      ),
+    };
+  }, [inputs, lens, occupancyOverride]);
 
   // A model saved before GLBM existed has no such case. Fall back
   // rather than reading a scenario that isn't there.
@@ -436,6 +450,14 @@ export default function ClubProForma({
           />
         )}
 
+        <OccupancyControl
+          value={occupancyOverride}
+          modelled={modelInputs.scenarios[activeScenario].income.occupancyPct}
+          onChange={setOccupancyOverride}
+          dscr={core ? core.dscr : s.year1Dscr}
+          capped={occupancyOverride != null && occupancyOverride >= 0.99}
+        />
+
         {isBuyer && <IncludedBar defaults={defaults} />}
 
         {isBuyer && (
@@ -581,24 +603,6 @@ export default function ClubProForma({
               {h} yr
             </button>
           ))}
-
-          <span className="ml-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-            Occupancy
-          </span>
-          <select
-            value={occupancyOverride ?? ""}
-            onChange={(e) =>
-              setOccupancyOverride(e.target.value === "" ? null : Number(e.target.value))
-            }
-            className="rounded border border-neutral-300 bg-white px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-700"
-          >
-            <option value="">As modelled</option>
-            {[0.8, 0.85, 0.9, 0.92, 0.95, 0.97].map((o) => (
-              <option key={o} value={o}>
-                {Math.round(o * 100)}%
-              </option>
-            ))}
-          </select>
 
           {!isBuyer && (
           <span className="ml-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">

@@ -142,6 +142,7 @@ export default function ClubProForma({
   const [base, setBase] = useState(initialInputs);
   const [showAssumptions, setShowAssumptions] = useState(false);
   const [scenario, setScenario] = useState(initialScenario);
+
   const [subscription, setSubscription] = useState(25000);
 
   // Off by default and never persisted, so a reload drops back to the
@@ -183,8 +184,12 @@ export default function ClubProForma({
     [inputs, lens]
   );
 
+  // A model saved before GLBM existed has no such case. Fall back
+  // rather than reading a scenario that isn't there.
+  const activeScenario = modelInputs?.scenarios?.[scenario] ? scenario : "base";
+
   const result = useMemo(() => runClubProForma(modelInputs), [modelInputs]);
-  const s = result[scenario] || result.base;
+  const s = result[activeScenario] || result.base;
   const y1 = s.years[0];
   const cap = s.capitalization;
   const p = inputs.property;
@@ -198,8 +203,11 @@ export default function ClubProForma({
         const withHold = { ...base, exit: { ...base.exit, holdYears: years } };
         const r = runClubProForma(
           lens === "template" ? toTemplateLens(withHold) : withHold
-        )[scenario];
-        return { years, moic: r.leveredMoic, irr: r.leveredIrr };
+        );
+        // Same fallback as the sheet: a model without the requested
+        // case still has base.
+        const x = r[scenario] || r.base;
+        return { years, moic: x?.leveredMoic ?? 0, irr: x?.leveredIrr ?? 0 };
       }),
     [base, scenario, lens]
   );
@@ -209,7 +217,7 @@ export default function ClubProForma({
   const glbmResult = useMemo(() => runClubProForma(inputs), [inputs]);
 
   const dscrTight = s.minDscr < 1.2;
-  const scenarioLabel = SCENARIOS.find((x) => x.key === scenario).label;
+  const scenarioLabel = SCENARIOS.find((x) => x.key === activeScenario).label;
 
   const asOf = new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -331,10 +339,10 @@ export default function ClubProForma({
 
         {isBuyer && (
           <ScenarioBasis
-            scenario={scenario}
-            income={modelInputs.scenarios[scenario].income}
-            expenses={modelInputs.scenarios[scenario].expenses}
-            exit={modelInputs.scenarios[scenario].exit}
+            scenario={activeScenario}
+            income={modelInputs.scenarios[activeScenario].income}
+            expenses={modelInputs.scenarios[activeScenario].expenses}
+            exit={modelInputs.scenarios[activeScenario].exit}
             marketOccupancy={market ? Number(market.avg_occupancy) : null}
             adjustable={allowAdjust}
             onAdjust={() => setShowAssumptions(true)}
@@ -378,7 +386,7 @@ export default function ClubProForma({
           <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
             Scenario
           </span>
-          {SCENARIOS.filter((sc) => modelInputs.scenarios?.[sc.key]).map((sc) => (
+          {SCENARIOS.filter((sc) => modelInputs?.scenarios?.[sc.key]).map((sc) => (
             <button
               key={sc.key}
               onClick={() => setScenario(sc.key)}
@@ -549,7 +557,7 @@ export default function ClubProForma({
             model={base}
             setModel={setBase}
             onReset={() => setBase(initialInputs)}
-            perBedOpex={glbmResult[scenario].years[0].expenses.total / (p.beds || 1)}
+            perBedOpex={glbmResult[activeScenario].years[0].expenses.total / (p.beds || 1)}
           />
         )}
 
@@ -567,7 +575,7 @@ export default function ClubProForma({
               year. Most syndicated offerings model this as one flat monthly
               line, which reads{" "}
               <strong className="text-neutral-900">
-                {usd(templateResult[scenario].years[0].noi - glbmResult[scenario].years[0].noi)}
+                {usd(templateResult[activeScenario].years[0].noi - glbmResult[activeScenario].years[0].noi)}
               </strong>{" "}
               higher in year-1 NOI on this house. Both are shown so the figures
               can be compared like for like.
@@ -580,7 +588,7 @@ export default function ClubProForma({
               Light Buying Machine&rsquo;s own figures itemize the stack and
               come in{" "}
               <strong className="text-neutral-900">
-                {usd(templateResult[scenario].years[0].noi - glbmResult[scenario].years[0].noi)}
+                {usd(templateResult[activeScenario].years[0].noi - glbmResult[activeScenario].years[0].noi)}
               </strong>{" "}
               lower on year-1 NOI.
             </>
@@ -591,7 +599,7 @@ export default function ClubProForma({
           {pct(1 - y1.income.netToOwner / y1.income.grossScheduledRent)} of gross
           scheduled rent is lost to vacancy, collections and PadSplit fees.
           Occupancy is modeled at{" "}
-          {pct(modelInputs.scenarios[scenario].income.occupancyPct, 0)}
+          {pct(modelInputs.scenarios[activeScenario].income.occupancyPct, 0)}
           {p.zip ? ` — the ${p.zip} average` : ""}. Rates, taxes, insurance and
           market rents move; these are projections, not quotes.
         </div>
@@ -624,13 +632,13 @@ export default function ClubProForma({
               {[
                 [
                   "Operating expenses",
-                  templateResult[scenario].years[0].expenses.total,
-                  glbmResult[scenario].years[0].expenses.total,
+                  templateResult[activeScenario].years[0].expenses.total,
+                  glbmResult[activeScenario].years[0].expenses.total,
                 ],
                 [
                   "Net operating income",
-                  templateResult[scenario].years[0].noi,
-                  glbmResult[scenario].years[0].noi,
+                  templateResult[activeScenario].years[0].noi,
+                  glbmResult[activeScenario].years[0].noi,
                 ],
               ].map(([label, t, g]) => (
                 <tr key={label} className="border-b border-neutral-200">
@@ -652,14 +660,14 @@ export default function ClubProForma({
                   Levered IRR, {holdYears} yr
                 </td>
                 <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-600">
-                  {pct(templateResult[scenario].leveredIrr)}
+                  {pct(templateResult[activeScenario].leveredIrr)}
                 </td>
                 <td className="py-1.5 text-right text-[12px] font-bold tabular-nums text-neutral-900">
-                  {pct(glbmResult[scenario].leveredIrr)}
+                  {pct(glbmResult[activeScenario].leveredIrr)}
                 </td>
                 <td className="py-1.5 text-right text-[12px] tabular-nums text-neutral-600">
                   {pct(
-                    glbmResult[scenario].leveredIrr - templateResult[scenario].leveredIrr
+                    glbmResult[activeScenario].leveredIrr - templateResult[activeScenario].leveredIrr
                   )}
                 </td>
               </tr>
@@ -946,16 +954,16 @@ export default function ClubProForma({
                   Internal · lens delta
                 </div>
                 <div className="mt-2">
-                  <Row label="NOI, GLBM stack" value={usd(glbmResult[scenario].years[0].noi)} />
+                  <Row label="NOI, GLBM stack" value={usd(glbmResult[activeScenario].years[0].noi)} />
                   <Row
                     label="NOI, syndicator template"
-                    value={usd(templateResult[scenario].years[0].noi)}
+                    value={usd(templateResult[activeScenario].years[0].noi)}
                   />
                   <Row
                     label="Template runs higher by"
                     value={usd(
-                      templateResult[scenario].years[0].noi -
-                        glbmResult[scenario].years[0].noi
+                      templateResult[activeScenario].years[0].noi -
+                        glbmResult[activeScenario].years[0].noi
                     )}
                     tone="total"
                   />

@@ -78,3 +78,8 @@ create trigger deal_financing_touch
 --   drop trigger if exists deal_financing_touch on public.deal_financing;
 --   drop function if exists public.deal_financing_touch();
 --   drop table if exists public.deal_financing cascade;
+
+-- Fields the generated documents need.
+alter table public.deal_financing
+  add column if not exists title_phone text,
+  add column if not exists lender_address text;

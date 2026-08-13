@@ -7,6 +7,21 @@ export const dynamic = "force-dynamic";
 
 const KINDS = ["interested", "offer", "passed"];
 
+// A buyer's own history. Scoped to their org by the session.
+export async function GET(req) {
+  const buyer = await getBuyerFromRequest(req);
+  if (!buyer) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
+  const { data, error } = await admin()
+    .from("deal_interest")
+    .select("id, kind, offer_price, note, status, created_at, deals(slug, address_line, city, state, list_price, hero_image_url)")
+    .eq("org_id", buyer.org.id)
+    .order("created_at", { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ interest: data || [] });
+}
+
 export async function POST(req) {
   const buyer = await getBuyerFromRequest(req);
   if (!buyer) return NextResponse.json({ error: "Not signed in." }, { status: 401 });

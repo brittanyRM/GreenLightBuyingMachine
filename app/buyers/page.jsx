@@ -6,27 +6,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BrandMark } from "../../components/Brand";
+import BuyerNav, { useBuyer } from "../../components/BuyerNav";
 import { usd } from "../../lib/proformaClub";
 import { matchBuyBox } from "../../lib/buyBox";
 
 const GREEN = "#00A651";
 
 export default function BuyerIndex() {
-  const router = useRouter();
-  const [buyer, setBuyer] = useState(null);
+  const buyer = useBuyer();
   const [deals, setDeals] = useState(null);
   const [buyBox, setBuyBox] = useState(null);
   const [onlyMatches, setOnlyMatches] = useState(false);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetch("/api/buyer/me")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("auth"))))
-      .then((j) => setBuyer(j.buyer))
-      .catch(() => router.replace("/buyers/login"));
-  }, [router]);
 
   useEffect(() => {
     if (!buyer) return;
@@ -40,45 +31,13 @@ export default function BuyerIndex() {
       .catch((e) => setError(e.message));
   }, [buyer]);
 
-  async function signOut() {
-    await fetch("/api/buyer/logout", { method: "POST" });
-    router.replace("/buyers/login");
-  }
-
   if (!buyer) return <div className="p-10 text-center font-sans text-sm text-neutral-500">Loading…</div>;
 
   return (
     <div className="min-h-screen bg-neutral-100 font-sans">
-      <div className="bg-neutral-950">
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-4 px-5 py-4">
-          <div className="flex items-center gap-2">
-            <BrandMark height={26} />
-            <span className="text-[9px] font-bold uppercase tracking-[0.3em]" style={{ color: GREEN }}>
-              Property portal
-            </span>
-          </div>
-          <div className="ml-auto flex items-center gap-3">
-            {buyer.org.logoDarkUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={buyer.org.logoDarkUrl}
-                alt={buyer.org.name}
-                className="h-5 w-auto opacity-90"
-              />
-            ) : (
-              <span className="text-[12px] text-neutral-400">{buyer.org.name}</span>
-            )}
-            <button
-              onClick={signOut}
-              className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-white"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </div>
+      <BuyerNav buyer={buyer} />
 
-      <div className="mx-auto max-w-4xl px-5 py-8">
+      <div className="mx-auto max-w-5xl px-5 py-8">
         <h1 className="text-2xl font-bold text-neutral-900">
           Available properties
         </h1>

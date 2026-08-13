@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import BuyerNav, { useBuyer } from "../../../components/BuyerNav";
 import ClubProForma from "../../../components/ClubProForma";
 import { inputsFromDeal } from "../../../lib/proformaClubPresets";
 import { usd } from "../../../lib/proformaClub";
@@ -15,6 +16,7 @@ const GREEN = "#00A651";
 
 export default function BuyerDeal({ params }) {
   const router = useRouter();
+  const buyer = useBuyer();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [kind, setKind] = useState("interested");
@@ -75,6 +77,8 @@ export default function BuyerDeal({ params }) {
 
   return (
     <div className="min-h-screen bg-neutral-100 font-sans">
+      <BuyerNav buyer={buyer} />
+
       <ClubProForma
         initialInputs={inputs}
         backHref="/buyers"

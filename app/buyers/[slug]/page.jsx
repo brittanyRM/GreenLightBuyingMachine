@@ -24,6 +24,15 @@ export default function BuyerDeal({ params }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const [financing, setFinancing] = useState(null);
+
+  // Lender introductions, revealed once they've engaged. Refetched
+  // after raising a hand so the section appears without a reload.
+  const loadFinancing = () =>
+    fetch(`/api/buyer/financing?slug=${params.slug}`)
+      .then((r) => r.json())
+      .then(setFinancing)
+      .catch(() => {});
 
   useEffect(() => {
     fetch(`/api/buyer/deals/${params.slug}`)
@@ -36,8 +45,14 @@ export default function BuyerDeal({ params }) {
         if (!r.ok) throw new Error(j.error || "Couldn't load this property.");
         return j;
       })
-      .then((j) => j && setData(j))
+      .then((j) => {
+        if (!j) return;
+        setData(j);
+        loadFinancing();
+      })
       .catch((e) => setError(e.message));
+    // loadFinancing is stable for a given slug.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.slug, router]);
 
   async function raiseHand() {
@@ -56,6 +71,7 @@ export default function BuyerDeal({ params }) {
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "Something went wrong.");
       setDone(true);
+      loadFinancing();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -182,6 +198,84 @@ export default function BuyerDeal({ params }) {
             </>
           )}
         </div>
+
+        {financing && !financing.locked && financing.options?.length > 0 && (
+          <div className="mt-4 rounded border border-neutral-200 bg-white p-5">
+            <h2 className="text-[15px] font-bold text-neutral-900">
+              Financing for this purchase
+            </h2>
+            <p className="mt-1 text-[13px] text-neutral-600">
+              Lenders who know this asset class and have funded properties like
+              this one. Introductions only — you deal with them directly, and
+              Green Light Buying Machine takes no part in the loan.
+            </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {financing.options.map((o) => (
+                <div key={o.id} className="rounded-lg border border-neutral-200 p-4">
+                  <div className="text-[13px] font-bold text-neutral-900">{o.label}</div>
+                  {o.lender_name && (
+                    <div className="text-[11px] text-neutral-500">{o.lender_name}</div>
+                  )}
+
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                    {[
+                      o.max_ltv_pct != null && [`${o.max_ltv_pct}%`, "max LTV"],
+                      o.rate_from_pct != null && [`${o.rate_from_pct}%`, "from"],
+                      o.term_months != null && [`${o.term_months} mo`, "term"],
+                      o.min_dscr != null && [`${o.min_dscr}`, "min DSCR"],
+                      o.points != null && [`${o.points}`, "points"],
+                    ]
+                      .filter(Boolean)
+                      .map(([v, l]) => (
+                        <div key={l}>
+                          <div className="text-[15px] font-bold tabular-nums leading-tight text-neutral-900">
+                            {v}
+                          </div>
+                          <div className="text-[9px] uppercase tracking-wider text-neutral-400">
+                            {l}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+
+                  {o.summary && (
+                    <p className="mt-2 text-[12px] leading-snug text-neutral-600">{o.summary}</p>
+                  )}
+
+                  {(o.contact_name || o.contact_email) && (
+                    <div className="mt-2 border-t border-neutral-100 pt-2 text-[11px] text-neutral-600">
+                      {o.contact_name}
+                      {o.contact_email && (
+                        <>
+                          {" · "}
+                          <a href={`mailto:${o.contact_email}`} className="underline underline-offset-2">
+                            {o.contact_email}
+                          </a>
+                        </>
+                      )}
+                      {o.contact_phone ? ` · ${o.contact_phone}` : ""}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-3 text-[10px] leading-relaxed text-neutral-500">
+              Terms are indicative and subject to each lender&rsquo;s own
+              underwriting. Nothing here is a commitment to lend or an offer of
+              credit.
+            </p>
+          </div>
+        )}
+
+        {financing?.locked && (
+          <div className="mt-4 rounded border border-dashed border-neutral-300 bg-white px-5 py-4 text-[13px] text-neutral-600">
+            <strong className="text-neutral-900">Financing options</strong> —
+            raise your hand above and we&rsquo;ll show you lenders who fund this
+            asset class.
+          </div>
+        )}
       </div>
     </div>
   );

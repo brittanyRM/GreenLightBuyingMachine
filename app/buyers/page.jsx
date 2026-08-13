@@ -65,6 +65,9 @@ export default function BuyerIndex() {
           const ranked = deals
             .map((d) => ({ d, fit: matchBuyBox(d, buyBox, d.metrics) }))
             .sort((a, b) => {
+              // Anything allocated to this buyer leads, then buy-box fit.
+              const asg = (x) => (x.d.assignment ? 0 : 1);
+              if (asg(a) !== asg(b)) return asg(a) - asg(b);
               const score = (x) => (x.fit.matches ? (x.fit.nearMisses.length ? 1 : 0) : 2);
               return score(a) - score(b);
             });
@@ -127,6 +130,19 @@ export default function BuyerIndex() {
                           style={{ backgroundColor: GREEN }}
                         >
                           {d.interest === "offer" ? "Offer in" : d.interest}
+                        </span>
+                      )}
+                      {d.assignment && (
+                        <span
+                          className="rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white"
+                          style={{ backgroundColor: "#0A0A0A" }}
+                          title={d.assignment.note || undefined}
+                        >
+                          {d.assignment.status === "exclusive"
+                            ? "Exclusive to you"
+                            : d.assignment.status === "reserved"
+                            ? "Reserved for you"
+                            : "Offered to you"}
                         </span>
                       )}
                       {buyBox && fit.matches && fit.checked > 0 && (

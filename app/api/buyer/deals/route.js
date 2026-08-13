@@ -23,6 +23,31 @@ export async function GET(req) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Assignments. An exclusive held by another buyer is filtered out
+  // entirely; one held by this buyer is flagged. An expired exclusive
+  // reverts to ordinary visibility rather than vanishing.
+  let assignments = [];
+  const asg = await admin()
+    .from("deal_assignments")
+    .select("deal_id, org_id, status, expires_at, note");
+  if (!asg.error) assignments = asg.data || [];
+
+  const live = (a) =>
+    a.status !== "released" && (!a.expires_at || new Date(a.expires_at) > new Date());
+
+  const mine = {};
+  const exclusiveElsewhere = new Set();
+  for (const a of assignments) {
+    if (!live(a)) continue;
+    if (a.org_id === buyer.org.id) mine[a.deal_id] = a;
+    else if (a.status === "exclusive" || a.status === "reserved")
+      exclusiveElsewhere.add(a.deal_id);
+  }
+
+  const visible = (data || []).filter(
+    (d) => mine[d.id] || !exclusiveElsewhere.has(d.id)
+  );
+
   // Which of these has this firm already raised a hand on.
   const { data: interest } = await admin()
     .from("deal_interest")
@@ -57,9 +82,9 @@ export async function GET(req) {
     buyBox && (buyBox.min_dscr != null || buyBox.min_cap_rate != null);
 
   let metricsByDeal = {};
-  if (needsMetrics && (data || []).length) {
-    const ids = data.map((d) => d.id);
-    const zips = [...new Set(data.map((d) => d.zip).filter(Boolean))];
+  if (needsMetrics && visible.length) {
+    const ids = visible.map((d) => d.id);
+    const zips = [...new Set(visible.map((d) => d.zip).filter(Boolean))];
 
     const [{ data: rooms }, { data: markets }] = await Promise.all([
       admin()
@@ -79,7 +104,7 @@ export async function GET(req) {
     const marketByZip = {};
     for (const m of markets || []) marketByZip[m.zip] = m;
 
-    for (const d of data) {
+    for (const d of visible) {
       try {
         const inputs = inputsFromDeal({
           deal: d,
@@ -105,10 +130,13 @@ export async function GET(req) {
   }
 
   return NextResponse.json({
-    deals: (data || []).map((d) => ({
+    deals: visible.map((d) => ({
       ...scrubDeal(d),
       interest: byDeal[d.id] || null,
       metrics: metricsByDeal[d.id] || null,
+      assignment: mine[d.id]
+        ? { status: mine[d.id].status, expiresAt: mine[d.id].expires_at, note: mine[d.id].note }
+        : null,
     })),
     buyBox,
   });

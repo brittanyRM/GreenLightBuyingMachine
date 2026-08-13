@@ -42,6 +42,46 @@ export default function ClubProFormaDeal({ params }) {
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [orgs, setOrgs] = useState([]);
+  const [assignOrg, setAssignOrg] = useState("");
+  const [assignStatus, setAssignStatus] = useState("offered");
+  const [assignMsg, setAssignMsg] = useState(null);
+
+  // Buyers available to assign to. Silent on failure — assignment is
+  // optional and shouldn't break the sheet.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const res = await fetch("/api/buyer/admin/orgs", {
+          headers: { Authorization: `Bearer ${sess?.session?.access_token || ""}` },
+        });
+        if (!res.ok) return;
+        const j = await res.json();
+        setOrgs((j.orgs || []).filter((o) => o.active));
+      } catch {}
+    })();
+  }, []);
+
+  async function assign() {
+    setAssignMsg(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await fetch("/api/buyer/admin/assign", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sess?.session?.access_token || ""}`,
+        },
+        body: JSON.stringify({ slug: params.slug, org_id: assignOrg, status: assignStatus }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Couldn't assign.");
+      setAssignMsg(`Assigned to ${j.assignment?.buyer_orgs?.name || "buyer"}.`);
+    } catch (e) {
+      setAssignMsg(e.message);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -299,6 +339,53 @@ export default function ClubProFormaDeal({ params }) {
 
               {shareError && (
                 <span className="text-[12px] text-red-700">{shareError}</span>
+              )}
+
+              {orgs.length > 0 && (
+                <div className="flex w-full flex-wrap items-end gap-2 border-t border-neutral-200 pt-3">
+                  <label className="block">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                      Or assign to a buyer
+                    </span>
+                    <select
+                      value={assignOrg}
+                      onChange={(e) => setAssignOrg(e.target.value)}
+                      className="mt-1 rounded border border-neutral-300 px-2 py-1.5 text-[13px]"
+                    >
+                      <option value="">Choose…</option>
+                      {orgs.map((o) => (
+                        <option key={o.id} value={o.id}>{o.name}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <select
+                    value={assignStatus}
+                    onChange={(e) => setAssignStatus(e.target.value)}
+                    className="rounded border border-neutral-300 px-2 py-1.5 text-[13px]"
+                  >
+                    <option value="offered">Offered — others still see it</option>
+                    <option value="exclusive">Exclusive — hidden from others</option>
+                    <option value="reserved">Reserved — off the market</option>
+                  </select>
+
+                  <button
+                    onClick={assign}
+                    disabled={!assignOrg}
+                    className="rounded px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-700 ring-1 ring-neutral-300 disabled:opacity-40"
+                  >
+                    Assign
+                  </button>
+
+                  {assignMsg && (
+                    <span className="text-[12px]" style={{ color: GREEN }}>{assignMsg}</span>
+                  )}
+
+                  <span className="w-full text-[11px] text-neutral-500">
+                    Appears in their portal marked as theirs — no link needed.
+                    They must have a login.
+                  </span>
+                </div>
               )}
 
               <span className="w-full text-[11px] text-neutral-500">

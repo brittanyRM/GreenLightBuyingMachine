@@ -80,6 +80,10 @@ export default function BuyerAdmin() {
   const [needsBuyBox, setNeedsBuyBox] = useState(false);
   const [boxOpen, setBoxOpen] = useState({});
   const [boxDraft, setBoxDraft] = useState({});
+  const [options, setOptions] = useState(null);
+  const [needsOptions, setNeedsOptions] = useState(false);
+  const [optDraft, setOptDraft] = useState({});
+  const [editingOpt, setEditingOpt] = useState(null);
 
   const [newOrg, setNewOrg] = useState("");
   const [newUser, setNewUser] = useState({});
@@ -92,6 +96,17 @@ export default function BuyerAdmin() {
         api("/api/buyer/admin/orgs"),
         api("/api/buyer/admin/interest"),
       ]);
+
+      // Separate call: lender options depend on migration 026 and
+      // shouldn't take the buyer list down if it hasn't run.
+      try {
+        const f = await api("/api/buyer/admin/financing");
+        setOptions(f.options || []);
+        setNeedsOptions(!!f.unavailable);
+      } catch {
+        setOptions([]);
+        setNeedsOptions(true);
+      }
       setOrgs(o.orgs || []);
       setNeedsMigration(!!o.needsMigration);
       setNeedsBuyBox(!!o.needsBuyBoxMigration);
@@ -186,6 +201,20 @@ export default function BuyerAdmin() {
       setBoxOpen((s2) => ({ ...s2, [orgId]: false }));
     });
 
+  const saveOption = () =>
+    run(async () => {
+      if (!optDraft.label) throw new Error("Give the option a name.");
+      await api("/api/buyer/admin/financing", {
+        method: "POST",
+        body: { ...optDraft, id: editingOpt || undefined },
+      });
+      setOptDraft({});
+      setEditingOpt(null);
+    });
+
+  const deleteOption = (id) =>
+    run(() => api("/api/buyer/admin/financing", { method: "DELETE", body: { id } }));
+
   const setStatus = (id, status) =>
     run(() => api("/api/buyer/admin/interest", { method: "PATCH", body: { id, status } }));
 
@@ -202,6 +231,7 @@ export default function BuyerAdmin() {
         {[
           { id: "firms", label: "Buyers & people" },
           { id: "interest", label: newCount ? `Interest (${newCount} new)` : "Interest" },
+          { id: "financing", label: "Lender options" },
         ].map((t) => (
           <button
             key={t.id}
@@ -593,6 +623,206 @@ export default function BuyerAdmin() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ---------------- lender options ---------------- */}
+      {tab === "financing" && (
+        <div className="mt-5">
+          <p className="mb-4 text-[13px] text-neutral-600">
+            Financing offered <strong>to buyers</strong> on a property
+            they&rsquo;ve raised a hand on. Leave the property blank to offer an
+            option on everything. This is separate from our own acquisition
+            financing, which buyers never see.
+          </p>
+
+          {needsOptions && (
+            <div className="mb-4 rounded border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
+              <strong>Migration 026 hasn&rsquo;t been run.</strong> Lender
+              options are unavailable until you run{" "}
+              <code>026_assignments_and_financing.sql</code>.
+            </div>
+          )}
+
+          <div className="mb-5 rounded border border-neutral-200 bg-white p-4">
+            <div className="mb-3 text-[11px] font-bold uppercase tracking-wider text-neutral-900">
+              {editingOpt ? "Edit option" : "Add an option"}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Field
+                label="Name"
+                value={optDraft.label || ""}
+                onChange={(e) => setOptDraft((d) => ({ ...d, label: e.target.value }))}
+                placeholder="DSCR — 30 yr"
+              />
+              <Field
+                label="Lender"
+                value={optDraft.lender_name || ""}
+                onChange={(e) => setOptDraft((d) => ({ ...d, lender_name: e.target.value }))}
+              />
+              <Field
+                label="Loan type"
+                value={optDraft.loan_type || ""}
+                onChange={(e) => setOptDraft((d) => ({ ...d, loan_type: e.target.value }))}
+                placeholder="DSCR, bridge, conventional"
+              />
+              <Field
+                label="Property slug"
+                value={optDraft.slug || ""}
+                onChange={(e) => setOptDraft((d) => ({ ...d, slug: e.target.value }))}
+                placeholder="Blank = all"
+              />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {[
+                ["max_ltv_pct", "Max LTV %"],
+                ["rate_from_pct", "Rate from %"],
+                ["term_months", "Term (months)"],
+                ["min_dscr", "Min DSCR"],
+                ["points", "Points"],
+              ].map(([k, lbl]) => (
+                <Field
+                  key={k}
+                  label={lbl}
+                  inputMode="decimal"
+                  value={optDraft[k] ?? ""}
+                  onChange={(e) => setOptDraft((d) => ({ ...d, [k]: e.target.value }))}
+                  placeholder="—"
+                />
+              ))}
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Field
+                label="Contact name"
+                value={optDraft.contact_name || ""}
+                onChange={(e) => setOptDraft((d) => ({ ...d, contact_name: e.target.value }))}
+              />
+              <Field
+                label="Contact email"
+                value={optDraft.contact_email || ""}
+                onChange={(e) => setOptDraft((d) => ({ ...d, contact_email: e.target.value }))}
+              />
+              <Field
+                label="Contact phone"
+                value={optDraft.contact_phone || ""}
+                onChange={(e) => setOptDraft((d) => ({ ...d, contact_phone: e.target.value }))}
+              />
+            </div>
+
+            <div className="mt-3">
+              <Field
+                label="Summary"
+                value={optDraft.summary || ""}
+                onChange={(e) => setOptDraft((d) => ({ ...d, summary: e.target.value }))}
+                placeholder="Funds co-living on room-by-room income. No seasoning."
+              />
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                onClick={saveOption}
+                disabled={busy || needsOptions}
+                className="rounded px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-50"
+                style={{ backgroundColor: GREEN }}
+              >
+                {editingOpt ? "Save changes" : "Add option"}
+              </button>
+              {editingOpt && (
+                <button
+                  onClick={() => {
+                    setEditingOpt(null);
+                    setOptDraft({});
+                  }}
+                  className="text-[11px] text-neutral-500 underline underline-offset-2"
+                >
+                  Cancel
+                </button>
+              )}
+              <span className="text-[11px] text-neutral-500">
+                Contact details are shown to buyers — only list people happy to
+                be approached.
+              </span>
+            </div>
+          </div>
+
+          {options && options.length === 0 && !needsOptions && (
+            <div className="rounded border border-neutral-200 bg-white px-4 py-6 text-[13px] text-neutral-600">
+              No options yet. Until one exists, buyers see a placeholder instead
+              of lender introductions.
+            </div>
+          )}
+
+          {(options || []).map((o) => (
+            <div key={o.id} className="mb-3 rounded border border-neutral-200 bg-white px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[13px] font-bold text-neutral-900">{o.label}</span>
+                {o.lender_name && (
+                  <span className="text-[12px] text-neutral-500">{o.lender_name}</span>
+                )}
+                <Pill tone={o.deals ? "neutral" : "good"}>
+                  {o.deals ? o.deals.address_line : "All properties"}
+                </Pill>
+                {!o.active && <Pill tone="off">Inactive</Pill>}
+
+                <button
+                  onClick={() => {
+                    setEditingOpt(o.id);
+                    setOptDraft({
+                      label: o.label || "",
+                      lender_name: o.lender_name || "",
+                      loan_type: o.loan_type || "",
+                      slug: o.deals?.slug || "",
+                      max_ltv_pct: o.max_ltv_pct ?? "",
+                      rate_from_pct: o.rate_from_pct ?? "",
+                      term_months: o.term_months ?? "",
+                      min_dscr: o.min_dscr ?? "",
+                      points: o.points ?? "",
+                      contact_name: o.contact_name || "",
+                      contact_email: o.contact_email || "",
+                      contact_phone: o.contact_phone || "",
+                      summary: o.summary || "",
+                    });
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="ml-auto text-[11px] text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteOption(o.id)}
+                  className="text-[11px] text-neutral-500 underline underline-offset-2 hover:text-red-700"
+                >
+                  Remove
+                </button>
+              </div>
+
+              <div className="mt-1 text-[12px] text-neutral-700">
+                {[
+                  o.max_ltv_pct != null && `${o.max_ltv_pct}% LTV`,
+                  o.rate_from_pct != null && `from ${o.rate_from_pct}%`,
+                  o.term_months != null && `${o.term_months} mo`,
+                  o.min_dscr != null && `DSCR ${o.min_dscr}+`,
+                  o.points != null && `${o.points} pts`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "No terms set"}
+              </div>
+
+              {o.summary && (
+                <p className="mt-1 text-[12px] text-neutral-600">{o.summary}</p>
+              )}
+              {(o.contact_name || o.contact_email) && (
+                <div className="mt-1 text-[11px] text-neutral-500">
+                  {o.contact_name}
+                  {o.contact_email ? ` · ${o.contact_email}` : ""}
+                  {o.contact_phone ? ` · ${o.contact_phone}` : ""}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

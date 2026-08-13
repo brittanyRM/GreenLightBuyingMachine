@@ -19,6 +19,7 @@ const LINKS = [
   { href: "/buyers", label: "Properties", exact: true },
   { href: "/buyers/activity", label: "My activity" },
   { href: "/buyers/buy-box", label: "Buy box" },
+  { href: "/buyers/research", label: "Market research" },
 ];
 
 export default function BuyerNav({ buyer }) {

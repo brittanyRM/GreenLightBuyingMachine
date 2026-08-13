@@ -86,6 +86,8 @@ export default function BuyerAdmin() {
   const [editingOpt, setEditingOpt] = useState(null);
   const [assignments, setAssignments] = useState(null);
   const [needsAssign, setNeedsAssign] = useState(false);
+  const [requests, setRequests] = useState(null);
+  const [reply, setReply] = useState({});
   const [optError, setOptError] = useState(null);
 
   const [newOrg, setNewOrg] = useState("");
@@ -109,6 +111,13 @@ export default function BuyerAdmin() {
       } catch {
         setAssignments([]);
         setNeedsAssign(true);
+      }
+
+      try {
+        const rq = await api("/api/buyer/admin/requests");
+        setRequests(rq.requests || []);
+      } catch {
+        setRequests([]);
       }
 
       // Separate call: lender options depend on migration 026 and
@@ -226,6 +235,14 @@ export default function BuyerAdmin() {
       })
     );
 
+  const answerRequest = (id, status) =>
+    run(() =>
+      api("/api/buyer/admin/requests", {
+        method: "PATCH",
+        body: { id, status, ...(reply[id] ? { response: reply[id] } : {}) },
+      })
+    );
+
   const saveOption = () => {
     // Checked here rather than thrown up to the page-level banner —
     // an error 900px from the button that caused it isn't an error
@@ -264,6 +281,7 @@ export default function BuyerAdmin() {
         {[
           { id: "firms", label: "Buyers & people" },
           { id: "interest", label: newCount ? `Interest (${newCount} new)` : "Interest" },
+          { id: "requests", label: requests?.filter((r) => r.status === "new").length ? `Research (${requests.filter((r) => r.status === "new").length} new)` : "Research" },
           { id: "assigned", label: assignments?.length ? `Assigned (${assignments.length})` : "Assigned" },
           { id: "financing", label: "Lender options" },
         ].map((t) => (
@@ -657,6 +675,108 @@ export default function BuyerAdmin() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ---------------- research requests ---------------- */}
+      {tab === "requests" && (
+        <div className="mt-5">
+          <p className="mb-4 text-[13px] text-neutral-600">
+            Buyers who have sent their own comps and asked for market work.
+            Answering here shows the reply in their portal.
+          </p>
+
+          {requests && requests.length === 0 && (
+            <div className="rounded border border-neutral-200 bg-white px-4 py-6 text-[13px] text-neutral-600">
+              Nothing yet.
+            </div>
+          )}
+
+          {(requests || []).map((r) => (
+            <div
+              key={r.id}
+              className="mb-3 rounded border bg-white px-4 py-3"
+              style={{ borderColor: r.status === "new" ? GREEN : "#E5E7EB" }}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[13px] font-bold text-neutral-900">
+                  {r.buyer_orgs?.name}
+                </span>
+                <Pill tone={r.status === "new" ? "good" : "neutral"}>{r.status}</Pill>
+                <Pill tone="neutral">{String(r.kind).replace("_", " ")}</Pill>
+                <span className="ml-auto text-[11px] text-neutral-400">
+                  {new Date(r.created_at).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="mt-1 text-[13px] font-semibold text-neutral-800">
+                {r.subject || "—"}
+                {r.deals?.address_line ? ` · ${r.deals.address_line}` : ""}
+              </div>
+              <div className="text-[11px] text-neutral-500">
+                {r.buyer_users?.name || r.buyer_users?.email}
+              </div>
+
+              {r.note && (
+                <p className="mt-2 border-l-2 border-neutral-300 pl-3 text-[12px] text-neutral-700">
+                  {r.note}
+                </p>
+              )}
+
+              {r.buyer_request_files?.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {r.buyer_request_files.map((f) => (
+                    <a
+                      key={f.id}
+                      href={f.public_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded border border-neutral-300 px-2 py-1 text-[11px] text-neutral-700 hover:border-neutral-500"
+                    >
+                      {f.file_name}
+                      {f.size_bytes ? ` · ${Math.round(f.size_bytes / 1024)}KB` : ""}
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {r.response ? (
+                <div
+                  className="mt-2 rounded border-l-2 bg-neutral-50 px-3 py-2 text-[12px] text-neutral-800"
+                  style={{ borderColor: GREEN }}
+                >
+                  {r.response}
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <textarea
+                    rows={3}
+                    value={reply[r.id] || ""}
+                    onChange={(e) => setReply((s2) => ({ ...s2, [r.id]: e.target.value }))}
+                    placeholder="Your findings. This appears in their portal."
+                    className="w-full rounded border border-neutral-300 px-2.5 py-2 text-[12px] outline-none focus:border-[#00A651]"
+                  />
+                  <div className="mt-2 flex items-center gap-3">
+                    <button
+                      onClick={() => answerRequest(r.id, "answered")}
+                      disabled={busy || !reply[r.id]}
+                      className="rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-40"
+                      style={{ backgroundColor: GREEN }}
+                    >
+                      Send reply
+                    </button>
+                    <button
+                      onClick={() => answerRequest(r.id, "in_progress")}
+                      disabled={busy}
+                      className="text-[11px] text-neutral-500 underline underline-offset-2"
+                    >
+                      Mark in progress
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

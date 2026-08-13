@@ -87,6 +87,7 @@ export default function BuyerDeal({ params }) {
     deal: data.deal,
     rooms: data.rooms,
     market: data.market,
+    org: data.org,
   });
 
   const already = data.interest?.[0];

@@ -97,8 +97,8 @@ export default function ClubProFormaDeal({ params }) {
   // never on preview toggle, or edits would be wiped.
   const sellerInputs = useMemo(() => {
     if (!bundle) return null;
-    const { deal, rooms, market } = bundle;
-    return inputsFromDeal({ deal, rooms, market }, { audience: "seller" });
+    const { deal, rooms, market, orgRows } = bundle;
+    return inputsFromDeal({ deal, rooms, market, org: orgRows }, { audience: "seller" });
   }, [bundle]);
 
   // Preview swaps the price to list and keeps every adjustment. That

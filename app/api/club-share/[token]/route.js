@@ -33,7 +33,7 @@ export async function GET(req, { params }) {
 
   if (!deal) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }] =
+  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }, { data: orgRows }] =
     await Promise.all([
     admin()
       .from("deal_rooms")
@@ -53,6 +53,9 @@ export async function GET(req, { params }) {
     // Brand defaults: standard hero, standard gallery, flyer copy.
     // Already anon-readable by policy and carries nothing deal-specific.
     admin().from("org_settings").select("key, value"),
+    // Lender terms. Same rows the deal-page pro forma reads, so the
+    // two documents can't quote different loans on one house.
+    admin().from("org_assumptions").select("key, value"),
   ]);
 
   admin().rpc("club_share_mark_viewed", { p_token: params.token });
@@ -63,6 +66,7 @@ export async function GET(req, { params }) {
     market: market || null,
     comps: comps || [],
     defaults: (settings || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {}),
+    org: orgRows || [],
     scenario: link.scenario,
     holdYears: link.hold_years,
     inputs: link.inputs || null,

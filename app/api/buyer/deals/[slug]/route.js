@@ -26,7 +26,7 @@ export async function GET(req, { params }) {
   // buyer shouldn't be able to probe slugs to learn the pipeline.
   if (!deal) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }, { data: interest }] =
+  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }, { data: orgRows }, { data: interest }] =
     await Promise.all([
     admin()
       .from("deal_rooms")
@@ -48,6 +48,9 @@ export async function GET(req, { params }) {
     // Brand defaults: standard hero, standard gallery, flyer copy.
     // Already anon-readable by policy and carries nothing deal-specific.
     admin().from("org_settings").select("key, value"),
+    // Lender terms. Same rows the deal-page pro forma reads, so the
+    // two documents can't quote different loans on one house.
+    admin().from("org_assumptions").select("key, value"),
     admin()
       .from("deal_interest")
       .select("id, kind, offer_price, note, status, created_at")
@@ -62,6 +65,7 @@ export async function GET(req, { params }) {
     market: market || null,
     comps: comps || [],
     defaults: (settings || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {}),
+    org: orgRows || [],
     interest: interest || [],
   });
 }

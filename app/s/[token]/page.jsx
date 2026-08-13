@@ -44,7 +44,12 @@ export default function SharedClubProForma({ params }) {
   // recipient sees the adjusted figures rather than defaults.
   const inputs =
     data.inputs ||
-    inputsFromDeal({ deal: data.deal, rooms: data.rooms, market: data.market });
+    inputsFromDeal({
+      deal: data.deal,
+      rooms: data.rooms,
+      market: data.market,
+      org: data.org,
+    });
 
   if (data.holdYears) inputs.exit.holdYears = data.holdYears;
 

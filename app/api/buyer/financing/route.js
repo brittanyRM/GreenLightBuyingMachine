@@ -35,17 +35,37 @@ export async function GET(req) {
     .neq("kind", "passed")
     .limit(1);
 
-  if (!interest || !interest.length) {
-    return NextResponse.json({ options: [], locked: true });
-  }
+  const engaged = !!(interest && interest.length);
 
   const { data, error } = await admin()
     .from("deal_financing_options")
-    .select("id, label, lender_name, loan_type, max_ltv_pct, rate_from_pct, term_months, min_dscr, points, contact_name, contact_email, contact_phone, summary")
+    .select("*")
     .eq("active", true)
     .or(`deal_id.eq.${deal.id},deal_id.is.null`)
     .order("sort_order");
 
   if (error) return NextResponse.json({ options: [], unavailable: true });
-  return NextResponse.json({ options: data || [], locked: false });
+
+  // Some introductions are part of the pitch and show immediately;
+  // others stay behind engagement. Filtered server-side so a gated
+  // contact never reaches the browser.
+  const visible = (data || []).filter(
+    (o) => engaged || o.show_before_interest !== false
+  );
+
+  const gated = (data || []).length - visible.length;
+
+  return NextResponse.json({
+    options: visible.map((o) => ({
+      id: o.id, label: o.label, lender_name: o.lender_name, loan_type: o.loan_type,
+      max_ltv_pct: o.max_ltv_pct, rate_from_pct: o.rate_from_pct,
+      term_months: o.term_months, min_dscr: o.min_dscr, points: o.points,
+      contact_name: o.contact_name, contact_email: o.contact_email,
+      contact_phone: o.contact_phone, summary: o.summary,
+      contact_photo_url: o.contact_photo_url, lender_logo_url: o.lender_logo_url,
+      nmls: o.nmls, states: o.states || [],
+    })),
+    locked: !engaged && gated > 0 && visible.length === 0,
+    moreAfterInterest: !engaged && gated > 0,
+  });
 }

@@ -200,42 +200,80 @@ export default function BuyerDeal({ params }) {
           )}
         </div>
 
-        {financing && !financing.locked && financing.options?.length > 0 && (
-          <div className="mt-4 rounded border border-neutral-200 bg-white p-5">
-            <h2 className="text-[15px] font-bold text-neutral-900">
-              Financing for this purchase
+        {financing?.options?.length > 0 && (
+          <div className="mt-4 rounded border-2 bg-white p-5" style={{ borderColor: GREEN }}>
+            <div className="text-[10px] font-black uppercase tracking-[0.15em]" style={{ color: GREEN }}>
+              Included with the deal
+            </div>
+            <h2 className="mt-0.5 text-[17px] font-bold text-neutral-900">
+              Financing already lined up
             </h2>
-            <p className="mt-1 text-[13px] text-neutral-600">
-              Lenders who know this asset class and have funded properties like
-              this one. Introductions only — you deal with them directly, and
-              Green Light Buying Machine takes no part in the loan.
+            <p className="mt-1 text-[13px] leading-snug text-neutral-600">
+              A lender who has funded co-living in this market and underwrites
+              room-by-room income. You deal with them directly — Green Light
+              Buying Machine takes no part in the loan and is paid nothing for
+              the introduction.
             </p>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 space-y-3">
               {financing.options.map((o) => (
                 <div key={o.id} className="rounded-lg border border-neutral-200 p-4">
-                  <div className="text-[13px] font-bold text-neutral-900">{o.label}</div>
-                  {o.lender_name && (
-                    <div className="text-[11px] text-neutral-500">{o.lender_name}</div>
-                  )}
+                  <div className="flex flex-wrap items-start gap-4">
+                    {o.contact_photo_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={o.contact_photo_url}
+                        alt={o.contact_name || ""}
+                        className="h-16 w-16 shrink-0 rounded-full object-cover"
+                      />
+                    )}
 
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[14px] font-bold text-neutral-900">
+                        {o.contact_name || o.label}
+                      </div>
+                      {o.lender_name && (
+                        <div className="text-[12px] text-neutral-600">{o.lender_name}</div>
+                      )}
+                      {o.nmls && (
+                        <div className="text-[11px] text-neutral-400">NMLS {o.nmls}</div>
+                      )}
+
+                      <div className="mt-1 flex flex-wrap gap-x-3 text-[12px]">
+                        {o.contact_email && (
+                          <a href={`mailto:${o.contact_email}`} className="underline underline-offset-2">
+                            {o.contact_email}
+                          </a>
+                        )}
+                        {o.contact_phone && (
+                          <a href={`tel:${o.contact_phone.replace(/[^0-9+]/g, "")}`} className="text-neutral-600">
+                            {o.contact_phone}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {o.lender_logo_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={o.lender_logo_url} alt="" className="h-10 w-auto shrink-0" />
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 border-t border-neutral-100 pt-3">
                     {[
                       o.max_ltv_pct != null && [`${o.max_ltv_pct}%`, "max LTV"],
-                      o.rate_from_pct != null && [`${o.rate_from_pct}%`, "from"],
-                      o.term_months != null && [`${o.term_months} mo`, "term"],
-                      o.min_dscr != null && [`${o.min_dscr}`, "min DSCR"],
+                      o.rate_from_pct != null && [`${o.rate_from_pct}%`, "rate from"],
+                      o.term_months != null && [`${Math.round(o.term_months / 12)} yr`, "term"],
                       o.points != null && [`${o.points}`, "points"],
+                      o.min_dscr != null && [`${o.min_dscr}`, "min DSCR"],
                     ]
                       .filter(Boolean)
                       .map(([v, l]) => (
                         <div key={l}>
-                          <div className="text-[15px] font-bold tabular-nums leading-tight text-neutral-900">
+                          <div className="text-[17px] font-bold tabular-nums leading-tight text-neutral-900">
                             {v}
                           </div>
-                          <div className="text-[9px] uppercase tracking-wider text-neutral-400">
-                            {l}
-                          </div>
+                          <div className="text-[9px] uppercase tracking-wider text-neutral-400">{l}</div>
                         </div>
                       ))}
                   </div>
@@ -244,28 +282,26 @@ export default function BuyerDeal({ params }) {
                     <p className="mt-2 text-[12px] leading-snug text-neutral-600">{o.summary}</p>
                   )}
 
-                  {(o.contact_name || o.contact_email) && (
-                    <div className="mt-2 border-t border-neutral-100 pt-2 text-[11px] text-neutral-600">
-                      {o.contact_name}
-                      {o.contact_email && (
-                        <>
-                          {" · "}
-                          <a href={`mailto:${o.contact_email}`} className="underline underline-offset-2">
-                            {o.contact_email}
-                          </a>
-                        </>
-                      )}
-                      {o.contact_phone ? ` · ${o.contact_phone}` : ""}
-                    </div>
+                  {o.states?.length > 0 && (
+                    <p className="mt-1 text-[11px] text-neutral-500">
+                      Licensed in {o.states.join(", ")}.
+                    </p>
                   )}
                 </div>
               ))}
             </div>
 
+            {financing.moreAfterInterest && (
+              <p className="mt-3 text-[12px] text-neutral-600">
+                Further lender options are available once you&rsquo;ve raised
+                your hand on this property.
+              </p>
+            )}
+
             <p className="mt-3 text-[10px] leading-relaxed text-neutral-500">
               Terms are indicative and subject to each lender&rsquo;s own
               underwriting. Nothing here is a commitment to lend or an offer of
-              credit.
+              credit. Equal Housing Lender.
             </p>
           </div>
         )}
@@ -273,8 +309,8 @@ export default function BuyerDeal({ params }) {
         {financing?.locked && (
           <div className="mt-4 rounded border border-dashed border-neutral-300 bg-white px-5 py-4 text-[13px] text-neutral-600">
             <strong className="text-neutral-900">Financing options</strong> —
-            raise your hand above and we&rsquo;ll show you lenders who fund this
-            asset class.
+            raise your hand above and we&rsquo;ll introduce you to lenders who
+            fund this asset class.
           </div>
         )}
       </div>

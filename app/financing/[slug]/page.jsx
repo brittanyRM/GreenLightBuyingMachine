@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/queries";
+import { LoanApplication, PromissoryNote } from "../../../components/LoanDocs";
 import {
   GAP_DEFAULTS,
   LOAN_STEPS,
@@ -74,6 +75,7 @@ export default function FinancingPage({ params }) {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
+  const [doc, setDoc] = useState(null); // null | "app" | "note"
 
   useEffect(() => {
     (async () => {
@@ -112,6 +114,12 @@ export default function FinancingPage({ params }) {
           titleContact: f?.title_contact ?? "",
           titleEmail: f?.title_email ?? "",
           insuranceAgent: f?.insurance_agent ?? "",
+          titlePhone: f?.title_phone ?? "",
+          lenderAddress: f?.lender_address ?? "",
+          noteRatePct: f?.note_rate_pct ?? 25,
+          noteMaturity: f?.note_maturity ?? "",
+          signerTitle: f?.signer_title ?? "Member",
+          borrowerEmail: "",
           steps: f?.steps ?? {},
         });
       } catch (e) {
@@ -173,6 +181,11 @@ export default function FinancingPage({ params }) {
         title_contact: form.titleContact || null,
         title_email: form.titleEmail || null,
         insurance_agent: form.insuranceAgent || null,
+        title_phone: form.titlePhone || null,
+        lender_address: form.lenderAddress || null,
+        note_rate_pct: Number(form.noteRatePct) || null,
+        note_maturity: form.noteMaturity || null,
+        signer_title: form.signerTitle || null,
         steps: form.steps || {},
       };
 
@@ -197,6 +210,47 @@ export default function FinancingPage({ params }) {
     return <div className="p-8 font-sans text-sm text-neutral-500">Loading…</div>;
 
   const doneCount = LOAN_STEPS.filter((s) => form.steps?.[s.id]?.done).length;
+
+  if (doc) {
+    return (
+      <div className="bg-neutral-100 p-4 font-sans sm:p-8">
+        <div className="no-print mx-auto mb-4 flex max-w-3xl items-center gap-3">
+          <button
+            onClick={() => setDoc(null)}
+            className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900"
+          >
+            ← Back to financing
+          </button>
+          <button
+            onClick={() => setDoc(doc === "app" ? "note" : "app")}
+            className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900"
+          >
+            {doc === "app" ? "Promissory note →" : "Loan application →"}
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="ml-auto rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white"
+            style={{ backgroundColor: GREEN }}
+          >
+            Print / Save PDF
+          </button>
+        </div>
+
+        <div className="mx-auto max-w-3xl shadow-xl">
+          {doc === "app" ? (
+            <LoanApplication
+              deal={deal}
+              form={form}
+              result={result}
+              lender={form.firstLenderName || "Sound Capital LLC"}
+            />
+          ) : (
+            <PromissoryNote deal={deal} form={form} result={result} />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 font-sans">
@@ -380,6 +434,31 @@ export default function FinancingPage({ params }) {
             <Field label="Title contact" value={form.titleContact} onChange={set("titleContact")} />
             <Field label="Title email" value={form.titleEmail} onChange={set("titleEmail")} />
             <Field label="Insurance agent" value={form.insuranceAgent} onChange={set("insuranceAgent")} />
+            <Field label="Title phone" value={form.titlePhone} onChange={set("titlePhone")} />
+            <Field label="2nd lender address" value={form.lenderAddress} onChange={set("lenderAddress")} wide />
+            <Field label="Note rate %" inputMode="decimal" value={form.noteRatePct} onChange={set("noteRatePct")} />
+            <Field label="Note maturity" type="date" value={form.noteMaturity} onChange={set("noteMaturity")} />
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
+            <button
+              onClick={() => setDoc("app")}
+              className="rounded px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-white"
+              style={{ backgroundColor: GREEN }}
+            >
+              Loan application
+            </button>
+            <button
+              onClick={() => setDoc("note")}
+              className="rounded px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-700 ring-1 ring-neutral-300"
+            >
+              Promissory note
+            </button>
+            <span className="w-full text-[11px] text-neutral-500">
+              Both carry a confidential band and are never reachable from a
+              buyer link. Save your changes first — documents render from what
+              is on screen.
+            </span>
           </div>
           <p className="mt-3 text-[11px] leading-snug text-neutral-500">
             Title needs the loan details and the insurance agent before they can

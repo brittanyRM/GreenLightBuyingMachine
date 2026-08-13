@@ -215,20 +215,53 @@ export default function ClubProForma({
   const core = useMemo(() => {
     if (!deal) return null;
     try {
+      // computeProForma reads income straight off deal_rooms. A deal
+      // with no room schedule yet produced a sheet of zeros, so stand
+      // in rooms from the record's own counts — the same fallback the
+      // club engine uses. Real rooms always win.
+      const rentable = (rooms || []).filter(
+        (r) => r.room_type === "shared" || r.room_type === "ensuite"
+      );
+
+      const effectiveRooms = rentable.length
+        ? rooms
+        : [
+            ...Array.from({ length: Number(deal.ensuite_count) || 0 }, (_, i) => ({
+              id: `synth-e${i}`,
+              room_number: i + 1,
+              room_type: "ensuite",
+            })),
+            ...Array.from(
+              {
+                length: Math.max(
+                  0,
+                  (Number(deal.bedrooms) || 0) - (Number(deal.ensuite_count) || 0)
+                ),
+              },
+              (_, i) => ({
+                id: `synth-s${i}`,
+                room_number: (Number(deal.ensuite_count) || 0) + i + 1,
+                room_type: "shared",
+              })
+            ),
+          ];
+
+      // The parameter is orgRows, not org. Passing the wrong key
+      // silently fell back to ORG_DEFAULTS, so the sheet quoted stock
+      // assumptions while the deal page quoted yours.
       return computeProForma({
         deal,
-        rooms,
+        rooms: effectiveRooms,
         market,
-        org: orgRows,
+        comps,
+        orgRows,
         scenario: activeScenario === "glbm" ? "glbm" : "market",
-        overrides: {
-          price: modelInputs.capitalization.purchasePrice,
-        },
+        overrides: { price: modelInputs.capitalization.purchasePrice },
       });
     } catch {
       return null;
     }
-  }, [deal, rooms, market, orgRows, activeScenario, modelInputs]);
+  }, [deal, rooms, market, comps, orgRows, activeScenario, modelInputs]);
 
   // Each hold is its own run — the multiple changes because the exit
   // moves, not because the cash flows are being sliced differently.

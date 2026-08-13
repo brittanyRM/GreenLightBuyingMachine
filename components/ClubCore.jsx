@@ -200,7 +200,7 @@ export function NetPerformance({ p }) {
           />
           <Line
             label="Debt service"
-            sub={`${pct(p.rate, 3)} / ${Math.round(p.term / 12)} yr`}
+            sub={`${pct(p.rate, 3)} / ${Math.round(p.term)} yr`}
             monthly={`(${usd(p.payment)})`}
             annual={`(${usd(p.payment * 12)})`}
             share={share(-p.payment * 12)}
@@ -214,7 +214,7 @@ export function NetPerformance({ p }) {
           />
           <Line
             label="+ Principal reduction"
-            sub={`${pct(p.rate, 3)} / ${Math.round(p.term / 12)} yr`}
+            sub={`${pct(p.rate, 3)} / ${Math.round(p.term)} yr`}
             monthly={usd(p.year1Principal / 12)}
             annual={usd(p.year1Principal)}
             share={share(p.year1Principal)}

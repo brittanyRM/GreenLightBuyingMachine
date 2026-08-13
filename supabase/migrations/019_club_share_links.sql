@@ -20,7 +20,7 @@ create table if not exists public.club_share_links (
 
   -- Frozen at creation so a recipient sees what was sent, not whatever
   -- the deal looks like when they get round to opening it.
-  scenario       text not null default 'base',
+  scenario       text not null default 'glbm',
   hold_years     int  not null default 10,
 
   label          text,

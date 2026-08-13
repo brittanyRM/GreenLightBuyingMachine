@@ -120,13 +120,14 @@ export default function ClubProForma({
   deal = null,
   comps = [],
   market = null,
+  initialScenario = "base",
 }) {
   const isBuyer = audience === "buyer";
   // The model is editable now, so it's state rather than a frozen
   // seed. holdYears lives inside it; the buttons write through.
   const [base, setBase] = useState(initialInputs);
   const [showAssumptions, setShowAssumptions] = useState(false);
-  const [scenario, setScenario] = useState("base");
+  const [scenario, setScenario] = useState(initialScenario);
   const [subscription, setSubscription] = useState(25000);
 
   // Off by default and never persisted, so a reload drops back to the

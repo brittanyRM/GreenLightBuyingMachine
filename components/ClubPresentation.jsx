@@ -306,14 +306,68 @@ export function PropertyFacts({ deal = {}, beds, baths }) {
 export function CompsTable({ comps = [], listPrice, sqft }) {
   if (!comps.length) return null;
 
-  const withPsf = comps.filter((c) => Number(c.price_per_sqft) > 0);
-  const avgPsf = withPsf.length
-    ? withPsf.reduce((a, c) => a + Number(c.price_per_sqft), 0) / withPsf.length
+  // Same shape the flyer's compStats carries: closed sales only, with
+  // range, central tendency, price per foot and how fresh the data is.
+  // A buyer's analyst asks all four before anything else.
+  const closed = comps.filter((c) => c.comp_status === "closed" && Number(c.sold_price) > 0);
+  const prices = closed.map((c) => Number(c.sold_price)).sort((a, b) => a - b);
+
+  const median = (arr) =>
+    !arr.length
+      ? null
+      : arr.length % 2
+      ? arr[(arr.length - 1) / 2]
+      : (arr[arr.length / 2 - 1] + arr[arr.length / 2]) / 2;
+
+  const psfValues = closed
+    .map((c) => Number(c.price_per_sqft))
+    .filter((v) => v > 0)
+    .sort((a, b) => a - b);
+
+  const dates = closed.map((c) => c.sold_date).filter(Boolean).sort();
+  const newest = dates.length ? new Date(dates[dates.length - 1]) : null;
+  const monthsSinceNewest = newest
+    ? Math.max(0, Math.round((Date.now() - newest.getTime()) / 2.628e9))
     : null;
+
+  const stats = prices.length
+    ? {
+        count: prices.length,
+        low: prices[0],
+        high: prices[prices.length - 1],
+        avg: prices.reduce((a, b) => a + b, 0) / prices.length,
+        median: median(prices),
+        medianPsf: median(psfValues),
+        monthsSinceNewest,
+      }
+    : null;
+
   const subjectPsf = listPrice && sqft ? listPrice / sqft : null;
+  const belowLow = stats && listPrice && listPrice < stats.low;
 
   return (
     <div>
+      {stats && (
+        <div className="print-keep mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            { label: "Closed Comps", value: String(stats.count), foot: stats.monthsSinceNewest != null ? `newest ${stats.monthsSinceNewest} mo ago` : null },
+            { label: "Median Sale", value: usd(stats.median), foot: `${usd(stats.low)} – ${usd(stats.high)}` },
+            { label: "Average Sale", value: usd(stats.avg), foot: "closed sales only" },
+            { label: "Median $/Sq Ft", value: stats.medianPsf ? `$${Math.round(stats.medianPsf)}` : "—", foot: subjectPsf ? `this property $${Math.round(subjectPsf)}` : null },
+          ].map((c) => (
+            <div key={c.label} className="rounded-xl border border-neutral-300 px-3 py-2.5">
+              <div className="text-[10px] font-black uppercase tracking-wide text-neutral-600">
+                {c.label}
+              </div>
+              <div className="mt-0.5 text-[19px] font-black leading-none tabular-nums text-neutral-900">
+                {c.value}
+              </div>
+              {c.foot && <div className="mt-1 text-[8.5px] text-neutral-600">{c.foot}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+
       <table className="w-full">
         <thead>
           <tr className="border-b border-neutral-400 text-left">
@@ -332,23 +386,23 @@ export function CompsTable({ comps = [], listPrice, sqft }) {
         <tbody>
           {comps.slice(0, 8).map((c) => (
             <tr key={c.id} className="print-keep border-b border-neutral-200">
-              <td className="py-1.5 text-[11.5px] text-neutral-800">{c.address || "—"}</td>
+              <td className="py-1.5 text-[11.5px] text-neutral-800">{c.address || "\u2014"}</td>
               <td className="py-1.5 text-[10px] uppercase tracking-wider text-neutral-500">
                 {c.comp_status}
               </td>
               <td className="py-1.5 text-right text-[11.5px] tabular-nums text-neutral-700">
-                {c.approx_sqft ? c.approx_sqft.toLocaleString() : "—"}
+                {c.approx_sqft ? c.approx_sqft.toLocaleString() : "\u2014"}
               </td>
               <td className="py-1.5 text-right text-[11.5px] tabular-nums text-neutral-700">
-                {c.price_per_sqft ? `$${Math.round(c.price_per_sqft)}` : "—"}
+                {c.price_per_sqft ? `$${Math.round(c.price_per_sqft)}` : "\u2014"}
               </td>
               <td className="py-1.5 text-right text-[11.5px] tabular-nums text-neutral-500">
                 {c.sold_date
                   ? new Date(c.sold_date).toLocaleDateString("en-US", { month: "short", year: "2-digit" })
-                  : "—"}
+                  : "\u2014"}
               </td>
               <td className="py-1.5 text-right text-[11.5px] font-bold tabular-nums text-neutral-900">
-                {c.sold_price ? usd(c.sold_price) : c.list_price ? usd(c.list_price) : "—"}
+                {c.sold_price ? usd(c.sold_price) : c.list_price ? usd(c.list_price) : "\u2014"}
               </td>
             </tr>
           ))}
@@ -361,28 +415,31 @@ export function CompsTable({ comps = [], listPrice, sqft }) {
               offered
             </td>
             <td className="py-1.5 text-right text-[11.5px] font-bold tabular-nums text-neutral-900">
-              {sqft ? sqft.toLocaleString() : "—"}
+              {sqft ? sqft.toLocaleString() : "\u2014"}
             </td>
             <td className="py-1.5 text-right text-[11.5px] font-bold tabular-nums text-neutral-900">
-              {subjectPsf ? `$${Math.round(subjectPsf)}` : "—"}
+              {subjectPsf ? `$${Math.round(subjectPsf)}` : "\u2014"}
             </td>
             <td className="py-1.5" />
             <td className="py-1.5 text-right text-[11.5px] font-black tabular-nums text-neutral-900">
-              {listPrice ? usd(listPrice) : "—"}
+              {listPrice ? usd(listPrice) : "\u2014"}
             </td>
           </tr>
         </tbody>
       </table>
 
-      {avgPsf && subjectPsf && (
-        <p className="mt-2 text-[9px] leading-relaxed text-neutral-600">
-          Comparable sales average ${Math.round(avgPsf)} per square foot against $
-          {Math.round(subjectPsf)} here
-          {subjectPsf > avgPsf
-            ? " — the difference reflects the co-living conversion, the furniture package and the completed PadSplit launch. None of these comps sold as an operating room rental."
-            : "."}
-        </p>
-      )}
+      <p className="mt-2 text-[9px] leading-relaxed text-neutral-600">
+        {belowLow
+          ? "Offered below the lowest closed comparable in this set. "
+          : stats && stats.medianPsf && subjectPsf && subjectPsf > stats.medianPsf
+          ? `Offered at $${Math.round(subjectPsf)} per square foot against a $${Math.round(stats.medianPsf)} median \u2014 the difference reflects the co-living conversion, the furniture package and the completed PadSplit launch. `
+          : ""}
+        Comparables are conventional sales; none were operating as room
+        rentals, and none included furniture or a live platform listing.
+        {stats && stats.monthsSinceNewest != null && stats.monthsSinceNewest > 6
+          ? ` The most recent closed sale is ${stats.monthsSinceNewest} months old \u2014 treat the range as indicative.`
+          : ""}
+      </p>
     </div>
   );
 }

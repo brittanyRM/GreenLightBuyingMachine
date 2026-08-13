@@ -8,7 +8,7 @@ const GREEN = "#00A651";
 
 // Hidden on the login screen and on public buyer links — a buyer
 // shouldn't see internal navigation.
-const HIDDEN = ["/login", "/p/", "/buyers"];
+const HIDDEN = ["/login", "/p/", "/s/", "/buyers"];
 
 const LINKS = [
   { href: "/", label: "Deals" },

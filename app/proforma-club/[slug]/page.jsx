@@ -14,7 +14,7 @@
 // ============================================================
 
 import { useEffect, useMemo, useState } from "react";
-import { getDealBundle } from "../../../lib/queries";
+import { getDealBundle, supabase } from "../../../lib/queries";
 import { inputsFromDeal } from "../../../lib/proformaClubPresets";
 import ClubProForma from "../../../components/ClubProForma";
 
@@ -24,6 +24,43 @@ export default function ClubProFormaDeal({ params }) {
   const [bundle, setBundle] = useState(null);
   const [error, setError] = useState(null);
   const [preview, setPreview] = useState(false);
+  const [share, setShare] = useState(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState(null);
+
+  // Create a public link. The scenario and hold in the URL are frozen
+  // at creation, so a recipient opens what was sent.
+  async function createShareLink() {
+    setSharing(true);
+    setShareError(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await fetch("/api/club-share", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sess?.session?.access_token || ""}`,
+        },
+        body: JSON.stringify({
+          slug: params.slug,
+          scenario: "base",
+          hold_years: 10,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't create a link.");
+      setShare(json.link);
+      try {
+        await navigator.clipboard.writeText(json.link.url);
+      } catch {
+        // Clipboard is blocked in some contexts; the URL is shown anyway.
+      }
+    } catch (e) {
+      setShareError(e.message);
+    } finally {
+      setSharing(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -86,7 +123,39 @@ export default function ClubProFormaDeal({ params }) {
             internal panels.
           </span>
         )}
+
+        <button
+          onClick={createShareLink}
+          disabled={sharing}
+          className="ml-auto rounded px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white transition disabled:opacity-50"
+          style={{ backgroundColor: GREEN }}
+        >
+          {sharing ? "Creating…" : "Create share link"}
+        </button>
       </div>
+
+      {(share || shareError) && (
+        <div className="no-print border-b border-neutral-200 bg-neutral-50 px-5 py-3">
+          {shareError ? (
+            <div className="text-[12px] text-red-700">{shareError}</div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                Link copied
+              </span>
+              <input
+                readOnly
+                value={share.url}
+                onFocus={(e) => e.target.select()}
+                className="min-w-0 flex-1 rounded border border-neutral-300 px-2 py-1 text-[12px] text-neutral-800"
+              />
+              <span className="text-[11px] text-neutral-500">
+                Base case, 10-year hold. No sign-in needed.
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {noList && (
         <div className="no-print border-b border-amber-300 bg-amber-50 px-5 py-2.5 text-[12px] text-amber-900">

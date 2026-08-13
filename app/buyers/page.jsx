@@ -9,6 +9,7 @@ import Link from "next/link";
 import BuyerNav, { useBuyer } from "../../components/BuyerNav";
 import { usd } from "../../lib/proformaClub";
 import { matchBuyBox } from "../../lib/buyBox";
+import { totalBathrooms } from "../../lib/proformaClubPresets";
 
 const GREEN = "#00A651";
 
@@ -165,7 +166,10 @@ export default function BuyerIndex() {
                   </div>
                   <div className="mt-3 flex items-end justify-between">
                     <div className="text-[12px] text-neutral-600">
-                      {d.bedrooms || "—"} bed / {d.bathrooms || "—"} bath
+                      {d.bedrooms || "—"} bed /{" "}
+                      {totalBathrooms(d) || "—"} bath
+                      {totalBathrooms(d) === 1 ? "" : "s"}
+                      {d.ensuite_count > 0 ? ` · ${d.ensuite_count} ensuite` : ""}
                       {d.post_reno_sqft ? ` · ${d.post_reno_sqft.toLocaleString()} sq ft` : ""}
                     </div>
                     <div className="text-[16px] font-bold tabular-nums text-neutral-900">

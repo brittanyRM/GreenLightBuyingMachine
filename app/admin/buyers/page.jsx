@@ -84,6 +84,8 @@ export default function BuyerAdmin() {
   const [needsOptions, setNeedsOptions] = useState(false);
   const [optDraft, setOptDraft] = useState({});
   const [editingOpt, setEditingOpt] = useState(null);
+  const [assignments, setAssignments] = useState(null);
+  const [needsAssign, setNeedsAssign] = useState(false);
   const [optError, setOptError] = useState(null);
 
   const [newOrg, setNewOrg] = useState("");
@@ -97,6 +99,17 @@ export default function BuyerAdmin() {
         api("/api/buyer/admin/orgs"),
         api("/api/buyer/admin/interest"),
       ]);
+
+      // Assignments. Separate so a missing migration can't take the
+      // buyer list down with it.
+      try {
+        const a = await api("/api/buyer/admin/assign");
+        setAssignments(a.assignments || []);
+        setNeedsAssign(!!a.unavailable);
+      } catch {
+        setAssignments([]);
+        setNeedsAssign(true);
+      }
 
       // Separate call: lender options depend on migration 026 and
       // shouldn't take the buyer list down if it hasn't run.
@@ -202,6 +215,17 @@ export default function BuyerAdmin() {
       setBoxOpen((s2) => ({ ...s2, [orgId]: false }));
     });
 
+  const removeAssignment = (id) =>
+    run(() => api("/api/buyer/admin/assign", { method: "DELETE", body: { id } }));
+
+  const releaseAssignment = (slug, orgId) =>
+    run(() =>
+      api("/api/buyer/admin/assign", {
+        method: "POST",
+        body: { slug, org_id: orgId, status: "released" },
+      })
+    );
+
   const saveOption = () => {
     // Checked here rather than thrown up to the page-level banner —
     // an error 900px from the button that caused it isn't an error
@@ -240,6 +264,7 @@ export default function BuyerAdmin() {
         {[
           { id: "firms", label: "Buyers & people" },
           { id: "interest", label: newCount ? `Interest (${newCount} new)` : "Interest" },
+          { id: "assigned", label: assignments?.length ? `Assigned (${assignments.length})` : "Assigned" },
           { id: "financing", label: "Lender options" },
         ].map((t) => (
           <button
@@ -629,6 +654,88 @@ export default function BuyerAdmin() {
                     </span>
                   </div>
                 </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ---------------- assigned ---------------- */}
+      {tab === "assigned" && (
+        <div className="mt-5">
+          <p className="mb-4 text-[13px] text-neutral-600">
+            Properties allocated to a buyer. Removing an assignment takes the
+            badge off their portal — it does not hide the property, which stays
+            visible to every buyer while its status is <code>for_sale</code>.
+          </p>
+
+          {needsAssign && (
+            <div className="mb-4 rounded border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
+              <strong>Migration 026 hasn&rsquo;t been run.</strong> Assignments
+              are unavailable until you run{" "}
+              <code>026_assignments_and_financing.sql</code>.
+            </div>
+          )}
+
+          {assignments && assignments.length === 0 && !needsAssign && (
+            <div className="rounded border border-neutral-200 bg-white px-4 py-6 text-[13px] text-neutral-600">
+              Nothing assigned to anyone.
+            </div>
+          )}
+
+          {(assignments || []).map((a) => {
+            const expired = a.expires_at && new Date(a.expires_at) < new Date();
+            return (
+              <div key={a.id} className="mb-3 rounded border border-neutral-200 bg-white px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[13px] font-bold text-neutral-900">
+                    {a.buyer_orgs?.name}
+                  </span>
+                  <span className="text-[12px] text-neutral-500">
+                    {a.deals?.address_line}
+                    {a.deals?.city ? `, ${a.deals.city}` : ""}
+                  </span>
+
+                  <Pill tone={a.status === "released" || expired ? "off" : "good"}>
+                    {expired ? "expired" : a.status}
+                  </Pill>
+
+                  {a.deals?.status && (
+                    <Pill tone="neutral">{String(a.deals.status).replace("_", " ")}</Pill>
+                  )}
+
+                  <button
+                    onClick={() => removeAssignment(a.id)}
+                    disabled={busy}
+                    className="ml-auto text-[11px] text-neutral-500 underline underline-offset-2 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+
+                  {a.status !== "released" && (
+                    <button
+                      onClick={() => releaseAssignment(a.deals?.slug, a.org_id)}
+                      disabled={busy}
+                      className="text-[11px] text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
+                    >
+                      Release
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-1 text-[11px] text-neutral-500">
+                  Assigned {new Date(a.created_at).toLocaleDateString()}
+                  {a.expires_at
+                    ? ` · ${expired ? "expired" : "expires"} ${new Date(a.expires_at).toLocaleDateString()}`
+                    : ""}
+                  {a.deals?.status !== "for_sale"
+                    ? " · not for sale, so it isn't in any portal"
+                    : ""}
+                </div>
+
+                {a.note && (
+                  <p className="mt-1 text-[12px] text-neutral-600">{a.note}</p>
+                )}
               </div>
             );
           })}

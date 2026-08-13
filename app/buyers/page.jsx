@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BrandMark } from "../../components/Brand";
 import { usd } from "../../lib/proformaClub";
+import { matchBuyBox } from "../../lib/buyBox";
 
 const GREEN = "#00A651";
 
@@ -16,6 +17,8 @@ export default function BuyerIndex() {
   const router = useRouter();
   const [buyer, setBuyer] = useState(null);
   const [deals, setDeals] = useState(null);
+  const [buyBox, setBuyBox] = useState(null);
+  const [onlyMatches, setOnlyMatches] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -29,7 +32,11 @@ export default function BuyerIndex() {
     if (!buyer) return;
     fetch("/api/buyer/deals")
       .then((r) => r.json())
-      .then((j) => (j.error ? setError(j.error) : setDeals(j.deals)))
+      .then((j) => {
+        if (j.error) return setError(j.error);
+        setDeals(j.deals);
+        setBuyBox(j.buyBox || null);
+      })
       .catch((e) => setError(e.message));
   }, [buyer]);
 
@@ -95,9 +102,38 @@ export default function BuyerIndex() {
           </div>
         )}
 
-        {deals && deals.length > 0 && (
+        {deals && deals.length > 0 && (() => {
+          const ranked = deals
+            .map((d) => ({ d, fit: matchBuyBox(d, buyBox) }))
+            .sort((a, b) => {
+              const score = (x) => (x.fit.matches ? (x.fit.nearMisses.length ? 1 : 0) : 2);
+              return score(a) - score(b);
+            });
+
+          const matchCount = ranked.filter((r) => r.fit.matches).length;
+          const shown = onlyMatches ? ranked.filter((r) => r.fit.matches) : ranked;
+
+          return (
+          <>
+          {buyBox && (
+            <div className="mt-5 flex flex-wrap items-center gap-3 rounded border border-neutral-200 bg-white px-4 py-2.5">
+              <span className="text-[12px] text-neutral-700">
+                <strong>{matchCount}</strong> of {ranked.length} match your buy
+                box.
+              </span>
+              <label className="flex items-center gap-1.5 text-[12px] text-neutral-600">
+                <input
+                  type="checkbox"
+                  checked={onlyMatches}
+                  onChange={(e) => setOnlyMatches(e.target.checked)}
+                />
+                Matches only
+              </label>
+            </div>
+          )}
+
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            {deals.map((d) => (
+            {shown.map(({ d, fit }) => (
               <Link
                 key={d.id}
                 href={`/buyers/${d.slug}`}
@@ -119,14 +155,32 @@ export default function BuyerIndex() {
                         {d.city}, {d.state} {d.zip}
                       </div>
                     </div>
-                    {d.interest && (
-                      <span
-                        className="shrink-0 rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white"
-                        style={{ backgroundColor: GREEN }}
-                      >
-                        {d.interest === "offer" ? "Offer in" : d.interest}
-                      </span>
-                    )}
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      {d.interest && (
+                        <span
+                          className="rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white"
+                          style={{ backgroundColor: GREEN }}
+                        >
+                          {d.interest === "offer" ? "Offer in" : d.interest}
+                        </span>
+                      )}
+                      {buyBox && fit.matches && fit.checked > 0 && (
+                        <span
+                          className="rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                          style={{ backgroundColor: "#E7F6ED", color: "#046A38" }}
+                        >
+                          Fits your buy box
+                        </span>
+                      )}
+                      {buyBox && !fit.matches && (
+                        <span
+                          className="rounded bg-neutral-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-500"
+                          title={fit.failures.join(" · ")}
+                        >
+                          {fit.failures.length === 1 ? fit.failures[0] : "Outside buy box"}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-3 flex items-end justify-between">
                     <div className="text-[12px] text-neutral-600">
@@ -141,7 +195,9 @@ export default function BuyerIndex() {
               </Link>
             ))}
           </div>
-        )}
+          </>
+          );
+        })()}
       </div>
     </div>
   );

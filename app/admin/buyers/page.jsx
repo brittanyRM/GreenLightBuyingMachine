@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../../../lib/queries";
 import { usd } from "../../../lib/proformaClub";
+import { describeBuyBox, parseList } from "../../../lib/buyBox";
 
 const GREEN = "#00A651";
 
@@ -52,6 +53,10 @@ export default function BuyerAdmin() {
   const [interest, setInterest] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [needsMigration, setNeedsMigration] = useState(false);
+  const [needsBuyBox, setNeedsBuyBox] = useState(false);
+  const [boxOpen, setBoxOpen] = useState({});
+  const [boxDraft, setBoxDraft] = useState({});
 
   const [newOrg, setNewOrg] = useState("");
   const [newUser, setNewUser] = useState({});
@@ -65,6 +70,8 @@ export default function BuyerAdmin() {
         apiFetch("/api/buyer/admin/interest"),
       ]);
       setOrgs(o.orgs || []);
+      setNeedsMigration(!!o.needsMigration);
+      setNeedsBuyBox(!!o.needsBuyBoxMigration);
       setInterest(i.interest || []);
     } catch (e) {
       setError(e.message);
@@ -90,7 +97,7 @@ export default function BuyerAdmin() {
 
   const createOrg = () =>
     run(async () => {
-      if (!newOrg.trim()) throw new Error("Give the firm a name.");
+      if (!newOrg.trim()) throw new Error("Give the buyer a name.");
       await apiFetch("/api/buyer/admin/orgs", { method: "POST", body: { name: newOrg.trim() } });
       setNewOrg("");
     });
@@ -131,6 +138,29 @@ export default function BuyerAdmin() {
       }
     });
 
+  const saveBox = (orgId) =>
+    run(async () => {
+      const d = boxDraft[orgId] || {};
+      await apiFetch("/api/buyer/admin/buybox", {
+        method: "POST",
+        body: {
+          org_id: orgId,
+          min_price: d.min_price ?? "",
+          max_price: d.max_price ?? "",
+          min_bedrooms: d.min_bedrooms ?? "",
+          min_bathrooms: d.min_bathrooms ?? "",
+          min_sqft: d.min_sqft ?? "",
+          min_year_built: d.min_year_built ?? "",
+          min_dscr: d.min_dscr ?? "",
+          cities: parseList(d.cities),
+          zips: parseList(d.zips),
+          states: parseList(d.states),
+          notes: d.notes || null,
+        },
+      });
+      setBoxOpen((s2) => ({ ...s2, [orgId]: false }));
+    });
+
   const setStatus = (id, status) =>
     run(() => apiFetch("/api/buyer/admin/interest", { method: "PATCH", body: { id, status } }));
 
@@ -140,12 +170,12 @@ export default function BuyerAdmin() {
     <div className="mx-auto max-w-4xl px-5 py-8 font-sans">
       <h1 className="text-2xl font-bold text-neutral-900">Buyers</h1>
       <p className="mt-1 text-[13px] text-neutral-600">
-        Firms with portal access, and what they&rsquo;ve raised a hand on.
+        Buyers with portal access, and what they&rsquo;ve raised a hand on.
       </p>
 
       <div className="mt-5 flex gap-1">
         {[
-          { id: "firms", label: "Firms & people" },
+          { id: "firms", label: "Buyers & people" },
           { id: "interest", label: newCount ? `Interest (${newCount} new)` : "Interest" },
         ].map((t) => (
           <button
@@ -164,6 +194,21 @@ export default function BuyerAdmin() {
       {error && (
         <div className="mt-4 rounded border-l-4 border-red-600 bg-red-50 px-4 py-3 text-[13px] text-red-900">
           {error}
+        </div>
+      )}
+
+      {needsBuyBox && (
+        <div className="mt-4 rounded border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
+          <strong>Migration 023 hasn&rsquo;t been run.</strong> Buy boxes are
+          unavailable until you run <code>023_buyer_buy_boxes.sql</code>.
+        </div>
+      )}
+
+      {needsMigration && (
+        <div className="mt-4 rounded border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
+          <strong>Migration 021 hasn&rsquo;t been run.</strong> Everything below
+          works, but buyer logos are unavailable until you run{" "}
+          <code>021_buyer_org_branding.sql</code>.
         </div>
       )}
 
@@ -197,7 +242,7 @@ export default function BuyerAdmin() {
           <div className="mb-5 flex items-end gap-2 rounded border border-neutral-200 bg-white p-4">
             <div className="flex-1">
               <Field
-                label="Add a firm"
+                label="Add a buyer"
                 value={newOrg}
                 onChange={(e) => setNewOrg(e.target.value)}
                 placeholder="Mogul"
@@ -216,7 +261,7 @@ export default function BuyerAdmin() {
           {!orgs && <div className="text-[13px] text-neutral-500">Loading…</div>}
           {orgs && orgs.length === 0 && (
             <div className="rounded border border-neutral-200 bg-white px-4 py-6 text-[13px] text-neutral-600">
-              No firms yet.
+              No buyers yet.
             </div>
           )}
 
@@ -240,7 +285,7 @@ export default function BuyerAdmin() {
                     disabled={busy}
                     className="ml-auto text-[11px] text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
                   >
-                    {org.active ? "Disable firm" : "Re-enable"}
+                    {org.active ? "Disable buyer" : "Re-enable"}
                   </button>
                 </div>
 
@@ -309,7 +354,7 @@ export default function BuyerAdmin() {
                         onChange={(e) =>
                           setNewUser((s) => ({ ...s, [org.id]: { ...draft, email: e.target.value } }))
                         }
-                        placeholder="name@firm.com"
+                        placeholder="name@company.com"
                       />
                     </div>
                     <div className="w-40">
@@ -345,6 +390,124 @@ export default function BuyerAdmin() {
                     </button>
                   </div>
 
+                  {!needsBuyBox && (
+                    <div className="mt-3 border-t border-neutral-200 pt-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-[0.12em] text-neutral-500">
+                          Buy box
+                        </span>
+                        <span className="text-[12px] text-neutral-700">
+                          {describeBuyBox(org.buy_box)}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const b = org.buy_box || {};
+                            setBoxDraft((s2) => ({
+                              ...s2,
+                              [org.id]: {
+                                min_price: b.min_price ?? "",
+                                max_price: b.max_price ?? "",
+                                min_bedrooms: b.min_bedrooms ?? "",
+                                min_bathrooms: b.min_bathrooms ?? "",
+                                min_sqft: b.min_sqft ?? "",
+                                min_year_built: b.min_year_built ?? "",
+                                min_dscr: b.min_dscr ?? "",
+                                cities: (b.cities || []).join(", "),
+                                zips: (b.zips || []).join(", "),
+                                states: (b.states || []).join(", "),
+                                notes: b.notes || "",
+                              },
+                            }));
+                            setBoxOpen((s2) => ({ ...s2, [org.id]: !s2[org.id] }));
+                          }}
+                          className="text-[11px] text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
+                        >
+                          {boxOpen[org.id] ? "Close" : org.buy_box ? "Edit" : "Set one"}
+                        </button>
+                      </div>
+
+                      {boxOpen[org.id] && (
+                        <div className="mt-3 rounded bg-neutral-50 p-3">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {[
+                              ["min_price", "Min price"],
+                              ["max_price", "Max price"],
+                              ["min_bedrooms", "Min beds"],
+                              ["min_bathrooms", "Min baths"],
+                              ["min_sqft", "Min sq ft"],
+                              ["min_year_built", "Built after"],
+                              ["min_dscr", "Min DSCR"],
+                            ].map(([k, lbl]) => (
+                              <Field
+                                key={k}
+                                label={lbl}
+                                inputMode="decimal"
+                                value={(boxDraft[org.id] || {})[k] ?? ""}
+                                onChange={(e) =>
+                                  setBoxDraft((s2) => ({
+                                    ...s2,
+                                    [org.id]: { ...(s2[org.id] || {}), [k]: e.target.value },
+                                  }))
+                                }
+                                placeholder="Any"
+                              />
+                            ))}
+                          </div>
+
+                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            {[
+                              ["cities", "Cities", "Mesa, Gilbert, Chandler"],
+                              ["zips", "ZIPs", "85201, 85210"],
+                              ["states", "States", "AZ"],
+                            ].map(([k, lbl, ph]) => (
+                              <Field
+                                key={k}
+                                label={lbl}
+                                value={(boxDraft[org.id] || {})[k] ?? ""}
+                                onChange={(e) =>
+                                  setBoxDraft((s2) => ({
+                                    ...s2,
+                                    [org.id]: { ...(s2[org.id] || {}), [k]: e.target.value },
+                                  }))
+                                }
+                                placeholder={ph}
+                              />
+                            ))}
+                          </div>
+
+                          <div className="mt-2">
+                            <Field
+                              label="Notes"
+                              value={(boxDraft[org.id] || {}).notes ?? ""}
+                              onChange={(e) =>
+                                setBoxDraft((s2) => ({
+                                  ...s2,
+                                  [org.id]: { ...(s2[org.id] || {}), notes: e.target.value },
+                                }))
+                              }
+                              placeholder="No septic, 2-car garage preferred…"
+                            />
+                          </div>
+
+                          <div className="mt-3 flex items-center gap-3">
+                            <button
+                              onClick={() => saveBox(org.id)}
+                              disabled={busy}
+                              className="rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-50"
+                              style={{ backgroundColor: GREEN }}
+                            >
+                              Save buy box
+                            </button>
+                            <span className="text-[11px] text-neutral-500">
+                              Blank means no constraint. Matching properties are
+                              flagged and sorted first in their portal.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-neutral-200 pt-3">
                     <div className="w-56">
                       <Field
@@ -354,7 +517,7 @@ export default function BuyerAdmin() {
                           if (e.target.value !== (org.logo_url || ""))
                             patchOrg(org.id, { logo_url: e.target.value });
                         }}
-                        placeholder="/buyer-logos/firm-black.svg"
+                        placeholder="/buyer-logos/mogul-black.svg"
                       />
                     </div>
                     <div className="w-56">
@@ -365,11 +528,11 @@ export default function BuyerAdmin() {
                           if (e.target.value !== (org.logo_dark_url || ""))
                             patchOrg(org.id, { logo_dark_url: e.target.value });
                         }}
-                        placeholder="/buyer-logos/firm-white.svg"
+                        placeholder="/buyer-logos/mogul-white.svg"
                       />
                     </div>
                     <span className="pb-2 text-[11px] text-neutral-500">
-                      Shown in their portal header only. Ask the firm first.
+                      Shown in their portal header only. Ask them first.
                     </span>
                   </div>
                 </div>

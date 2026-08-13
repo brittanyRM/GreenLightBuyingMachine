@@ -32,7 +32,19 @@ export async function GET(req) {
     if (!byDeal[row.deal_id]) byDeal[row.deal_id] = row.kind;
   }
 
+  // A buyer's own criteria, so the portal can lead with what fits.
+  // Table may not exist yet if 023 hasn't run — that just means no
+  // ranking, not a broken list.
+  const bb = await admin()
+    .from("buyer_buy_boxes")
+    .select("*")
+    .eq("org_id", buyer.org.id)
+    .eq("active", true)
+    .limit(1)
+    .maybeSingle();
+
   return NextResponse.json({
     deals: (data || []).map((d) => ({ ...scrubDeal(d), interest: byDeal[d.id] || null })),
+    buyBox: bb.error ? null : bb.data || null,
   });
 }

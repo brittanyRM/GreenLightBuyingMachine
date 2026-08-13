@@ -9,12 +9,26 @@ export async function GET(req) {
     return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   }
 
-  const { data, error } = await admin()
-    .from("buyer_orgs")
-    .select("id, name, slug, active, logo_url, logo_dark_url, created_at, buyer_users(id, email, name, active, last_login_at, password_hash)")
-    .order("name");
+  const withLogos =
+    "id, name, slug, active, logo_url, logo_dark_url, created_at, buyer_users(id, email, name, active, last_login_at, password_hash)";
+  const withoutLogos =
+    "id, name, slug, active, created_at, buyer_users(id, email, name, active, last_login_at, password_hash)";
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Migration 021 adds the logo columns. Selecting a column that
+  // doesn't exist fails the whole query, which would show an empty
+  // list rather than the buyers that are actually there — so fall
+  // back and tell the caller what's missing.
+  let { data, error } = await admin().from("buyer_orgs").select(withLogos).order("name");
+
+  let needsMigration = false;
+  if (error) {
+    const retry = await admin().from("buyer_orgs").select(withoutLogos).order("name");
+    if (retry.error) {
+      return NextResponse.json({ error: retry.error.message }, { status: 500 });
+    }
+    data = retry.data;
+    needsMigration = true;
+  }
 
   // Never ship a hash to the browser — collapse it to a boolean so the
   // UI can show whether a password is set without carrying the value.
@@ -26,7 +40,22 @@ export async function GET(req) {
     })),
   }));
 
-  return NextResponse.json({ orgs });
+  // Buy boxes are a separate table so a missing migration 023 can't
+  // take the buyer list down with it.
+  let buyBoxes = [];
+  const bb = await admin().from("buyer_buy_boxes").select("*");
+  if (!bb.error) buyBoxes = bb.data || [];
+
+  const withBoxes = orgs.map((o) => ({
+    ...o,
+    buy_box: buyBoxes.find((b) => b.org_id === o.id) || null,
+  }));
+
+  return NextResponse.json({
+    orgs: withBoxes,
+    needsMigration,
+    needsBuyBoxMigration: !!bb.error,
+  });
 }
 
 export async function POST(req) {
@@ -35,7 +64,7 @@ export async function POST(req) {
   }
 
   const { name } = await req.json().catch(() => ({}));
-  if (!name) return NextResponse.json({ error: "A firm name is required." }, { status: 400 });
+  if (!name) return NextResponse.json({ error: "A buyer name is required." }, { status: 400 });
 
   const slug = String(name)
     .toLowerCase()
@@ -59,7 +88,7 @@ export async function PATCH(req) {
   }
 
   const { id, name, active, logo_url, logo_dark_url } = await req.json().catch(() => ({}));
-  if (!id) return NextResponse.json({ error: "A firm id is required." }, { status: 400 });
+  if (!id) return NextResponse.json({ error: "A buyer id is required." }, { status: 400 });
 
   const patch = {};
   if (typeof name === "string" && name) patch.name = name;

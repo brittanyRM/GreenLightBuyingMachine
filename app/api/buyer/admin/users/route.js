@@ -13,7 +13,7 @@ export async function POST(req) {
 
   const { org_id, email, name, password } = await req.json().catch(() => ({}));
   if (!org_id || !email) {
-    return NextResponse.json({ error: "Firm and email are required." }, { status: 400 });
+    return NextResponse.json({ error: "Buyer and email are required." }, { status: 400 });
   }
 
   let password_hash = null;

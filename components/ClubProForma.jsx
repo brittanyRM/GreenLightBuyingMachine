@@ -54,10 +54,34 @@ import {
 const GREEN = "#00A651";
 
 const SCENARIOS = [
-  { key: "glbm", label: "GLBM", hint: "Our underwriting standard" },
-  { key: "bear", label: "Bear", hint: "Below market — the stress case" },
-  { key: "base", label: "Base", hint: "At the published market average" },
-  { key: "bull", label: "Bull", hint: "Above market — upside only" },
+  {
+    key: "glbm",
+    label: "GLBM",
+    hint: "Our underwriting standard",
+    detail:
+      "The vacancy rate Green Light Buying Machine holds every deal to, whatever a particular ZIP happens to be running. This is the case our own pro forma uses, so it's the number we stand behind.",
+  },
+  {
+    key: "bear",
+    label: "Bear",
+    hint: "Below market — the stress case",
+    detail:
+      "Runs meaningfully below the market: occupancy several points light, members turning over faster, and costs growing quicker than rent. Not a disaster case — no vacancy event, no capital failure, no rate shock. It answers how far this can slip and still cover debt.",
+  },
+  {
+    key: "base",
+    label: "Base",
+    hint: "At the published market average",
+    detail:
+      "Runs at PadSplit's own published occupancy for this ZIP — not our estimate, their data, which you can verify. The neutral case.",
+  },
+  {
+    key: "bull",
+    label: "Bull",
+    hint: "Above market — upside only",
+    detail:
+      "Runs above market with members staying longer. Occupancy is capped below 100% because a room that turns at all has a gap. Context, not a promise.",
+  },
 ];
 
 function Stat({ label, value, sub, good }) {
@@ -501,6 +525,44 @@ export default function ClubProForma({
               {sc.label}
             </button>
           ))}
+
+          {/* Hover card rather than a title attribute: the browser
+              tooltip is slow, untruncated and unstyled, and this is
+              the one explanation a buyer needs before trusting the
+              spread between the cases. */}
+          <span className="no-print group relative inline-flex self-center">
+            <span
+              className="flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border text-[9px] font-bold text-neutral-500"
+              style={{ borderColor: "#B4B4B4" }}
+              aria-label="What the cases mean"
+            >
+              i
+            </span>
+
+            <span className="pointer-events-none absolute left-1/2 top-6 z-30 hidden w-[320px] -translate-x-1/2 rounded-lg bg-neutral-950 p-3 text-left shadow-xl group-hover:block">
+              <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.14em] text-neutral-500">
+                What the cases mean
+              </span>
+              {SCENARIOS.filter((x) => modelInputs?.scenarios?.[x.key]).map((x) => (
+                <span key={x.key} className="mb-2 block last:mb-0">
+                  <span
+                    className="block text-[11px] font-bold"
+                    style={{ color: x.key === activeScenario ? GREEN : "#FFFFFF" }}
+                  >
+                    {x.label}
+                    {x.key === activeScenario ? " — showing" : ""}
+                  </span>
+                  <span className="block text-[10px] leading-snug text-neutral-400">
+                    {x.detail}
+                  </span>
+                </span>
+              ))}
+              <span className="mt-2 block border-t border-neutral-800 pt-2 text-[10px] leading-snug text-neutral-400">
+                All four share the same price, rooms, financing and expense
+                stack. Only the operating assumptions differ.
+              </span>
+            </span>
+          </span>
 
           <span className="ml-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
             Hold

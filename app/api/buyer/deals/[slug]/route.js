@@ -26,7 +26,8 @@ export async function GET(req, { params }) {
   // buyer shouldn't be able to probe slugs to learn the pipeline.
   if (!deal) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const [{ data: rooms }, { data: market }, { data: comps }, { data: interest }] = await Promise.all([
+  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }, { data: interest }] =
+    await Promise.all([
     admin()
       .from("deal_rooms")
       .select("id, room_number, label, room_type, weekly_rate, is_ensuite")
@@ -44,6 +45,9 @@ export async function GET(req, { params }) {
       .select("id, address, comp_status, list_price, sold_price, sold_date, approx_sqft, price_per_sqft, adom, cdom")
       .eq("deal_id", deal.id)
       .order("sold_date", { ascending: false, nullsFirst: false }),
+    // Brand defaults: standard hero, standard gallery, flyer copy.
+    // Already anon-readable by policy and carries nothing deal-specific.
+    admin().from("org_settings").select("key, value"),
     admin()
       .from("deal_interest")
       .select("id, kind, offer_price, note, status, created_at")
@@ -57,6 +61,7 @@ export async function GET(req, { params }) {
     rooms: rooms || [],
     market: market || null,
     comps: comps || [],
+    defaults: (settings || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {}),
     interest: interest || [],
   });
 }

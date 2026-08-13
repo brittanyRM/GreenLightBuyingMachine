@@ -30,8 +30,11 @@ const INK = "#141914";
 // The flyer's split masthead: wordmark and title on the left, hero
 // photo bleeding to the right edge with the price plate hanging off
 // its bottom corner.
-export function FlyerMasthead({ deal = {}, beds, baths, sqft, price, scenarioLabel }) {
-  const heroUrl = deal.hero_image_url || null;
+export function FlyerMasthead({ deal = {}, beds, baths, sqft, price, scenarioLabel, defaults = null }) {
+  // Same fallback chain as the flyer: the deal's own hero, otherwise
+  // the standard one from org_settings, so a sheet is presentable
+  // before a single photo has been uploaded to the deal.
+  const heroUrl = deal.hero_image_url || defaults?.default_hero?.url || null;
 
   return (
     <div className="print-section relative grid grid-cols-[0.88fr_1fr]">
@@ -168,11 +171,18 @@ export function HeadlineMetrics({ scenario, holdYears, listPrice, grossAnnual, n
 // The flyer's ink bar, carried across so the two documents read as a
 // set. Also does real work here: it's what justifies the price
 // against comps that sold as ordinary houses.
-export function IncludedBar({ items }) {
+export function IncludedBar({ items, defaults = null }) {
+  // flyer_copy.features is the same list the flyer prints, so the two
+  // documents can't drift apart when the standard changes.
+  const fromDefaults = Array.isArray(defaults?.flyer_copy?.features)
+    ? defaults.flyer_copy.features.map((f) =>
+        typeof f === "string" ? { icon: "✓", label: f } : f
+      )
+    : null;
+
   const list =
-    items && items.length
-      ? items
-      : [
+    (items && items.length && items) ||
+    (fromDefaults && fromDefaults.length && fromDefaults) || [
           { icon: "▭", label: "Fully Furnished" },
           { icon: "🔒", label: "Smart Locks Installed" },
           { icon: "🖥", label: "Listed on PadSplit" },
@@ -214,12 +224,22 @@ export function IncludedBar({ items }) {
 
 // ---------- gallery ----------
 
-export function PropertyGallery({ gallery = [], floorPlanUrl, address }) {
-  const shots = (Array.isArray(gallery) ? gallery : [])
+export function PropertyGallery({ gallery = [], address, defaults = null }) {
+  // The deal's own photographs first, then the standard interior set.
+  // Deduplicated, because a deal that has adopted a standard shot as
+  // its own would otherwise show it twice.
+  const own = (Array.isArray(gallery) ? gallery : [])
     .map((g) => (typeof g === "string" ? g : g?.url))
     .filter(Boolean);
 
-  if (floorPlanUrl) shots.push(floorPlanUrl);
+  const standard = (Array.isArray(defaults?.default_gallery) ? defaults.default_gallery : [])
+    .map((g) => (typeof g === "string" ? g : g?.url))
+    .filter(Boolean);
+
+  // Photographs only. A line drawing cropped to a photo frame reads
+  // as a mistake, so the plan is rendered separately below.
+  const shots = [...new Set([...own, ...standard])];
+
   const [active, setActive] = useState(0);
   if (!shots.length) return null;
 
@@ -251,6 +271,37 @@ export function PropertyGallery({ gallery = [], floorPlanUrl, address }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------- floor plan ----------
+
+// Presented as the flyer does: contained rather than cropped, in a
+// bordered panel with the room count in the heading. Uses the
+// marketed plan, not the raw dimensioned sketch.
+export function FloorPlan({ url, beds, baths, sqft }) {
+  if (!url) return null;
+
+  return (
+    <div className="print-section px-8 pb-4">
+      <FlyerHeading>
+        Floor Plan — {beds} Bedrooms | {baths} Bathrooms
+        {sqft ? ` | ${sqft.toLocaleString()} Sq Ft` : ""}
+      </FlyerHeading>
+
+      <div className="overflow-hidden rounded-xl border border-neutral-300 bg-white">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt="Floor plan"
+          className="mx-auto block max-h-[420px] w-full object-contain"
+        />
+      </div>
+
+      <p className="mt-1.5 text-center text-[8px] italic text-neutral-500">
+        This rendering is a representation. Actual layout may vary.
+      </p>
     </div>
   );
 }
@@ -447,7 +498,9 @@ export function CompsTable({ comps = [], listPrice, sqft }) {
 // ---------- closing bar ----------
 
 // The flyer's dark foot, so the two documents end the same way.
-export function FlyerFooter({ deal = {}, market = null, hasOwnPhotos }) {
+export function FlyerFooter({ deal = {}, market = null, hasOwnPhotos, defaults = null }) {
+  const about = defaults?.flyer_copy?.about;
+  const closing = defaults?.flyer_copy?.closing;
   return (
     <div className="print-section px-8 pb-8 pt-4">
       <div className="grid grid-cols-[1fr_0.72fr]">
@@ -460,13 +513,14 @@ export function FlyerFooter({ deal = {}, market = null, hasOwnPhotos }) {
               About This Property
             </h4>
             <p className="mt-1.5 text-[8.5px] leading-relaxed text-neutral-300">
-              Renovated, furnished and launched to Green Light Buying Machine
-              standards. The projections in this document are built room by
-              room and reduced to net-to-owner income before any return is
-              calculated — no figure here is stated on gross rent.
+              {about ||
+                "Renovated, furnished and launched to Green Light Buying Machine standards."}{" "}
+              The projections in this document are built room by room and
+              reduced to net-to-owner income before any return is calculated —
+              no figure here is stated on gross rent.
             </p>
             <p className="mt-2 text-[9.5px] font-black uppercase" style={{ color: LIME }}>
-              Close and begin operating.
+              {closing || "Simply close and begin operating."}
             </p>
           </div>
         </div>

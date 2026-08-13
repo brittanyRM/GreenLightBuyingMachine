@@ -97,6 +97,16 @@ export default function DealPage({ params }) {
               {t.label}
             </button>
           ))}
+
+          {/* Links out rather than mounting a tab — the club sheet is a
+              standalone document with its own print layout and share
+              flow, and nothing on this page needs to know about it. */}
+          <a
+            href={`/proforma-club/${params.slug}`}
+            className="ml-auto self-center px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
+          >
+            Club sheet →
+          </a>
         </div>
       </div>
 

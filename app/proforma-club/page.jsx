@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { listDeals } from "../../lib/queries";
+import { listDeals, supabase } from "../../lib/queries";
 import { usd } from "../../lib/proformaClub";
 import { pepperPlaceInputs } from "../../lib/proformaClubPresets";
 import ClubProForma from "../../components/ClubProForma";
@@ -21,6 +21,18 @@ export default function ClubProFormaIndex() {
   const [deals, setDeals] = useState(null);
   const [error, setError] = useState(null);
   const [showDemo, setShowDemo] = useState(null); // null | "seller" | "buyer"
+  const [defaults, setDefaults] = useState(null);
+
+  useEffect(() => {
+    // Brand defaults, so the demo shows the standard hero and gallery
+    // rather than a grey placeholder.
+    supabase
+      .from("org_settings")
+      .select("key, value")
+      .then(({ data }) =>
+        setDefaults((data || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {}))
+      );
+  }, []);
 
   useEffect(() => {
     listDeals()
@@ -91,6 +103,7 @@ export default function ClubProFormaIndex() {
           deal={isBuyer ? demoDeal : null}
           comps={isBuyer ? demoComps : []}
           market={{ zip: "85201", shared_weekly: 204, private_weekly: 290, avg_occupancy: 0.87 }}
+          defaults={isBuyer ? defaults : null}
         />
       </div>
     );
@@ -142,6 +155,7 @@ export default function ClubProFormaIndex() {
                     {d.city}, {d.state} {d.zip}
                     {d.bedrooms ? ` · ${d.bedrooms} bed` : ""}
                     {d.bathrooms ? ` / ${d.bathrooms} bath` : ""}
+                    {!d.list_price ? " · no list price set" : ""}
                   </div>
                 </div>
                 <div className="text-right">

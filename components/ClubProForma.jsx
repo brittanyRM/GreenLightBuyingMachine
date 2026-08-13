@@ -23,6 +23,7 @@ import { BrandMark } from "./Brand";
 import ClubAssumptions from "./ClubAssumptions";
 import {
   CompsTable,
+  FloorPlan,
   FlyerFooter,
   FlyerHeading,
   FlyerMasthead,
@@ -121,6 +122,9 @@ export default function ClubProForma({
   comps = [],
   market = null,
   initialScenario = "base",
+  // Brand defaults from org_settings: standard hero, standard interior
+  // gallery and flyer_copy. Same source the flyer draws on.
+  defaults = null,
 }) {
   const isBuyer = audience === "buyer";
   // The model is editable now, so it's state rather than a frozen
@@ -202,6 +206,7 @@ export default function ClubProForma({
             sqft={p.sqft}
             price={cap.purchasePrice}
             scenarioLabel={scenarioLabel}
+            defaults={defaults}
           />
         ) : (
         <div className="print-section bg-neutral-950 px-6 py-5 sm:px-8">
@@ -276,13 +281,22 @@ export default function ClubProForma({
           />
         )}
 
-        {isBuyer && <IncludedBar />}
+        {isBuyer && <IncludedBar defaults={defaults} />}
 
         {isBuyer && deal && (
           <PropertyGallery
             gallery={deal.gallery}
-            floorPlanUrl={deal.floor_plan_url}
             address={deal.address_line}
+            defaults={defaults}
+          />
+        )}
+
+        {isBuyer && deal && (
+          <FloorPlan
+            url={deal.marketed_floor_plan_url}
+            beds={p.beds}
+            baths={p.baths}
+            sqft={p.sqft}
           />
         )}
 
@@ -884,7 +898,12 @@ export default function ClubProForma({
         </div>
 
         {isBuyer && deal && (
-          <FlyerFooter deal={deal} market={market} hasOwnPhotos={!!deal.hero_image_url} />
+          <FlyerFooter
+            deal={deal}
+            market={market}
+            hasOwnPhotos={!!deal.hero_image_url}
+            defaults={defaults}
+          />
         )}
 
         {!isBuyer && (

@@ -173,6 +173,7 @@ export default function ClubProFormaDeal({ params }) {
         deal={preview ? deal : null}
         comps={preview ? comps || [] : []}
         market={market}
+        defaults={preview ? bundle.defaults : null}
       />
     </div>
   );

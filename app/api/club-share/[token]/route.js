@@ -33,7 +33,8 @@ export async function GET(req, { params }) {
 
   if (!deal) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const [{ data: rooms }, { data: market }, { data: comps }] = await Promise.all([
+  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }] =
+    await Promise.all([
     admin()
       .from("deal_rooms")
       .select("id, room_number, label, room_type, weekly_rate, is_ensuite")
@@ -49,6 +50,9 @@ export async function GET(req, { params }) {
       .select("id, address, comp_status, list_price, sold_price, sold_date, approx_sqft, price_per_sqft")
       .eq("deal_id", deal.id)
       .order("sold_date", { ascending: false, nullsFirst: false }),
+    // Brand defaults: standard hero, standard gallery, flyer copy.
+    // Already anon-readable by policy and carries nothing deal-specific.
+    admin().from("org_settings").select("key, value"),
   ]);
 
   admin().rpc("club_share_mark_viewed", { p_token: params.token });
@@ -58,6 +62,7 @@ export async function GET(req, { params }) {
     rooms: rooms || [],
     market: market || null,
     comps: comps || [],
+    defaults: (settings || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {}),
     scenario: link.scenario,
     holdYears: link.hold_years,
   });

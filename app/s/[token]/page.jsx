@@ -57,6 +57,7 @@ export default function SharedClubProForma({ params }) {
       deal={data.deal}
       comps={data.comps || []}
       market={data.market}
+      defaults={data.defaults}
       initialScenario={data.scenario}
     />
   );

@@ -11,6 +11,29 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../../../lib/queries";
+
+// apiFetch returns a raw Response, defaults to POST when no method is
+// given, and does not serialise the body. Reading `.orgs` straight off
+// a Response yields undefined, which rendered as "no buyers yet" no
+// matter what the server said — so every call goes through here.
+async function api(url, { method = "GET", body } = {}) {
+  const res = await apiFetch(url, {
+    method,
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    throw new Error(`${url} returned a non-JSON response (${res.status}).`);
+  }
+  if (!res.ok || json?.error) {
+    throw new Error(json?.error || `${url} failed with ${res.status}.`);
+  }
+  return json;
+}
 import { usd } from "../../../lib/proformaClub";
 import { describeBuyBox, parseList } from "../../../lib/buyBox";
 
@@ -66,8 +89,8 @@ export default function BuyerAdmin() {
     setError(null);
     try {
       const [o, i] = await Promise.all([
-        apiFetch("/api/buyer/admin/orgs"),
-        apiFetch("/api/buyer/admin/interest"),
+        api("/api/buyer/admin/orgs"),
+        api("/api/buyer/admin/interest"),
       ]);
       setOrgs(o.orgs || []);
       setNeedsMigration(!!o.needsMigration);
@@ -98,7 +121,7 @@ export default function BuyerAdmin() {
   const createOrg = () =>
     run(async () => {
       if (!newOrg.trim()) throw new Error("Give the buyer a name.");
-      await apiFetch("/api/buyer/admin/orgs", { method: "POST", body: { name: newOrg.trim() } });
+      await api("/api/buyer/admin/orgs", { method: "POST", body: { name: newOrg.trim() } });
       setNewOrg("");
     });
 
@@ -106,7 +129,7 @@ export default function BuyerAdmin() {
     run(async () => {
       const u = newUser[orgId] || {};
       if (!u.email) throw new Error("An email address is required.");
-      await apiFetch("/api/buyer/admin/users", {
+      await api("/api/buyer/admin/users", {
         method: "POST",
         body: {
           org_id: orgId,
@@ -119,14 +142,14 @@ export default function BuyerAdmin() {
     });
 
   const patchUser = (id, patch) =>
-    run(() => apiFetch("/api/buyer/admin/users", { method: "PATCH", body: { id, ...patch } }));
+    run(() => api("/api/buyer/admin/users", { method: "PATCH", body: { id, ...patch } }));
 
   const patchOrg = (id, patch) =>
-    run(() => apiFetch("/api/buyer/admin/orgs", { method: "PATCH", body: { id, ...patch } }));
+    run(() => api("/api/buyer/admin/orgs", { method: "PATCH", body: { id, ...patch } }));
 
   const makeLink = (userId) =>
     run(async () => {
-      const res = await apiFetch("/api/buyer/admin/magic", {
+      const res = await api("/api/buyer/admin/magic", {
         method: "POST",
         body: { user_id: userId, hours: 48 },
       });
@@ -141,7 +164,7 @@ export default function BuyerAdmin() {
   const saveBox = (orgId) =>
     run(async () => {
       const d = boxDraft[orgId] || {};
-      await apiFetch("/api/buyer/admin/buybox", {
+      await api("/api/buyer/admin/buybox", {
         method: "POST",
         body: {
           org_id: orgId,
@@ -162,7 +185,7 @@ export default function BuyerAdmin() {
     });
 
   const setStatus = (id, status) =>
-    run(() => apiFetch("/api/buyer/admin/interest", { method: "PATCH", body: { id, status } }));
+    run(() => api("/api/buyer/admin/interest", { method: "PATCH", body: { id, status } }));
 
   const newCount = (interest || []).filter((i) => i.status === "new").length;
 

@@ -51,7 +51,16 @@ export default function BuyerIndex() {
             </span>
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <span className="text-[12px] text-neutral-400">{buyer.org.name}</span>
+            {buyer.org.logoDarkUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={buyer.org.logoDarkUrl}
+                alt={buyer.org.name}
+                className="h-5 w-auto opacity-90"
+              />
+            ) : (
+              <span className="text-[12px] text-neutral-400">{buyer.org.name}</span>
+            )}
             <button
               onClick={signOut}
               className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-white"
@@ -63,7 +72,9 @@ export default function BuyerIndex() {
       </div>
 
       <div className="mx-auto max-w-4xl px-5 py-8">
-        <h1 className="text-2xl font-bold text-neutral-900">Available properties</h1>
+        <h1 className="text-2xl font-bold text-neutral-900">
+          Available properties
+        </h1>
         <p className="mt-1 text-[13px] text-neutral-600">
           Turnkey co-living, rehab complete and ready to operate. Open one for
           the full underwriting.

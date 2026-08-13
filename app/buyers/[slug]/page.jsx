@@ -195,6 +195,7 @@ export default function BuyerDeal({ params }) {
         rooms={data.rooms}
         orgRows={data.org}
         marketReport={data.marketReport}
+        documents={data.documents || []}
         defaults={data.defaults}
         allowAdjust
       />

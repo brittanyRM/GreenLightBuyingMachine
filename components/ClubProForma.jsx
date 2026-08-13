@@ -1188,7 +1188,6 @@ export default function ClubProForma({
         {isBuyer && marketReport && (
           <MarketReport report={marketReport} city={deal?.city} state={deal?.state} />
         )}
-        {isBuyer && <SupportingDocuments documents={documents} />}
 
         {isBuyer && deal && (
           <FlyerFooter

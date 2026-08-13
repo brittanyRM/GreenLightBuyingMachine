@@ -49,6 +49,8 @@ export default function ClubProFormaDeal({ params }) {
   const [saved, setSaved] = useState(undefined); // undefined = not loaded yet
   const [savingInputs, setSavingInputs] = useState(false);
   const [inputsMsg, setInputsMsg] = useState(null);
+  const [docs, setDocs] = useState(null);
+  const [docsOpen, setDocsOpen] = useState(false);
 
   // Buyers available to assign to. Silent on failure — assignment is
   // optional and shouldn't break the sheet.
@@ -99,6 +101,15 @@ export default function ClubProFormaDeal({ params }) {
           .eq("deal_id", b.deal.id)
           .maybeSingle();
         if (!cancelled) setSaved(data?.inputs || null);
+
+        // Documents on this deal, so evidence can be published to
+        // buyers without leaving the sheet.
+        const { data: dd } = await supabase
+          .from("deal_documents")
+          .select("id, doc_type, title, file_type, public_url, buyer_visible, buyer_label, created_at")
+          .eq("deal_id", b.deal.id)
+          .order("created_at", { ascending: false });
+        if (!cancelled) setDocs(dd || []);
       })
       .catch((e) => !cancelled && setError(e.message));
     return () => {
@@ -136,6 +147,22 @@ export default function ClubProFormaDeal({ params }) {
   // Persist the current model as this deal's pro forma. Buyers and
   // share links read the same row, so saving here is what makes an
   // adjustment real rather than a session-local edit.
+  // buyer_visible is opt-in per document: deal_documents also holds
+  // the loan request and the closing statement, and neither should
+  // ever reach a buyer.
+  async function toggleDoc(doc) {
+    const next = !doc.buyer_visible;
+    setDocs((d) => d.map((x) => (x.id === doc.id ? { ...x, buyer_visible: next } : x)));
+    const { error: de } = await supabase
+      .from("deal_documents")
+      .update({ buyer_visible: next })
+      .eq("id", doc.id);
+    if (de) {
+      setDocs((d) => d.map((x) => (x.id === doc.id ? { ...x, buyer_visible: !next } : x)));
+      setInputsMsg(de.message);
+    }
+  }
+
   async function saveInputs() {
     setSavingInputs(true);
     setInputsMsg(null);
@@ -304,6 +331,13 @@ export default function ClubProFormaDeal({ params }) {
         )}
 
         <button
+          onClick={() => setDocsOpen((v) => !v)}
+          className="rounded px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-neutral-400 ring-1 ring-neutral-700 transition hover:text-white"
+        >
+          Evidence{docs ? ` (${docs.filter((d) => d.buyer_visible).length})` : ""}
+        </button>
+
+        <button
           onClick={() => setShareOpen((v) => !v)}
           disabled={noList}
           className="ml-auto rounded px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white transition disabled:opacity-40"
@@ -319,6 +353,57 @@ export default function ClubProFormaDeal({ params }) {
           This deal has no <strong>list price</strong> set. The buyer preview
           falls back to the purchase price and sharing is disabled — set a list
           price on the deal first.
+        </div>
+      )}
+
+      {docsOpen && (
+        <div className="no-print border-b border-neutral-200 bg-neutral-50 px-5 py-4">
+          <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-neutral-900">
+            What a buyer can open
+          </div>
+          <p className="mb-3 text-[11px] text-neutral-500">
+            Tick a document to publish it on the buyer sheet. Occupancy and the
+            comps are the two figures they can&rsquo;t verify from the numbers
+            alone. Loan requests and closing statements are in this list too —
+            leave those unticked.
+          </p>
+
+          {!docs && <div className="text-[12px] text-neutral-500">Loading…</div>}
+          {docs && docs.length === 0 && (
+            <div className="text-[12px] text-neutral-600">
+              No documents on this deal yet.
+            </div>
+          )}
+
+          {(docs || []).map((d) => {
+            const sensitive = ["loan_request", "settlement", "closing", "note"].some((k) =>
+              String(d.doc_type || "").includes(k)
+            );
+            return (
+              <label
+                key={d.id}
+                className="flex items-center gap-3 border-b border-neutral-200 py-2 last:border-b-0"
+              >
+                <input
+                  type="checkbox"
+                  checked={!!d.buyer_visible}
+                  onChange={() => toggleDoc(d)}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] text-neutral-900">{d.title}</span>
+                  <span className="text-[11px] text-neutral-500">
+                    {d.doc_type}
+                    {d.file_type ? ` · ${d.file_type}` : ""}
+                  </span>
+                </span>
+                {sensitive && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-700">
+                    Ours only
+                  </span>
+                )}
+              </label>
+            );
+          })}
         </div>
       )}
 

@@ -107,6 +107,12 @@ export default function DealPage({ params }) {
           >
             Club sheet →
           </a>
+          <a
+            href={`/financing/${params.slug}`}
+            className="self-center px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
+          >
+            Financing →
+          </a>
         </div>
       </div>
 

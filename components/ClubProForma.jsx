@@ -30,6 +30,7 @@ import {
 } from "./ClubCore";
 import ClubAssumptions from "./ClubAssumptions";
 import {
+  CompsScatter,
   CompsTable,
   FloorPlan,
   FlyerFooter,
@@ -39,9 +40,12 @@ import {
   IncludedBar,
   PropertyFacts,
   DownPaymentOptions,
+  MarketReport,
   OccupancyControl,
   PropertyGallery,
+  Readiness,
   ScenarioBasis,
+  SupportingDocuments,
 } from "./ClubPresentation";
 import {
   BreakEvenCurve,
@@ -156,12 +160,14 @@ export default function ClubProForma({
   // with the property; seller view doesn't need the photography.
   deal = null,
   comps = [],
+  documents = [],
   market = null,
   // Raw rows, so the sheet can run computeProForma — the same engine
   // the deal page uses. Year one comes from there; the club engine
   // handles only what it doesn't cover.
   rooms = [],
   orgRows = null,
+  marketReport = null,
   // GLBM leads: it's the standard we underwrite to, and it's the case
   // a buyer should see first. Falls back to base where a saved model
   // predates the GLBM scenario.
@@ -352,6 +358,8 @@ export default function ClubProForma({
             price={cap.purchasePrice}
             scenarioLabel={scenarioLabel}
             defaults={defaults}
+            readyDate={deal.reno_complete_date || deal.disposition_coe || null}
+            readyLabel={deal.reno_complete_estimated === false ? "Complete" : "Ready"}
           />
         ) : (
         <div className="print-section bg-neutral-950 px-6 py-5 sm:px-8">
@@ -874,6 +882,13 @@ export default function ClubProForma({
             </div>
           )}
 
+          {isBuyer && comps.length > 1 && (
+            <CompsScatter
+              comps={comps}
+              subject={{ sqft: p.sqft, price: cap.purchasePrice, beds: p.beds }}
+            />
+          )}
+
           {isBuyer && comps.length > 0 && (
             <div className="print-section mb-7">
               <FlyerHeading>Comparable Sales</FlyerHeading>
@@ -881,6 +896,9 @@ export default function ClubProForma({
                 comps={comps}
                 listPrice={cap.purchasePrice}
                 sqft={p.sqft}
+                subjectBeds={p.beds}
+                subjectBaths={p.baths}
+                subjectYear={deal?.year_built}
               />
             </div>
           )}
@@ -1163,7 +1181,14 @@ export default function ClubProForma({
           )}
         </div>
 
+        {isBuyer && deal && <Readiness deal={deal} sqft={p.sqft} />}
+        {isBuyer && <SupportingDocuments documents={documents} />}
+
         {isBuyer && core && <MarketPanel market={market} deal={deal} />}
+        {isBuyer && marketReport && (
+          <MarketReport report={marketReport} city={deal?.city} state={deal?.state} />
+        )}
+        {isBuyer && <SupportingDocuments documents={documents} />}
 
         {isBuyer && deal && (
           <FlyerFooter

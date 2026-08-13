@@ -30,7 +30,7 @@ const INK = "#141914";
 // The flyer's split masthead: wordmark and title on the left, hero
 // photo bleeding to the right edge with the price plate hanging off
 // its bottom corner.
-export function FlyerMasthead({ deal = {}, beds, baths, sqft, price, scenarioLabel, defaults = null }) {
+export function FlyerMasthead({ deal = {}, beds, baths, sqft, price, scenarioLabel, defaults = null, readyDate = null, readyLabel = "Ready" }) {
   // Same fallback chain as the flyer: the deal's own hero, otherwise
   // the standard one from org_settings.
   const standard = defaults?.default_hero?.url || null;
@@ -79,8 +79,19 @@ export function FlyerMasthead({ deal = {}, beds, baths, sqft, price, scenarioLab
         </p>
         <p className="mt-1 text-[11.5px] text-neutral-600">
           {beds} bed · {baths} bath{baths === 1 ? "" : "s"}
-          {sqft ? ` · ${sqft.toLocaleString()} sq ft` : ""}
+          {sqft ? ` · ${sqft.toLocaleString()} sq ft finished` : ""}
         </p>
+
+        {readyDate && (
+          <p className="mt-1.5 inline-block rounded px-2 py-0.5 text-[11px] font-bold" style={{ backgroundColor: "#F2FAF5", color: "#046A38" }}>
+            {readyLabel}{" "}
+            {new Date(readyDate + "T12:00:00").toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </p>
+        )}
       </div>
 
       <div className="relative">
@@ -422,6 +433,15 @@ export function PropertyFacts({ deal = {}, beds, baths }) {
       Number(deal.ensuite_count) > 0 ? deal.ensuite_count : null,
     ],
     ["Living area", deal.post_reno_sqft ? `${deal.post_reno_sqft.toLocaleString()} sq ft` : null],
+    ["Finished sq ft", deal.finished_sqft ? `${deal.finished_sqft.toLocaleString()} sq ft` : null],
+    [
+      "Renovation",
+      deal.reno_complete_actual
+        ? `Complete ${new Date(deal.reno_complete_actual).toLocaleDateString()}`
+        : deal.reno_complete_estimate
+        ? `Anticipated ${new Date(deal.reno_complete_estimate).toLocaleDateString()}`
+        : null,
+    ],
     ["Lot", deal.lot_sqft ? `${deal.lot_sqft.toLocaleString()} sq ft` : null],
     ["Year built", deal.year_built],
     ["Construction", deal.construction_type],
@@ -560,9 +580,289 @@ export function ScenarioBasis({ scenario, income, expenses, exit, marketOccupanc
   );
 }
 
+// ---------- supporting documents ----------
+
+// The evidence behind the numbers. Occupancy and comps are the two
+// figures a buyer most wants to check, and handing over the source
+// beats asking them to take our word for it.
+const DOC_LABEL = {
+  comps_package: "Comparable sales — MLS export",
+  market_snapshot: "PadSplit market data for this ZIP",
+  floor_plan: "Floor plan",
+  assessor_record: "County assessor record",
+  scope_of_work: "Scope of work",
+};
+
+export function SupportingDocuments({ documents = [] }) {
+  if (!documents.length) return null;
+
+  return (
+    <div className="print-section px-8 pb-4">
+      <FlyerHeading>Check It Yourself</FlyerHeading>
+
+      <p className="mb-3 text-[11.5px] leading-snug text-neutral-600">
+        The sources behind the figures on this sheet — the PadSplit market data
+        the occupancy comes from, and the MLS export behind the comparable
+        sales. We&rsquo;d rather you verified them than took our word.
+      </p>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {documents.map((d) => (
+          <a
+            key={d.id}
+            href={d.public_url || "#"}
+            target="_blank"
+            rel="noreferrer"
+            className="print-keep flex items-center gap-3 rounded-lg border border-neutral-200 px-4 py-3 transition hover:border-neutral-400"
+          >
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-[9px] font-black uppercase text-white"
+              style={{ backgroundColor: INK }}
+            >
+              {(d.file_type || "doc").slice(0, 3)}
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[12.5px] font-semibold text-neutral-900">
+                {d.buyer_label || DOC_LABEL[d.doc_type] || d.title}
+              </span>
+              <span className="block text-[10px] text-neutral-500">
+                {new Date(d.created_at).toLocaleDateString()} · opens in a new tab
+              </span>
+            </span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------- city market report ----------
+
+// Demographics behind the deal. A buyer underwriting one house wants
+// to know the city is growing and that conventional rent is high
+// enough that co-living undercuts it — that's the tenant demand
+// argument, and it's separate from the property's own numbers.
+export function MarketReport({ report, city, state }) {
+  if (!report) return null;
+
+  const growth =
+    report.population && report.population_prior
+      ? report.population / report.population_prior - 1
+      : null;
+
+  const cards = [
+    report.population && {
+      label: "Population",
+      value: report.population.toLocaleString(),
+      foot:
+        growth != null
+          ? `${growth >= 0 ? "+" : ""}${(growth * 100).toFixed(1)}% year on year`
+          : report.population_year
+          ? String(report.population_year)
+          : null,
+      good: growth != null ? growth > 0 : null,
+    },
+    report.median_household_income && {
+      label: "Median household income",
+      value: usd(report.median_household_income),
+      foot: report.median_age ? `median age ${report.median_age}` : null,
+    },
+    report.renter_share && {
+      label: "Renter households",
+      value: pct(report.renter_share, 0),
+      foot: report.households ? `${report.households.toLocaleString()} households` : null,
+    },
+    report.median_rent_2br && {
+      label: "Median rent, 2 bed",
+      value: `${usd(report.median_rent_2br)}/mo`,
+      foot:
+        report.rent_yoy != null
+          ? `${report.rent_yoy >= 0 ? "+" : ""}${(report.rent_yoy * 100).toFixed(1)}% year on year`
+          : null,
+    },
+    report.median_home_value && {
+      label: "Median home value",
+      value: usd(report.median_home_value),
+      foot:
+        report.home_value_yoy != null
+          ? `${report.home_value_yoy >= 0 ? "+" : ""}${(report.home_value_yoy * 100).toFixed(1)}% year on year`
+          : null,
+    },
+  ].filter(Boolean);
+
+  if (!cards.length) return null;
+
+  return (
+    <div className="print-section px-8 pb-4">
+      <FlyerHeading>
+        {city}
+        {state ? `, ${state}` : ""} — market
+      </FlyerHeading>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {cards.map((c) => (
+          <div key={c.label} className="print-keep rounded-lg border border-neutral-200 px-3 py-2.5">
+            <div className="text-[9px] font-black uppercase tracking-[0.1em] text-neutral-500">
+              {c.label}
+            </div>
+            <div className="text-[17px] font-bold leading-tight tabular-nums text-neutral-900">
+              {c.value}
+            </div>
+            {c.foot && (
+              <div
+                className="mt-0.5 text-[9px]"
+                style={{ color: c.good === true ? "#046A38" : "#6B7280" }}
+              >
+                {c.foot}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {report.major_employers?.length > 0 && (
+        <p className="mt-2 text-[11px] leading-snug text-neutral-600">
+          <span className="font-semibold">Major employers:</span>{" "}
+          {report.major_employers.join(", ")}.
+        </p>
+      )}
+
+      {report.median_rent_2br && (
+        <p className="mt-2 text-[10px] leading-relaxed text-neutral-600">
+          A conventional two-bedroom runs {usd(report.median_rent_2br)} a month
+          here. A private room in this house is a fraction of that, which is the
+          demand argument for co-living — it isn&rsquo;t competing with houses,
+          it&rsquo;s competing with a tenant&rsquo;s share of one.
+        </p>
+      )}
+
+      {(report.source || report.as_of) && (
+        <p className="mt-1.5 text-[9px] text-neutral-400">
+          {report.source}
+          {report.source && report.as_of ? " · " : ""}
+          {report.as_of ? `as of ${new Date(report.as_of).toLocaleDateString()}` : ""}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------- comps scatter ----------
+
+// Square footage against price, subject plotted alongside. A table of
+// numbers hides the thing that matters on a conversion: the comps sold
+// as ordinary houses, and this one has three times their bedroom
+// count. Bubble size carries beds so that reads at a glance.
+export function CompsScatter({ comps = [], subject }) {
+  const points = comps
+    .filter((c) => Number(c.approx_sqft) > 0 && (Number(c.sold_price) > 0 || Number(c.list_price) > 0))
+    .map((c) => ({
+      sqft: Number(c.approx_sqft),
+      price: Number(c.sold_price) || Number(c.list_price),
+      beds: Number(c.bedrooms) || 0,
+      label: c.address || "",
+      closed: c.comp_status === "closed",
+    }));
+
+  if (points.length < 2 || !subject?.sqft || !subject?.price) return null;
+
+  const all = [...points, { sqft: subject.sqft, price: subject.price, beds: subject.beds }];
+  const W = 640;
+  const H = 260;
+  const padL = 58;
+  const padR = 16;
+  const padT = 16;
+  const padB = 34;
+
+  const xs = all.map((p) => p.sqft);
+  const ys = all.map((p) => p.price);
+  const xMin = Math.min(...xs) * 0.92;
+  const xMax = Math.max(...xs) * 1.08;
+  const yMin = Math.min(...ys) * 0.92;
+  const yMax = Math.max(...ys) * 1.08;
+
+  const x = (v) => padL + ((v - xMin) / (xMax - xMin)) * (W - padL - padR);
+  const y = (v) => H - padB - ((v - yMin) / (yMax - yMin)) * (H - padT - padB);
+  const r = (beds) => 5 + Math.min(9, Math.max(0, beds)) * 0.9;
+
+  const money = (n) => `$${Math.round(n / 1000)}K`;
+
+  return (
+    <div className="print-section px-8 pb-4">
+      <FlyerHeading>Comps by size and price</FlyerHeading>
+
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="auto" style={{ display: "block" }}>
+        {[yMin, (yMin + yMax) / 2, yMax].map((v, i) => (
+          <g key={i}>
+            <line x1={padL} y1={y(v)} x2={W - padR} y2={y(v)} stroke="#E5E7EB" strokeWidth="1" />
+            <text x={padL - 6} y={y(v) + 3} textAnchor="end" fontSize="9" fill="#9AA3AB">
+              {money(v)}
+            </text>
+          </g>
+        ))}
+
+        {[xMin, (xMin + xMax) / 2, xMax].map((v, i) => (
+          <text key={i} x={x(v)} y={H - 12} textAnchor="middle" fontSize="9" fill="#9AA3AB">
+            {Math.round(v).toLocaleString()} sf
+          </text>
+        ))}
+
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={x(p.sqft)}
+            cy={y(p.price)}
+            r={r(p.beds)}
+            fill={p.closed ? "#9AA3AB" : "#D4D4D4"}
+            fillOpacity="0.75"
+          />
+        ))}
+
+        <circle
+          cx={x(subject.sqft)}
+          cy={y(subject.price)}
+          r={r(subject.beds) + 3}
+          fill="none"
+          stroke={GREEN}
+          strokeWidth="2"
+        />
+        <circle cx={x(subject.sqft)} cy={y(subject.price)} r={r(subject.beds)} fill={GREEN} />
+        <text
+          x={x(subject.sqft)}
+          y={y(subject.price) - r(subject.beds) - 7}
+          textAnchor="middle"
+          fontSize="9.5"
+          fontWeight="700"
+          fill={INK}
+        >
+          This property
+        </text>
+
+        <g transform={`translate(${padL + 4},${padT + 2})`}>
+          <circle cx="5" cy="4" r="4" fill="#9AA3AB" fillOpacity="0.75" />
+          <text x="14" y="7" fontSize="9" fill="#4B5563">
+            Comparable sales
+          </text>
+          <circle cx="112" cy="4" r="4" fill={GREEN} />
+          <text x="121" y="7" fontSize="9" fill="#4B5563">
+            This property
+          </text>
+        </g>
+      </svg>
+
+      <p className="mt-1.5 text-[9px] leading-relaxed text-neutral-600">
+        Bubble size is bedroom count. The comps sold as conventional homes;
+        this one is configured for{" "}
+        {subject.beds ? `${subject.beds} rentable bedrooms` : "co-living"}, which
+        is why price per square foot alone understates it.
+      </p>
+    </div>
+  );
+}
+
 // ---------- comparable sales ----------
 
-export function CompsTable({ comps = [], listPrice, sqft }) {
+export function CompsTable({ comps = [], listPrice, sqft, subjectBeds, subjectBaths, subjectYear }) {
   if (!comps.length) return null;
 
   // Same shape the flyer's compStats carries: closed sales only, with
@@ -630,7 +930,7 @@ export function CompsTable({ comps = [], listPrice, sqft }) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-neutral-400 text-left">
-            {["Address", "Status", "Sq Ft", "$/Sq Ft", "Sold", "Price"].map((hd, i) => (
+            {["Address", "Bd/Ba", "Built", "Sq Ft", "$/Sq Ft", "Sold", "Price"].map((hd, i) => (
               <th
                 key={hd}
                 className={`py-1.5 text-[9px] font-black uppercase tracking-[0.1em] text-neutral-600 ${
@@ -646,8 +946,13 @@ export function CompsTable({ comps = [], listPrice, sqft }) {
           {comps.slice(0, 8).map((c) => (
             <tr key={c.id} className="print-keep border-b border-neutral-200">
               <td className="py-1.5 text-[11.5px] text-neutral-800">{c.address || "\u2014"}</td>
-              <td className="py-1.5 text-[10px] uppercase tracking-wider text-neutral-500">
-                {c.comp_status}
+              <td className="py-1.5 text-[11px] tabular-nums text-neutral-600">
+                {c.bedrooms || c.bathrooms
+                  ? `${c.bedrooms ?? "—"}/${c.bathrooms ?? "—"}`
+                  : "—"}
+              </td>
+              <td className="py-1.5 text-right text-[11px] tabular-nums text-neutral-600">
+                {c.year_built || "—"}
               </td>
               <td className="py-1.5 text-right text-[11.5px] tabular-nums text-neutral-700">
                 {c.approx_sqft ? c.approx_sqft.toLocaleString() : "\u2014"}
@@ -670,8 +975,11 @@ export function CompsTable({ comps = [], listPrice, sqft }) {
             <td className="py-1.5 text-[11.5px] font-black uppercase text-neutral-900">
               This property
             </td>
-            <td className="py-1.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: GREEN }}>
-              offered
+            <td className="py-1.5 text-[11px] font-bold tabular-nums" style={{ color: GREEN }}>
+              {subjectBeds ?? "—"}/{subjectBaths ?? "—"}
+            </td>
+            <td className="py-1.5 text-right text-[11px] tabular-nums text-neutral-700">
+              {subjectYear || "—"}
             </td>
             <td className="py-1.5 text-right text-[11.5px] font-bold tabular-nums text-neutral-900">
               {sqft ? sqft.toLocaleString() : "\u2014"}
@@ -816,6 +1124,62 @@ export function DownPaymentOptions({ options = [], noi }) {
         loan, so it falls as the down payment rises; closing costs are fixed.
         Cash flow and coverage use the net operating income above.
       </p>
+    </div>
+  );
+}
+
+// ---------- readiness ----------
+
+export function Readiness({ deal = {}, sqft }) {
+  const date = deal.reno_complete_date;
+  if (!date && !sqft) return null;
+
+  const when = date
+    ? new Date(date).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null;
+
+  const past = date && new Date(date) < new Date();
+
+  return (
+    <div className="print-section px-8 pb-4">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {sqft > 0 && (
+          <div className="print-keep rounded-lg border border-neutral-200 px-4 py-3">
+            <div className="text-[9px] font-black uppercase tracking-[0.12em] text-neutral-500">
+              Finished square footage
+            </div>
+            <div className="text-[20px] font-bold tabular-nums leading-tight text-neutral-900">
+              {sqft.toLocaleString()} sq ft
+            </div>
+            <div className="text-[10px] text-neutral-500">after renovation</div>
+          </div>
+        )}
+
+        {when && (
+          <div
+            className="print-keep rounded-lg border-2 px-4 py-3"
+            style={{ borderColor: past ? "#E5E7EB" : GREEN }}
+          >
+            <div className="text-[9px] font-black uppercase tracking-[0.12em] text-neutral-500">
+              {past ? "Renovation complete" : "Anticipated completion"}
+            </div>
+            <div className="text-[20px] font-bold leading-tight text-neutral-900">
+              {when}
+            </div>
+            <div className="text-[10px] text-neutral-500">
+              {past
+                ? "Operating now"
+                : deal.reno_complete_estimated === false
+                ? "Firm date"
+                : "Estimated — construction dates move"}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

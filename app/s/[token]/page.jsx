@@ -59,9 +59,12 @@ export default function SharedClubProForma({ params }) {
       audience="buyer"
       deal={data.deal}
       comps={data.comps || []}
+        documents={data.documents || []}
+        documents={data.documents || []}
       market={data.market}
       rooms={data.rooms}
       orgRows={data.org}
+      marketReport={data.marketReport}
       defaults={data.defaults}
       allowAdjust={data.allowAdjust}
       initialScenario={data.scenario}

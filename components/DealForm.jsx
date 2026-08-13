@@ -163,7 +163,7 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
       const NUM_FIELDS = [
         "year_built", "lot_sqft", "lot_acres", "living_area_sqft", "added_sqft",
         "post_reno_sqft", "assessed_tax_amount", "bathrooms", "purchase_price",
-        "assumption_overrides", "list_price", "rehab_budget", "furniture_budget", "target_bedrooms",
+        "assumption_overrides", "reno_complete_date", "reno_complete_estimated", "list_price", "rehab_budget", "furniture_budget", "target_bedrooms",
         "target_bathrooms", "target_ensuites", "bedrooms", "ensuite_count",
       ];
       const clean = { ...d };
@@ -331,9 +331,59 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
 
       {d.id && <MediaUploader deal={d} onSaved={(saved) => setD((p) => ({ ...p, ...saved }))} />}
 
+      <Section title="Renovation" source="what a buyer is told">
+        <Input
+          label="Finished sq ft"
+          type="number"
+          value={d.finished_sqft ?? ""}
+          onChange={set("finished_sqft")}
+          hint="measured on completion"
+        />
+        <Input
+          label="Anticipated completion"
+          type="date"
+          value={d.reno_complete_estimate ?? ""}
+          onChange={set("reno_complete_estimate")}
+          hint="shown as the ready date"
+        />
+        <Input
+          label="Actual completion"
+          type="date"
+          value={d.reno_complete_actual ?? ""}
+          onChange={set("reno_complete_actual")}
+          hint="supersedes the estimate"
+        />
+        <Input
+          label="Status note"
+          value={d.reno_status ?? ""}
+          onChange={set("reno_status")}
+          hint="e.g. punch list only"
+        />
+      </Section>
+
       {/* Per-deal overrides. Every figure the pro forma uses, settable
           here from what this house actually costs. Blank falls back to
           the org standard, so an empty field is not zero. */}
+      <Section title="Readiness" source="shown on the buyer sheet">
+        <Input
+          label="Anticipated completion"
+          type="date"
+          value={d.reno_complete_date || ""}
+          onChange={set("reno_complete_date")}
+          hint="renovation finished and ready to operate"
+        />
+        <label className="col-span-2 flex items-end gap-2 pb-2 text-[12px] text-neutral-700 sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={d.reno_complete_estimated !== false}
+            onChange={(e) =>
+              setD((p) => ({ ...p, reno_complete_estimated: e.target.checked }))
+            }
+          />
+          Estimated — uncheck once the date is firm
+        </label>
+      </Section>
+
       <Section title="Underwriting overrides" source="blank uses the org standard">
         <div className="col-span-2 mb-1 sm:col-span-4">
           <p className="text-[11px] leading-snug text-neutral-500">

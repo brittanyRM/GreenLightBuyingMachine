@@ -59,6 +59,44 @@ export default function BuyerDeal({ params }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [financing, setFinancing] = useState(null);
+  const [uploads, setUploads] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+
+  const loadUploads = () =>
+    fetch(`/api/buyer/uploads?slug=${params.slug}`)
+      .then((r) => r.json())
+      .then((j) => setUploads(j.uploads || []))
+      .catch(() => setUploads([]));
+
+  async function uploadFile(file, kind) {
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("slug", params.slug);
+      fd.append("kind", kind);
+      const res = await fetch("/api/buyer/uploads", { method: "POST", body: fd });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Upload failed.");
+      loadUploads();
+    } catch (e) {
+      setUploadError(e.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeUpload(id) {
+    await fetch("/api/buyer/uploads", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    loadUploads();
+  }
 
   // Lender introductions, revealed once they've engaged. Refetched
   // after raising a hand so the section appears without a reload.
@@ -83,6 +121,7 @@ export default function BuyerDeal({ params }) {
         if (!j) return;
         setData(j);
         loadFinancing();
+        loadUploads();
       })
       .catch((e) => setError(e.message));
     // loadFinancing is stable for a given slug.
@@ -150,9 +189,12 @@ export default function BuyerDeal({ params }) {
         audience="buyer"
         deal={data.deal}
         comps={data.comps || []}
+        documents={data.documents || []}
+        documents={data.documents || []}
         market={data.market}
         rooms={data.rooms}
         orgRows={data.org}
+        marketReport={data.marketReport}
         defaults={data.defaults}
         allowAdjust
       />
@@ -496,6 +538,79 @@ export default function BuyerDeal({ params }) {
             </p>
           </div>
         )}
+
+        <div className="mt-4 rounded border border-neutral-200 bg-white p-5">
+          <h2 className="text-[15px] font-bold text-neutral-900">Your documents</h2>
+          <p className="mt-1 text-[13px] leading-snug text-neutral-600">
+            Your own comps, market pulls or notes on this property. Only your
+            team can see them, and nothing here changes the underwriting above —
+            it&rsquo;s a place to keep your working papers with the deal.
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {[
+              ["comps", "Comps"],
+              ["market", "Market data"],
+              ["other", "Other"],
+            ].map(([kind, label]) => (
+              <label
+                key={kind}
+                className="cursor-pointer rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-700 ring-1 ring-neutral-300 hover:text-neutral-900"
+              >
+                + {label}
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    uploadFile(e.target.files?.[0], kind);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            ))}
+            {uploading && <span className="text-[12px] text-neutral-500">Uploading…</span>}
+            {uploadError && (
+              <span className="text-[12px] text-red-700">{uploadError}</span>
+            )}
+            <span className="text-[11px] text-neutral-400">
+              PDF, PNG, JPEG or CSV · up to 15 MB
+            </span>
+          </div>
+
+          {uploads?.length > 0 && (
+            <div className="mt-4">
+              {uploads.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex items-center gap-3 border-b border-neutral-100 py-2 last:border-b-0"
+                >
+                  <span className="text-[14px] text-neutral-400">▤</span>
+                  <a
+                    href={u.public_url || "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="min-w-0 flex-1 truncate text-[13px] text-neutral-900 underline-offset-2 hover:underline"
+                  >
+                    {u.label || "Document"}
+                  </a>
+                  <span className="text-[10px] uppercase tracking-wider text-neutral-400">
+                    {u.kind}
+                  </span>
+                  <span className="text-[11px] text-neutral-400">
+                    {new Date(u.created_at).toLocaleDateString()}
+                  </span>
+                  <button
+                    onClick={() => removeUpload(u.id)}
+                    className="text-[11px] text-neutral-500 underline underline-offset-2 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {financing?.locked && (
           <div className="mt-4 rounded border border-dashed border-neutral-300 bg-white px-5 py-4 text-[13px] text-neutral-600">

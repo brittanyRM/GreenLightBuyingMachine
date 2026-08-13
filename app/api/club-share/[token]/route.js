@@ -33,7 +33,7 @@ export async function GET(req, { params }) {
 
   if (!deal) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }, { data: orgRows }, { data: savedInputs }] =
+  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }, { data: buyerDocs }, { data: orgRows }, { data: savedInputs }, { data: docs }] =
     await Promise.all([
     admin()
       .from("deal_rooms")
@@ -47,15 +47,49 @@ export async function GET(req, { params }) {
       .maybeSingle(),
     admin()
       .from("deal_comps")
-      .select("id, address, comp_status, list_price, sold_price, sold_date, approx_sqft, price_per_sqft")
+      .select("id, address, comp_status, list_price, sold_price, sold_date, approx_sqft, price_per_sqft, bedrooms, bathrooms, year_built, distance_miles")
       .eq("deal_id", deal.id)
       .order("sold_date", { ascending: false, nullsFirst: false }),
     // Brand defaults: standard hero, standard gallery, flyer copy.
     // Already anon-readable by policy and carries nothing deal-specific.
     admin().from("org_settings").select("key, value"),
+    // Evidence a buyer can open: the comps package and the PadSplit
+    // screenshot. Opt-in per document — this table also holds our loan
+    // request and closing statement.
+    admin()
+      .from("deal_documents")
+      .select("id, doc_type, title, public_url, file_type, created_at")
+      .eq("deal_id", deal.id)
+      .eq("buyer_visible", true)
+      .order("created_at", { ascending: false }),
+    // Evidence only. buyer_visible is opt-in per document because this
+    // table also holds closing statements and loan requests.
+    admin()
+      .from("deal_documents")
+      .select("id, doc_type, title, buyer_label, public_url, file_type, created_at")
+      .eq("deal_id", deal.id)
+      .eq("buyer_visible", true)
+      .order("created_at"),
     // Lender terms. Same rows the deal-page pro forma reads, so the
     // two documents can't quote different loans on one house.
     admin().from("org_assumptions").select("key, value"),
+    // City demographics. Matched on city first, then the ZIP cut if
+    // one exists — every Gilbert property shares the same market.
+    admin()
+      .from("market_reports")
+      .select("*")
+      .eq("active", true)
+      .ilike("city", deal.city || "")
+      .ilike("state", deal.state || "")
+      .order("zip", { nullsFirst: true })
+      .limit(1)
+      .maybeSingle(),
+    admin()
+      .from("deal_documents")
+      .select("id, doc_type, title, public_url, file_type, created_at")
+      .eq("deal_id", deal.id)
+      .eq("buyer_visible", true)
+      .order("created_at", { ascending: false }),
     // Assumptions saved against this deal. What the team tuned is what
     // a buyer sees — otherwise the sheet they open is not the sheet we
     // built.
@@ -75,6 +109,8 @@ export async function GET(req, { params }) {
     comps: comps || [],
     defaults: (settings || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {}),
     org: orgRows || [],
+    marketReport: marketReport || null,
+    documents: documents || [],
     savedInputs: savedInputs?.inputs || null,
     scenario: link.scenario,
     holdYears: link.hold_years,

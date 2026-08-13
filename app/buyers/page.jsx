@@ -113,10 +113,21 @@ export default function BuyerIndex() {
                 {(() => {
                   // The deal's own photo, then the standard one. Same
                   // chain the flyer and the sheet use.
-                  const src = d.hero_image_url || defaults?.default_hero?.url || null;
+                  const std = defaults?.default_hero?.url || null;
+                  const src = d.hero_image_url || std;
                   return src ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={src} alt="" className="h-40 w-full object-cover" />
+                    <img
+                      src={src}
+                      alt=""
+                      // A dead URL is truthy, so it would render a broken
+                      // icon rather than falling through. Step down on error.
+                      onError={(e) => {
+                        if (std && e.currentTarget.src !== std) e.currentTarget.src = std;
+                        else e.currentTarget.style.display = "none";
+                      }}
+                      className="h-40 w-full object-cover"
+                    />
                   ) : (
                     <div className="flex h-40 w-full items-center justify-center bg-neutral-200 text-[11px] text-neutral-500">
                       Photography to follow

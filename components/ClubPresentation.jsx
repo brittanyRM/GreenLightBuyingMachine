@@ -32,9 +32,22 @@ const INK = "#141914";
 // its bottom corner.
 export function FlyerMasthead({ deal = {}, beds, baths, sqft, price, scenarioLabel, defaults = null }) {
   // Same fallback chain as the flyer: the deal's own hero, otherwise
-  // the standard one from org_settings, so a sheet is presentable
-  // before a single photo has been uploaded to the deal.
-  const heroUrl = deal.hero_image_url || defaults?.default_hero?.url || null;
+  // the standard one from org_settings.
+  const standard = defaults?.default_hero?.url || null;
+  const own = deal.hero_image_url || null;
+
+  // A dead URL is truthy, so the fallback above never fired for one —
+  // the masthead rendered a broken-image icon instead of the standard
+  // photo. onError steps down the chain at load time.
+  const [src, setSrc] = useState(own || standard);
+  const [failed, setFailed] = useState(false);
+
+  const onError = () => {
+    if (src !== standard && standard) setSrc(standard);
+    else setFailed(true);
+  };
+
+  const heroUrl = failed ? null : src;
 
   return (
     <div className="print-section relative grid grid-cols-[0.88fr_1fr]">
@@ -73,10 +86,15 @@ export function FlyerMasthead({ deal = {}, beds, baths, sqft, price, scenarioLab
       <div className="relative">
         {heroUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={heroUrl} alt="" className="h-[230px] w-full object-cover object-center" />
+          <img
+            src={heroUrl}
+            alt=""
+            onError={onError}
+            className="h-[230px] w-full object-cover object-center"
+          />
         ) : (
           <div className="flex h-[230px] w-full items-center justify-center bg-neutral-200 text-[11px] text-neutral-500">
-            Hero photo
+            Photography to follow
           </div>
         )}
 

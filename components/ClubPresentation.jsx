@@ -324,6 +324,10 @@ export function PropertyFacts({ deal = {}, beds, baths }) {
   const rows = [
     ["Bedrooms", beds || deal.bedrooms],
     ["Bathrooms", baths || deal.bathrooms],
+    [
+      "Of those, ensuite",
+      Number(deal.ensuite_count) > 0 ? deal.ensuite_count : null,
+    ],
     ["Living area", deal.post_reno_sqft ? `${deal.post_reno_sqft.toLocaleString()} sq ft` : null],
     ["Lot", deal.lot_sqft ? `${deal.lot_sqft.toLocaleString()} sq ft` : null],
     ["Year built", deal.year_built],

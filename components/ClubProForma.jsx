@@ -20,6 +20,14 @@ import { useEffect, useMemo, useState } from "react";
 import { runClubProForma, downPaymentOptions, usd, pct, multiple } from "../lib/proformaClub";
 import { resolveLabel, toTemplateLens } from "../lib/proformaClubPresets";
 import { BrandMark } from "./Brand";
+import { computeProForma } from "../lib/proforma";
+import {
+  CapitalRequired,
+  IncomeAndExpenses,
+  MarketPanel,
+  NetPerformance,
+  RoomRevenueStack,
+} from "./ClubCore";
 import ClubAssumptions from "./ClubAssumptions";
 import {
   CompsTable,
@@ -124,6 +132,11 @@ export default function ClubProForma({
   deal = null,
   comps = [],
   market = null,
+  // Raw rows, so the sheet can run computeProForma — the same engine
+  // the deal page uses. Year one comes from there; the club engine
+  // handles only what it doesn't cover.
+  rooms = [],
+  orgRows = null,
   initialScenario = "base",
   // Brand defaults from org_settings: standard hero, standard interior
   // gallery and flyer_copy. Same source the flyer draws on.
@@ -193,6 +206,26 @@ export default function ClubProForma({
   const y1 = s.years[0];
   const cap = s.capitalization;
   const p = inputs.property;
+
+  // The single source for year one. GLBM maps to its 'glbm' scenario,
+  // everything else to 'market'.
+  const core = useMemo(() => {
+    if (!deal) return null;
+    try {
+      return computeProForma({
+        deal,
+        rooms,
+        market,
+        org: orgRows,
+        scenario: activeScenario === "glbm" ? "glbm" : "market",
+        overrides: {
+          price: modelInputs.capitalization.purchasePrice,
+        },
+      });
+    } catch {
+      return null;
+    }
+  }, [deal, rooms, market, orgRows, activeScenario, modelInputs]);
 
   // Each hold is its own run — the multiple changes because the exit
   // moves, not because the cash flows are being sliced differently.
@@ -356,6 +389,11 @@ export default function ClubProForma({
             defaults={defaults}
           />
         )}
+
+        {isBuyer && core && <RoomRevenueStack p={core} market={market} />}
+        {isBuyer && core && <IncomeAndExpenses p={core} />}
+        {isBuyer && core && <NetPerformance p={core} />}
+        {isBuyer && core && <CapitalRequired p={core} />}
 
         {isBuyer && (
           <DownPaymentOptions
@@ -977,6 +1015,8 @@ export default function ClubProForma({
             </div>
           )}
         </div>
+
+        {isBuyer && core && <MarketPanel market={market} deal={deal} />}
 
         {isBuyer && deal && (
           <FlyerFooter

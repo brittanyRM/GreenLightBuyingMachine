@@ -497,6 +497,8 @@ export default function ClubProFormaDeal({ params }) {
         deal={preview ? deal : null}
         comps={preview ? comps || [] : []}
         market={market}
+        rooms={bundle.rooms}
+        orgRows={bundle.orgRows}
         defaults={preview ? defaults : null}
         onModelChange={onModelChange}
       />

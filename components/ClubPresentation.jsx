@@ -353,6 +353,83 @@ export function PropertyFacts({ deal = {}, beds, baths }) {
   );
 }
 
+// ---------- scenario descriptor ----------
+
+// What actually changed between the cases. Without this the tabs are
+// three unexplained numbers; an analyst wants the mechanism before
+// they'll trust the spread.
+//
+// Deliberately shows the drivers rather than a haircut percentage —
+// occupancy, collections and turnover are things a buyer can check
+// against PadSplit's own market data.
+export function ScenarioBasis({ scenario, income, expenses, exit, marketOccupancy }) {
+  const rows = [
+    {
+      label: "Occupancy",
+      value: pct(income.occupancyPct, 0),
+      note:
+        marketOccupancy && Math.abs(income.occupancyPct - marketOccupancy) < 0.005
+          ? "the published market average for this ZIP"
+          : marketOccupancy
+          ? `${income.occupancyPct > marketOccupancy ? "+" : ""}${Math.round(
+              (income.occupancyPct - marketOccupancy) * 100
+            )} pts vs market`
+          : null,
+    },
+    { label: "Collections", value: pct(income.collectionsPct, 0), note: "of dues billed" },
+    {
+      label: "Turnover",
+      value: `${income.platform.turnsPerRoomPerYear}× / room / yr`,
+      note: "drives booking fees, which don't fall with occupancy",
+    },
+    { label: "Rent growth", value: pct(income.growthPct, 0), note: "per year" },
+    { label: "Expense growth", value: pct(expenses.growthPct, 0), note: "per year" },
+    { label: "Appreciation", value: pct(exit.appreciationPct, 0), note: "per year" },
+  ];
+
+  const blurb = {
+    bear:
+      "Runs meaningfully below the market: occupancy light, members turning over faster, and costs growing quicker than rent. Not a disaster case — no vacancy event, no capital failure, no rate shock.",
+    base:
+      "Runs at the published market average for this ZIP. This is the case to underwrite against.",
+    bull:
+      "Runs above market with members staying longer. Occupancy is capped below 100% because a room that turns at all has a gap.",
+  }[scenario];
+
+  return (
+    <div className="print-section px-8 pb-4">
+      <FlyerHeading>
+        {scenario === "bear" ? "Bear" : scenario === "bull" ? "Bull" : "Base"} case
+        — what changes
+      </FlyerHeading>
+
+      <p className="mb-3 text-[11.5px] leading-snug text-neutral-700">{blurb}</p>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {rows.map((r) => (
+          <div key={r.label} className="print-keep rounded-lg border border-neutral-200 px-3 py-2">
+            <div className="text-[9px] font-black uppercase tracking-[0.1em] text-neutral-500">
+              {r.label}
+            </div>
+            <div className="text-[15px] font-bold tabular-nums leading-tight text-neutral-900">
+              {r.value}
+            </div>
+            {r.note && (
+              <div className="mt-0.5 text-[8.5px] leading-snug text-neutral-500">{r.note}</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-2 text-[9px] leading-relaxed text-neutral-500">
+        All three cases share the same purchase price, room count, financing and
+        expense stack. Only the operating assumptions above differ — the top
+        line is calculated from them rather than adjusted by a flat percentage.
+      </p>
+    </div>
+  );
+}
+
 // ---------- comparable sales ----------
 
 export function CompsTable({ comps = [], listPrice, sqft }) {

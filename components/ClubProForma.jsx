@@ -31,6 +31,7 @@ import {
   IncludedBar,
   PropertyFacts,
   PropertyGallery,
+  ScenarioBasis,
 } from "./ClubPresentation";
 import {
   BreakEvenCurve,
@@ -44,9 +45,9 @@ import {
 const GREEN = "#00A651";
 
 const SCENARIOS = [
-  { key: "bear", label: "Bear" },
-  { key: "base", label: "Base" },
-  { key: "bull", label: "Bull" },
+  { key: "bear", label: "Bear", hint: "Below market — the stress case" },
+  { key: "base", label: "Base", hint: "At the published market average" },
+  { key: "bull", label: "Bull", hint: "Above market — upside only" },
 ];
 
 function Stat({ label, value, sub, good }) {
@@ -325,6 +326,16 @@ export default function ClubProForma({
         )}
 
         {isBuyer && <IncludedBar defaults={defaults} />}
+
+        {isBuyer && (
+          <ScenarioBasis
+            scenario={scenario}
+            income={modelInputs.scenarios[scenario].income}
+            expenses={modelInputs.scenarios[scenario].expenses}
+            exit={modelInputs.scenarios[scenario].exit}
+            marketOccupancy={market ? Number(market.avg_occupancy) : null}
+          />
+        )}
 
         {isBuyer && deal && (
           <PropertyGallery

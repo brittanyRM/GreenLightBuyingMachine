@@ -293,7 +293,7 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
       </Section>
 
       <Section title="Configuration & pricing">
-        <Input label="Marketed baths" type="number" step={0.5} value={d.bathrooms} onChange={set("bathrooms")} hint="Usually same as target" />
+        <Input label="Marketed baths" type="number" step={0.5} value={d.bathrooms} onChange={set("bathrooms")} hint="common baths only — ensuites add to the total" />
         <Input label="Purchase price" type="number" prefix="$" value={d.purchase_price} onChange={set("purchase_price")} />
         <Input label="Rehab budget" type="number" prefix="$" value={d.rehab_budget} onChange={set("rehab_budget")} />
         <Input label="Furniture budget" type="number" prefix="$" value={d.furniture_budget} onChange={set("furniture_budget")} />

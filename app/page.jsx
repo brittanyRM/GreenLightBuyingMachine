@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { listDeals } from "../lib/queries";
+import { totalBaths } from "../lib/proforma";
 import { usd } from "../lib/proforma";
 
 const GREEN = "#00A651";
@@ -89,7 +90,7 @@ export default function DealsIndex() {
                 <div className="flex-1">
                   <div className="text-sm font-bold text-neutral-900">{d.address_line}</div>
                   <div className="text-[11px] text-neutral-500">
-                    {d.city}, {d.state} {d.zip} · {d.bedrooms || "?"}/{d.bathrooms || "?"}
+                    {d.city}, {d.state} {d.zip} · {d.bedrooms || "?"}/{totalBaths(d) || "?"}
                     {d.post_reno_sqft ? ` · ${d.post_reno_sqft.toLocaleString()} sq ft` : ""}
                   </div>
                 </div>

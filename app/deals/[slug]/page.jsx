@@ -69,7 +69,7 @@ export default function DealPage({ params }) {
             <div>
               <div className="text-[9px] uppercase tracking-wider text-neutral-500">Config</div>
               <div className="text-sm font-bold text-white">
-                {p.mix.bedrooms}/{deal.bathrooms}
+                {p.mix.bedrooms}/{p.mix.bathrooms}
               </div>
             </div>
             <div>

@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { listDeals, supabase } from "../../lib/queries";
 import { usd } from "../../lib/proformaClub";
+import { totalBaths } from "../../lib/proforma";
 import { pepperPlaceInputs } from "../../lib/proformaClubPresets";
 import ClubProForma from "../../components/ClubProForma";
 
@@ -154,7 +155,7 @@ export default function ClubProFormaIndex() {
                   <div className="text-[11px] text-neutral-500">
                     {d.city}, {d.state} {d.zip}
                     {d.bedrooms ? ` · ${d.bedrooms} bed` : ""}
-                    {d.bathrooms ? ` / ${d.bathrooms} bath` : ""}
+                    {totalBaths(d) ? ` / ${totalBaths(d)} bath` : ""}
                     {!d.list_price ? " · no list price set" : ""}
                   </div>
                 </div>

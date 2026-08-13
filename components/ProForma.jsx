@@ -216,7 +216,7 @@ export default function ProForma({ deal, rooms = [], market = null, comps = [], 
               </div>
               <h1 className="mt-1 text-2xl font-bold leading-none text-white sm:text-3xl">{deal.address_line}</h1>
               <div className="mt-1 text-sm text-neutral-400">
-                {deal.city}, {deal.state} {deal.zip} · {p.mix.bedrooms} bed / {deal.bathrooms} bath
+                {deal.city}, {deal.state} {deal.zip} · {p.mix.bedrooms} bed / {p.mix.bathrooms} bath
                 {sqft ? ` · ${sqft.toLocaleString()} sq ft` : ""}
               </div>
             </div>

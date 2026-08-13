@@ -117,6 +117,12 @@ export function FlyerMasthead({ deal = {}, beds, baths, sqft, price, scenarioLab
           {usd(price)}
         </div>
 
+        {sqft > 0 && (
+          <div className="absolute -bottom-4 right-0 translate-y-full pt-1 text-right text-[10px] text-neutral-500">
+            {usd(price / sqft)} per sq ft
+          </div>
+        )}
+
         <div className="absolute left-0 top-0 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-white"
              style={{ backgroundColor: BANNER }}>
           {scenarioLabel} case
@@ -432,8 +438,20 @@ export function PropertyFacts({ deal = {}, beds, baths }) {
       "Of those, ensuite",
       Number(deal.ensuite_count) > 0 ? deal.ensuite_count : null,
     ],
-    ["Living area", deal.post_reno_sqft ? `${deal.post_reno_sqft.toLocaleString()} sq ft` : null],
-    ["Finished sq ft", deal.finished_sqft ? `${deal.finished_sqft.toLocaleString()} sq ft` : null],
+    [
+      deal.finished_sqft ? "Finished area" : "Living area",
+      deal.finished_sqft
+        ? `${deal.finished_sqft.toLocaleString()} sq ft`
+        : deal.post_reno_sqft
+        ? `${deal.post_reno_sqft.toLocaleString()} sq ft`
+        : null,
+    ],
+    [
+      "Underwritten at",
+      deal.finished_sqft && deal.post_reno_sqft && deal.finished_sqft !== deal.post_reno_sqft
+        ? `${deal.post_reno_sqft.toLocaleString()} sq ft`
+        : null,
+    ],
     [
       "Renovation",
       deal.reno_complete_actual

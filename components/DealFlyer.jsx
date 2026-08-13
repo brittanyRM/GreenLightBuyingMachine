@@ -135,7 +135,10 @@ export default function DealFlyer({
 
   const p = computeProForma({ deal, rooms, market, comps, orgRows });
   const mix = roomMix(rooms);
-  const sqft = deal.post_reno_sqft || deal.living_area_sqft;
+  // finished_sqft is measured on completion; post_reno_sqft is what we
+  // underwrote to. Once the real number exists it wins, so the flyer
+  // stops advertising an estimate.
+  const sqft = deal.finished_sqft || deal.post_reno_sqft || deal.living_area_sqft;
   const bedrooms = rooms.filter(
     (r) => r.room_type === "shared" || r.room_type === "ensuite"
   );
@@ -213,6 +216,15 @@ export default function DealFlyer({
           >
             {usd(p.price)}
           </div>
+
+          {/* Cost per foot under the plate. The comps table is quoted
+              in $/sq ft, so a buyer comparing them needs the same unit
+              on the subject without doing the arithmetic. */}
+          {sqft > 0 && (
+            <div className="absolute -bottom-4 right-0 translate-y-full pt-1 pr-1 text-right text-[9px] text-neutral-500">
+              {usd(p.price / sqft)} per sq ft · {usd(p.price / mix.bedrooms)} per bedroom
+            </div>
+          )}
         </div>
       </div>
 

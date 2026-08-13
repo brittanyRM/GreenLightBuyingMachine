@@ -354,7 +354,7 @@ export default function ClubProForma({
             deal={deal}
             beds={p.beds}
             baths={p.baths}
-            sqft={p.sqft}
+            sqft={deal.finished_sqft || p.sqft}
             price={cap.purchasePrice}
             scenarioLabel={scenarioLabel}
             defaults={defaults}

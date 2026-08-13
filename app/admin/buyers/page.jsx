@@ -175,6 +175,8 @@ export default function BuyerAdmin() {
           min_sqft: d.min_sqft ?? "",
           min_year_built: d.min_year_built ?? "",
           min_dscr: d.min_dscr ?? "",
+          min_cap_rate: d.min_cap_rate ?? "",
+          scenario: d.scenario || "base",
           cities: parseList(d.cities),
           zips: parseList(d.zips),
           states: parseList(d.states),
@@ -435,6 +437,8 @@ export default function BuyerAdmin() {
                                 min_sqft: b.min_sqft ?? "",
                                 min_year_built: b.min_year_built ?? "",
                                 min_dscr: b.min_dscr ?? "",
+                                min_cap_rate: b.min_cap_rate ?? "",
+                                scenario: b.scenario || "base",
                                 cities: (b.cities || []).join(", "),
                                 zips: (b.zips || []).join(", "),
                                 states: (b.states || []).join(", "),
@@ -460,6 +464,7 @@ export default function BuyerAdmin() {
                               ["min_sqft", "Min sq ft"],
                               ["min_year_built", "Built after"],
                               ["min_dscr", "Min DSCR"],
+                              ["min_cap_rate", "Min cap rate %"],
                             ].map(([k, lbl]) => (
                               <Field
                                 key={k}
@@ -496,6 +501,32 @@ export default function BuyerAdmin() {
                                 placeholder={ph}
                               />
                             ))}
+                          </div>
+
+                          <div className="mt-2 flex flex-wrap items-end gap-3">
+                            <label className="block">
+                              <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                                Yield floors apply to
+                              </span>
+                              <select
+                                value={(boxDraft[org.id] || {}).scenario || "base"}
+                                onChange={(e) =>
+                                  setBoxDraft((s2) => ({
+                                    ...s2,
+                                    [org.id]: { ...(s2[org.id] || {}), scenario: e.target.value },
+                                  }))
+                                }
+                                className="mt-1 rounded border border-neutral-300 px-2 py-1.5 text-[13px] outline-none focus:border-[#00A651]"
+                              >
+                                <option value="bear">Bear case</option>
+                                <option value="base">Base case</option>
+                                <option value="bull">Bull case</option>
+                              </select>
+                            </label>
+                            <span className="pb-2 text-[11px] text-neutral-500">
+                              DSCR and cap rate only. Beds, price and location
+                              don&rsquo;t vary by case.
+                            </span>
                           </div>
 
                           <div className="mt-2">

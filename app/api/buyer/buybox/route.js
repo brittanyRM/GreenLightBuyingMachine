@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 const NUMERIC = [
   "min_price", "max_price", "min_bedrooms", "min_bathrooms",
-  "min_sqft", "min_year_built", "min_dscr",
+  "min_sqft", "min_year_built", "min_dscr", "min_cap_rate",
 ];
 
 export async function GET(req) {
@@ -48,6 +48,7 @@ export async function POST(req) {
   for (const k of ["cities", "zips", "states"]) {
     if (k in body) patch[k] = Array.isArray(body[k]) ? body[k].filter(Boolean) : [];
   }
+  if (["bear", "base", "bull"].includes(body.scenario)) patch.scenario = body.scenario;
   if ("notes" in body) patch.notes = body.notes || null;
 
   const { data: existing } = await admin()

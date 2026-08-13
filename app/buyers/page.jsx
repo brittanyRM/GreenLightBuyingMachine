@@ -63,7 +63,7 @@ export default function BuyerIndex() {
 
         {deals && deals.length > 0 && (() => {
           const ranked = deals
-            .map((d) => ({ d, fit: matchBuyBox(d, buyBox) }))
+            .map((d) => ({ d, fit: matchBuyBox(d, buyBox, d.metrics) }))
             .sort((a, b) => {
               const score = (x) => (x.fit.matches ? (x.fit.nearMisses.length ? 1 : 0) : 2);
               return score(a) - score(b);
@@ -79,6 +79,12 @@ export default function BuyerIndex() {
               <span className="text-[12px] text-neutral-700">
                 <strong>{matchCount}</strong> of {ranked.length} match your buy
                 box.
+                {buyBox.scenario && buyBox.scenario !== "base" && (
+                  <span className="text-neutral-500">
+                    {" "}
+                    Yield floors tested against the {buyBox.scenario} case.
+                  </span>
+                )}
               </span>
               <label className="flex items-center gap-1.5 text-[12px] text-neutral-600">
                 <input

@@ -54,6 +54,8 @@ export default function BuyerBuyBox() {
           min_sqft: b.min_sqft ?? "",
           min_year_built: b.min_year_built ?? "",
           min_dscr: b.min_dscr ?? "",
+          min_cap_rate: b.min_cap_rate ?? "",
+          scenario: b.scenario || "base",
           cities: (b.cities || []).join(", "),
           zips: (b.zips || []).join(", "),
           states: (b.states || []).join(", "),
@@ -148,6 +150,27 @@ export default function BuyerBuyBox() {
               placeholder="1.25"
               hint="Checked against our underwriting"
             />
+            <label className="block">
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                Yield floors apply to
+              </span>
+              <select
+                value={draft.scenario || "base"}
+                onChange={set("scenario")}
+                className="mt-1 w-full rounded border border-neutral-300 px-2.5 py-2 text-[13px] outline-none focus:border-[#00A651]"
+              >
+                <option value="bear">Bear case — must hold in the downside</option>
+                <option value="base">Base case</option>
+                <option value="bull">Bull case</option>
+              </select>
+              <span className="mt-0.5 block text-[10px] text-neutral-400">
+                Applies to DSCR only. Beds, price and location don&rsquo;t vary
+                by case.
+              </span>
+            </label>
+          </div>
+
+          <div className="mt-3">
             <Field
               label="Anything else"
               value={draft.notes}

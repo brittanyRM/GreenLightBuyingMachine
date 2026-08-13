@@ -41,6 +41,7 @@ export async function POST(req) {
     if (k in body) patch[k] = Array.isArray(body[k]) ? body[k].filter(Boolean) : [];
   }
 
+  if (["bear", "base", "bull"].includes(body.scenario)) patch.scenario = body.scenario;
   if ("notes" in body) patch.notes = body.notes || null;
   if ("active" in body) patch.active = body.active !== false;
 

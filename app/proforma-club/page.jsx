@@ -20,7 +20,7 @@ const GREEN = "#00A651";
 export default function ClubProFormaIndex() {
   const [deals, setDeals] = useState(null);
   const [error, setError] = useState(null);
-  const [showDemo, setShowDemo] = useState(false);
+  const [showDemo, setShowDemo] = useState(null); // null | "seller" | "buyer"
 
   useEffect(() => {
     listDeals()
@@ -29,12 +29,70 @@ export default function ClubProFormaIndex() {
   }, []);
 
   if (showDemo) {
+    const isBuyer = showDemo === "buyer";
+    // Stand-in photography so the buyer layout can be judged before a
+    // real deal has any uploaded.
+    const demoDeal = {
+      address_line: "1541 W Pepper Pl",
+      city: "Mesa",
+      state: "AZ",
+      zip: "85201",
+      county: "Maricopa",
+      bedrooms: 9,
+      bathrooms: 4,
+      post_reno_sqft: 2450,
+      lot_sqft: 9488,
+      year_built: 1953,
+      zoning: "RS-6",
+      school_district: "Mesa Unified District #04",
+      list_price: 540000,
+      hero_image_url: null,
+      gallery: [],
+    };
+    const demoComps = [
+      { id: "c1", address: "1509 W Pepper Pl", comp_status: "closed", sold_price: 520000, sold_date: "2026-02-13", approx_sqft: 1863, price_per_sqft: 279.12 },
+      { id: "c2", address: "1209 W Pepper Pl", comp_status: "closed", sold_price: 530000, sold_date: "2026-03-05", approx_sqft: 1956, price_per_sqft: 270.96 },
+      { id: "c3", address: "2021 W 2nd Pl", comp_status: "closed", sold_price: 545000, sold_date: "2026-02-19", approx_sqft: 1884, price_per_sqft: 289.28 },
+      { id: "c4", address: "1027 S Siesta Ln, Tempe", comp_status: "closed", sold_price: 605000, sold_date: "2026-03-18", approx_sqft: 1912, price_per_sqft: 316.42 },
+    ];
+
     return (
-      <ClubProForma
-        initialInputs={pepperPlaceInputs()}
-        backHref="/proforma-club"
-        backLabel="Deals"
-      />
+      <div>
+        <div className="no-print flex flex-wrap items-center gap-3 bg-neutral-950 px-5 py-2">
+          <button
+            onClick={() => setShowDemo(null)}
+            className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-white"
+          >
+            ← Back
+          </button>
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">
+            Viewing as
+          </span>
+          {[
+            { id: "seller", label: "Our underwriting" },
+            { id: "buyer", label: "Buyer sees" },
+          ].map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setShowDemo(v.id)}
+              className={`rounded px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition ${
+                showDemo === v.id ? "text-white" : "text-neutral-500 hover:text-neutral-200"
+              }`}
+              style={showDemo === v.id ? { backgroundColor: GREEN } : undefined}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+
+        <ClubProForma
+          initialInputs={pepperPlaceInputs()}
+          audience={showDemo}
+          deal={isBuyer ? demoDeal : null}
+          comps={isBuyer ? demoComps : []}
+          market={{ zip: "85201", shared_weekly: 204, private_weekly: 290, avg_occupancy: 0.87 }}
+        />
+      </div>
     );
   }
 
@@ -99,12 +157,21 @@ export default function ClubProFormaIndex() {
           </div>
         )}
 
-        <button
-          onClick={() => setShowDemo(true)}
-          className="mt-5 text-[12px] text-neutral-500 underline underline-offset-2 transition hover:text-neutral-900"
-        >
-          Open the worked example (1541 W Pepper Pl)
-        </button>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowDemo("seller")}
+            className="rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-600 ring-1 ring-neutral-300 transition hover:text-neutral-900"
+          >
+            Worked example — our underwriting
+          </button>
+          <button
+            onClick={() => setShowDemo("buyer")}
+            className="rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white transition hover:opacity-90"
+            style={{ backgroundColor: GREEN }}
+          >
+            Worked example — what a buyer sees
+          </button>
+        </div>
       </div>
     </div>
   );

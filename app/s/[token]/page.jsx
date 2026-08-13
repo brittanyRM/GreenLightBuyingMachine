@@ -40,14 +40,12 @@ export default function SharedClubProForma({ params }) {
   if (!data)
     return <div className="p-10 text-center font-sans text-sm text-neutral-500">Loading…</div>;
 
-  const inputs = inputsFromDeal({
-    deal: data.deal,
-    rooms: data.rooms,
-    market: data.market,
-  });
+  // Assumptions frozen at share time win over a rebuild, so the
+  // recipient sees the adjusted figures rather than defaults.
+  const inputs =
+    data.inputs ||
+    inputsFromDeal({ deal: data.deal, rooms: data.rooms, market: data.market });
 
-  // The link carries the scenario and hold it was created with, so the
-  // recipient opens what was sent rather than the defaults.
   if (data.holdYears) inputs.exit.holdYears = data.holdYears;
 
   return (

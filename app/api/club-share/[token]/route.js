@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req, { params }) {
   const { data: link } = await admin()
     .from("club_share_links")
-    .select("token, deal_id, scenario, hold_years, expires_at, revoked_at, label")
+    .select("token, deal_id, scenario, hold_years, expires_at, revoked_at, label, inputs")
     .eq("token", params.token)
     .maybeSingle();
 
@@ -65,5 +65,6 @@ export async function GET(req, { params }) {
     defaults: (settings || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {}),
     scenario: link.scenario,
     holdYears: link.hold_years,
+    inputs: link.inputs || null,
   });
 }

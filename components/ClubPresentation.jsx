@@ -65,7 +65,7 @@ export function FlyerMasthead({ deal = {}, beds, baths, sqft, price, scenarioLab
           {deal.city}, {deal.state} {deal.zip}
         </p>
         <p className="mt-1 text-[11.5px] text-neutral-600">
-          {beds} bed · {baths} bath
+          {beds} bed · {baths} bath{baths === 1 ? "" : "s"}
           {sqft ? ` · ${sqft.toLocaleString()} sq ft` : ""}
         </p>
       </div>
@@ -286,7 +286,8 @@ export function FloorPlan({ url, beds, baths, sqft }) {
   return (
     <div className="print-section px-8 pb-4">
       <FlyerHeading>
-        Floor Plan — {beds} Bedrooms | {baths} Bathrooms
+        Floor Plan — {beds} Bedroom{beds === 1 ? "" : "s"} | {baths} Bathroom
+        {baths === 1 ? "" : "s"}
         {sqft ? ` | ${sqft.toLocaleString()} Sq Ft` : ""}
       </FlyerHeading>
 

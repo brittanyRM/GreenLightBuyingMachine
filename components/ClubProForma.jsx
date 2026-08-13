@@ -16,7 +16,7 @@
 // brand mark. Nothing else in the app knows this screen exists.
 // ============================================================
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { runClubProForma, usd, pct, multiple } from "../lib/proformaClub";
 import { resolveLabel, toTemplateLens } from "../lib/proformaClubPresets";
 import { BrandMark } from "./Brand";
@@ -125,6 +125,9 @@ export default function ClubProForma({
   // Brand defaults from org_settings: standard hero, standard interior
   // gallery and flyer_copy. Same source the flyer draws on.
   defaults = null,
+  // Called whenever the editable model changes, so a parent can share
+  // exactly what's on screen rather than rebuilding from the record.
+  onModelChange = null,
 }) {
   const isBuyer = audience === "buyer";
   // The model is editable now, so it's state rather than a frozen
@@ -143,6 +146,13 @@ export default function ClubProForma({
     setBase((m) => ({ ...m, exit: { ...m.exit, holdYears: h } }));
 
   const inputs = base;
+
+  useEffect(() => {
+    if (onModelChange) onModelChange(base);
+    // onModelChange is intentionally excluded — parents commonly pass an
+    // inline arrow, and including it would fire this on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base]);
 
   // A refinance scheduled on or after the sale year never happens.
   const refiApplies = base.refinance.enabled && base.refinance.year < holdYears;
@@ -594,7 +604,7 @@ export default function ClubProForma({
           </table>
           <p className="mt-2 text-[11px] leading-snug text-neutral-500">
             The right-hand column is the one to underwrite against. It already
-            carries the utility, turnover and reserve load a nine-bed house
+            carries the utility, turnover and reserve load a {p.beds}-bed house
             actually generates, so it does not need a haircut applied on top.
           </p>
         </div>

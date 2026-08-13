@@ -12,7 +12,7 @@ export async function POST(req) {
   if (!user) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const { slug, scenario = "base", hold_years = 10, label, recipient, expires_days } = body;
+  const { slug, scenario = "base", hold_years = 10, label, recipient, expires_days, inputs } = body;
 
   const { data: deal } = await admin()
     .from("deals")
@@ -46,6 +46,9 @@ export async function POST(req) {
       label: label || null,
       recipient: recipient || null,
       expires_at,
+      // Frozen so the recipient opens what was sent, even if the deal
+      // record changes afterwards.
+      inputs: inputs || null,
       created_by: user.id,
     })
     .select("token, scenario, hold_years, label, recipient, expires_at, created_at")

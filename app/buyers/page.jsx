@@ -17,6 +17,7 @@ export default function BuyerIndex() {
   const buyer = useBuyer();
   const [deals, setDeals] = useState(null);
   const [buyBox, setBuyBox] = useState(null);
+  const [defaults, setDefaults] = useState(null);
   const [onlyMatches, setOnlyMatches] = useState(false);
   const [error, setError] = useState(null);
 
@@ -28,6 +29,7 @@ export default function BuyerIndex() {
         if (j.error) return setError(j.error);
         setDeals(j.deals);
         setBuyBox(j.buyBox || null);
+        setDefaults(j.defaults || null);
       })
       .catch((e) => setError(e.message));
   }, [buyer]);
@@ -108,12 +110,19 @@ export default function BuyerIndex() {
                 href={`/buyers/${d.slug}`}
                 className="overflow-hidden rounded border border-neutral-200 bg-white transition hover:border-neutral-400"
               >
-                {d.hero_image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={d.hero_image_url} alt="" className="h-40 w-full object-cover" />
-                ) : (
-                  <div className="h-40 w-full bg-neutral-200" />
-                )}
+                {(() => {
+                  // The deal's own photo, then the standard one. Same
+                  // chain the flyer and the sheet use.
+                  const src = d.hero_image_url || defaults?.default_hero?.url || null;
+                  return src ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={src} alt="" className="h-40 w-full object-cover" />
+                  ) : (
+                    <div className="flex h-40 w-full items-center justify-center bg-neutral-200 text-[11px] text-neutral-500">
+                      Photography to follow
+                    </div>
+                  );
+                })()}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">

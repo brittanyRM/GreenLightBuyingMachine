@@ -129,7 +129,14 @@ export async function GET(req) {
     }
   }
 
+  // Brand defaults, so a card without its own photo can fall back the
+  // same way the sheet does. Without this the list showed a grey box
+  // while the sheet beneath it showed the standard image.
+  const { data: settings } = await admin().from("org_settings").select("key, value");
+  const defaults = (settings || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {});
+
   return NextResponse.json({
+    defaults,
     deals: visible.map((d) => ({
       ...scrubDeal(d),
       interest: byDeal[d.id] || null,

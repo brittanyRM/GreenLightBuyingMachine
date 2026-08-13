@@ -48,7 +48,7 @@ export async function POST(req) {
   for (const k of ["cities", "zips", "states"]) {
     if (k in body) patch[k] = Array.isArray(body[k]) ? body[k].filter(Boolean) : [];
   }
-  if (["bear", "base", "bull"].includes(body.scenario)) patch.scenario = body.scenario;
+  if (["glbm", "bear", "base", "bull"].includes(body.scenario)) patch.scenario = body.scenario;
   if ("notes" in body) patch.notes = body.notes || null;
 
   const { data: existing } = await admin()

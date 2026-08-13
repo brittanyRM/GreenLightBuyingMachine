@@ -45,6 +45,7 @@ import {
 const GREEN = "#00A651";
 
 const SCENARIOS = [
+  { key: "glbm", label: "GLBM", hint: "Our underwriting standard" },
   { key: "bear", label: "Bear", hint: "Below market — the stress case" },
   { key: "base", label: "Base", hint: "At the published market average" },
   { key: "bull", label: "Bull", hint: "Above market — upside only" },
@@ -182,7 +183,7 @@ export default function ClubProForma({
   );
 
   const result = useMemo(() => runClubProForma(modelInputs), [modelInputs]);
-  const s = result[scenario];
+  const s = result[scenario] || result.base;
   const y1 = s.years[0];
   const cap = s.capitalization;
   const p = inputs.property;
@@ -361,7 +362,7 @@ export default function ClubProForma({
           <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
             Scenario
           </span>
-          {SCENARIOS.map((sc) => (
+          {SCENARIOS.filter((sc) => modelInputs.scenarios?.[sc.key]).map((sc) => (
             <button
               key={sc.key}
               onClick={() => setScenario(sc.key)}

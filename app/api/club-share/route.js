@@ -41,7 +41,7 @@ export async function POST(req) {
     .insert({
       token,
       deal_id: deal.id,
-      scenario: ["bear", "base", "bull"].includes(scenario) ? scenario : "base",
+      scenario: ["glbm", "bear", "base", "bull"].includes(scenario) ? scenario : "base",
       hold_years: [5, 7, 10].includes(Number(hold_years)) ? Number(hold_years) : 10,
       label: label || null,
       recipient: recipient || null,

@@ -390,7 +390,9 @@ export function ScenarioBasis({ scenario, income, expenses, exit, marketOccupanc
       label: "Occupancy",
       value: pct(income.occupancyPct, 0),
       note:
-        marketOccupancy && Math.abs(income.occupancyPct - marketOccupancy) < 0.005
+        scenario === "glbm"
+          ? "our standard, not the ZIP average"
+          : marketOccupancy && Math.abs(income.occupancyPct - marketOccupancy) < 0.005
           ? "the published market average for this ZIP"
           : marketOccupancy
           ? `${income.occupancyPct > marketOccupancy ? "+" : ""}${Math.round(
@@ -410,6 +412,8 @@ export function ScenarioBasis({ scenario, income, expenses, exit, marketOccupanc
   ];
 
   const blurb = {
+    glbm:
+      "Green Light Buying Machine's own underwriting standard — the vacancy rate we hold every deal to, regardless of what a particular ZIP is running. This is the figure our deal-page pro forma uses.",
     bear:
       "Runs meaningfully below the market: occupancy light, members turning over faster, and costs growing quicker than rent. Not a disaster case — no vacancy event, no capital failure, no rate shock.",
     base:
@@ -421,7 +425,13 @@ export function ScenarioBasis({ scenario, income, expenses, exit, marketOccupanc
   return (
     <div className="print-section px-8 pb-4">
       <FlyerHeading>
-        {scenario === "bear" ? "Bear" : scenario === "bull" ? "Bull" : "Base"} case
+        {scenario === "glbm"
+          ? "GLBM standard"
+          : scenario === "bear"
+          ? "Bear case"
+          : scenario === "bull"
+          ? "Bull case"
+          : "Base case"}{" "}
         — what changes
       </FlyerHeading>
 

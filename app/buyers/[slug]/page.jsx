@@ -10,7 +10,42 @@ import { useRouter } from "next/navigation";
 import BuyerNav, { useBuyer } from "../../../components/BuyerNav";
 import ClubProForma from "../../../components/ClubProForma";
 import { inputsFromDeal } from "../../../lib/proformaClubPresets";
-import { usd } from "../../../lib/proformaClub";
+import { usd, amortizedPayment, runClubProForma } from "../../../lib/proformaClub";
+
+// Each tier prices at its own rate, so more equity buys both a smaller
+// loan and a cheaper one. Figures are for this property using the same
+// NOI the sheet above is built on — not a generic illustration.
+function priceTiers(option, price, noi) {
+  const tiers = Array.isArray(option.tiers) ? option.tiers : [];
+  if (!tiers.length || !price) return [];
+
+  const points = Number(option.points) || 0;
+  const closingPct = Number(option.closing_cost_pct ?? 1) / 100;
+  const term = Number(option.term_months) || 360;
+
+  return tiers
+    .slice()
+    .sort((a, b) => Number(a.down_pct) - Number(b.down_pct))
+    .map((t) => {
+      const downPct = Number(t.down_pct) || 0;
+      const rate = Number(t.rate_pct) || 0;
+      const down = price * (downPct / 100);
+      const loan = price - down;
+      const origination = loan * (points / 100);
+      const closing = price * closingPct;
+      const cashToClose = down + origination + closing;
+      const monthly = amortizedPayment(loan, rate, term);
+      const annualDebt = monthly * 12;
+
+      return {
+        downPct, rate, down, loan, origination, closing, cashToClose,
+        monthly,
+        cashFlowMonthly: noi ? noi / 12 - monthly : null,
+        cashOnCash: noi && cashToClose ? (noi - annualDebt) / cashToClose : null,
+        dscr: annualDebt ? noi / annualDebt : null,
+      };
+    });
+}
 
 const GREEN = "#00A651";
 
@@ -91,6 +126,15 @@ export default function BuyerDeal({ params }) {
   });
 
   const already = data.interest?.[0];
+
+  // Year-1 NOI from the same engine and assumptions as the sheet, so
+  // the tier table and the pro forma can't quote different cash flow.
+  let noi = 0;
+  try {
+    noi = runClubProForma(inputs).base.years[0].noi;
+  } catch {
+    noi = 0;
+  }
 
   return (
     <div className="min-h-screen bg-neutral-100 font-sans">
@@ -277,6 +321,69 @@ export default function BuyerDeal({ params }) {
                         </div>
                       ))}
                   </div>
+
+                  {priceTiers(o, Number(data.deal?.list_price), noi).length > 0 && (
+                    <div className="mt-3 overflow-x-auto border-t border-neutral-100 pt-3">
+                      <div className="mb-2 text-[10px] font-black uppercase tracking-[0.12em] text-neutral-500">
+                        Down payment options on this property
+                      </div>
+                      <table className="w-full min-w-[460px]">
+                        <thead>
+                          <tr className="border-b border-neutral-300 text-left">
+                            <th className="py-1.5 text-[9px] font-bold uppercase tracking-wider text-neutral-500" />
+                            {priceTiers(o, Number(data.deal?.list_price), noi).map((t) => (
+                              <th
+                                key={t.downPct}
+                                className="py-1.5 text-right text-[12px] font-bold text-neutral-900"
+                              >
+                                {t.downPct}% down
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            ["Down payment", (t) => usd(t.down)],
+                            ["Loan amount", (t) => usd(t.loan)],
+                            ["Rate", (t) => `${t.rate.toFixed(3)}%`],
+                            ["Origination", (t) => usd(t.origination)],
+                            ["Closing costs", (t) => usd(t.closing)],
+                            ["Total cash to close", (t) => usd(t.cashToClose), true],
+                            ["Debt service / mo", (t) => `(${usd(t.monthly)})`],
+                            ["Cash flow / mo", (t) => (t.cashFlowMonthly == null ? "—" : usd(t.cashFlowMonthly)), false, true],
+                            ["Cash on cash", (t) => (t.cashOnCash == null ? "—" : `${(t.cashOnCash * 100).toFixed(1)}%`)],
+                            ["DSCR", (t) => (t.dscr == null ? "—" : t.dscr.toFixed(2))],
+                          ].map(([label, fn, bold, green]) => (
+                            <tr
+                              key={label}
+                              className={bold ? "border-b-2 border-neutral-900" : "border-b border-neutral-100"}
+                            >
+                              <td className={`py-1.5 text-[12px] ${bold ? "font-bold text-neutral-900" : "text-neutral-700"}`}>
+                                {label}
+                              </td>
+                              {priceTiers(o, Number(data.deal?.list_price), noi).map((t) => (
+                                <td
+                                  key={t.downPct}
+                                  className={`py-1.5 text-right text-[12px] tabular-nums ${
+                                    bold ? "font-bold text-neutral-900" : "text-neutral-800"
+                                  }`}
+                                  style={green ? { color: GREEN, fontWeight: 600 } : undefined}
+                                >
+                                  {fn(t)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
+                        Same price and term throughout. Each tier prices at its
+                        own rate, so more equity buys both a smaller loan and a
+                        cheaper one. Cash flow and coverage use the net
+                        operating income from the underwriting above.
+                      </p>
+                    </div>
+                  )}
 
                   {o.summary && (
                     <p className="mt-2 text-[12px] leading-snug text-neutral-600">{o.summary}</p>

@@ -64,6 +64,8 @@ export async function GET(req) {
       contact_phone: o.contact_phone, summary: o.summary,
       contact_photo_url: o.contact_photo_url, lender_logo_url: o.lender_logo_url,
       nmls: o.nmls, states: o.states || [],
+      tiers: Array.isArray(o.tiers) ? o.tiers : [],
+      closing_cost_pct: o.closing_cost_pct,
     })),
     locked: !engaged && gated > 0 && visible.length === 0,
     moreAfterInterest: !engaged && gated > 0,

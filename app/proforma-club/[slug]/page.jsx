@@ -199,7 +199,7 @@ export default function ClubProFormaDeal({ params }) {
         },
         body: JSON.stringify({
           slug: params.slug,
-          scenario: "base",
+          scenario: "glbm",
           hold_years: frozen?.exit?.holdYears || 10,
           recipient: recipient || null,
           label: label || null,

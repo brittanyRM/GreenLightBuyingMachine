@@ -12,7 +12,7 @@ export async function POST(req) {
   if (!user) return NextResponse.json({ error: "Not authorized." }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const { slug, scenario = "base", hold_years = 10, label, recipient, expires_days, inputs, allow_adjust = true } = body;
+  const { slug, scenario = "glbm", hold_years = 10, label, recipient, expires_days, inputs, allow_adjust = true } = body;
 
   const { data: deal } = await admin()
     .from("deals")
@@ -41,7 +41,7 @@ export async function POST(req) {
     .insert({
       token,
       deal_id: deal.id,
-      scenario: ["glbm", "bear", "base", "bull"].includes(scenario) ? scenario : "base",
+      scenario: ["glbm", "bear", "base", "bull"].includes(scenario) ? scenario : "glbm",
       hold_years: [5, 7, 10].includes(Number(hold_years)) ? Number(hold_years) : 10,
       label: label || null,
       recipient: recipient || null,

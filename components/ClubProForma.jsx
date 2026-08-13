@@ -137,7 +137,10 @@ export default function ClubProForma({
   // handles only what it doesn't cover.
   rooms = [],
   orgRows = null,
-  initialScenario = "base",
+  // GLBM leads: it's the standard we underwrite to, and it's the case
+  // a buyer should see first. Falls back to base where a saved model
+  // predates the GLBM scenario.
+  initialScenario = "glbm",
   // Brand defaults from org_settings: standard hero, standard interior
   // gallery and flyer_copy. Same source the flyer draws on.
   defaults = null,

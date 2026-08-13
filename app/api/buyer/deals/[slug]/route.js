@@ -26,7 +26,7 @@ export async function GET(req, { params }) {
   // buyer shouldn't be able to probe slugs to learn the pipeline.
   if (!deal) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }, { data: orgRows }, { data: interest }] =
+  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }, { data: orgRows }, { data: savedInputs }, { data: interest }] =
     await Promise.all([
     admin()
       .from("deal_rooms")
@@ -51,6 +51,14 @@ export async function GET(req, { params }) {
     // Lender terms. Same rows the deal-page pro forma reads, so the
     // two documents can't quote different loans on one house.
     admin().from("org_assumptions").select("key, value"),
+    // Assumptions saved against this deal. What the team tuned is what
+    // a buyer sees — otherwise the sheet they open is not the sheet we
+    // built.
+    admin()
+      .from("deal_proforma_inputs")
+      .select("inputs")
+      .eq("deal_id", deal.id)
+      .maybeSingle(),
     admin()
       .from("deal_interest")
       .select("id, kind, offer_price, note, status, created_at")
@@ -66,6 +74,7 @@ export async function GET(req, { params }) {
     comps: comps || [],
     defaults: (settings || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {}),
     org: orgRows || [],
+    savedInputs: savedInputs?.inputs || null,
     interest: interest || [],
   });
 }

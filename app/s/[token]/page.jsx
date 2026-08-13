@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 import ClubProForma from "../../../components/ClubProForma";
-import { inputsFromDeal } from "../../../lib/proformaClubPresets";
+import { inputsFromDeal, applySavedInputs } from "../../../lib/proformaClubPresets";
 
 export default function SharedClubProForma({ params }) {
   const [data, setData] = useState(null);

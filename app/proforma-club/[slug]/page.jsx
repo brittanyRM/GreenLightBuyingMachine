@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDealBundle, supabase } from "../../../lib/queries";
-import { inputsFromDeal } from "../../../lib/proformaClubPresets";
+import { inputsFromDeal, applySavedInputs } from "../../../lib/proformaClubPresets";
 import { usd } from "../../../lib/proformaClub";
 import ClubProForma from "../../../components/ClubProForma";
 
@@ -46,6 +46,9 @@ export default function ClubProFormaDeal({ params }) {
   const [assignOrg, setAssignOrg] = useState("");
   const [assignStatus, setAssignStatus] = useState("offered");
   const [assignMsg, setAssignMsg] = useState(null);
+  const [saved, setSaved] = useState(undefined); // undefined = not loaded yet
+  const [savingInputs, setSavingInputs] = useState(false);
+  const [inputsMsg, setInputsMsg] = useState(null);
 
   // Buyers available to assign to. Silent on failure — assignment is
   // optional and shouldn't break the sheet.
@@ -86,7 +89,17 @@ export default function ClubProFormaDeal({ params }) {
   useEffect(() => {
     let cancelled = false;
     getDealBundle(params.slug)
-      .then((b) => !cancelled && setBundle(b))
+      .then(async (b) => {
+        if (cancelled) return;
+        setBundle(b);
+        // Saved assumptions for this deal, if any.
+        const { data } = await supabase
+          .from("deal_proforma_inputs")
+          .select("inputs")
+          .eq("deal_id", b.deal.id)
+          .maybeSingle();
+        if (!cancelled) setSaved(data?.inputs || null);
+      })
       .catch((e) => !cancelled && setError(e.message));
     return () => {
       cancelled = true;
@@ -96,10 +109,11 @@ export default function ClubProFormaDeal({ params }) {
   // Seller basis to start with. Rebuilt only when the deal loads —
   // never on preview toggle, or edits would be wiped.
   const sellerInputs = useMemo(() => {
-    if (!bundle) return null;
+    if (!bundle || saved === undefined) return null;
     const { deal, rooms, market, orgRows } = bundle;
-    return inputsFromDeal({ deal, rooms, market, org: orgRows }, { audience: "seller" });
-  }, [bundle]);
+    const base = inputsFromDeal({ deal, rooms, market, org: orgRows }, { audience: "seller" });
+    return applySavedInputs(base, saved, { audience: "seller" });
+  }, [bundle, saved]);
 
   // Preview swaps the price to list and keeps every adjustment. That
   // matters: a buyer should see the assumptions we tuned, priced at
@@ -118,6 +132,46 @@ export default function ClubProFormaDeal({ params }) {
     // edit, and re-deriving here would fight the sheet's own state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sellerInputs, preview, bundle]);
+
+  // Persist the current model as this deal's pro forma. Buyers and
+  // share links read the same row, so saving here is what makes an
+  // adjustment real rather than a session-local edit.
+  async function saveInputs() {
+    setSavingInputs(true);
+    setInputsMsg(null);
+    try {
+      const current = modelRef.current;
+      if (!current) throw new Error("Nothing to save yet.");
+      const { error: se } = await supabase
+        .from("deal_proforma_inputs")
+        .upsert({ deal_id: bundle.deal.id, inputs: current }, { onConflict: "deal_id" });
+      if (se) throw se;
+      setSaved(current);
+      setInputsMsg("Saved to this deal.");
+    } catch (e) {
+      setInputsMsg(e.message);
+    } finally {
+      setSavingInputs(false);
+    }
+  }
+
+  async function resetInputs() {
+    setSavingInputs(true);
+    setInputsMsg(null);
+    try {
+      const { error: de } = await supabase
+        .from("deal_proforma_inputs")
+        .delete()
+        .eq("deal_id", bundle.deal.id);
+      if (de) throw de;
+      setSaved(null);
+      setInputsMsg("Reset to defaults. Reload to see them.");
+    } catch (e) {
+      setInputsMsg(e.message);
+    } finally {
+      setSavingInputs(false);
+    }
+  }
 
   async function createShareLink() {
     setSharing(true);
@@ -206,6 +260,12 @@ export default function ClubProFormaDeal({ params }) {
           </button>
         ))}
 
+        {saved && !preview && (
+          <span className="text-[11px] text-neutral-400">
+            Saved assumptions in use
+          </span>
+        )}
+
         {preview ? (
           <span className="text-[11px] text-neutral-400">
             Priced at list{deal.list_price ? ` — ${usd(deal.list_price)}` : ""}. Your
@@ -217,6 +277,30 @@ export default function ClubProFormaDeal({ params }) {
               Assumptions adjusted — these travel with the share link.
             </span>
           )
+        )}
+
+        <button
+          onClick={saveInputs}
+          disabled={savingInputs || preview}
+          className="rounded px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white transition disabled:opacity-40"
+          style={{ backgroundColor: "#0A0A0A" }}
+          title={preview ? "Switch to our underwriting to save" : "Save these assumptions to the deal"}
+        >
+          {savingInputs ? "Saving…" : "Save to deal"}
+        </button>
+
+        {saved && (
+          <button
+            onClick={resetInputs}
+            disabled={savingInputs}
+            className="text-[11px] text-neutral-500 underline underline-offset-2 hover:text-neutral-200"
+          >
+            Reset
+          </button>
+        )}
+
+        {inputsMsg && (
+          <span className="text-[11px]" style={{ color: GREEN }}>{inputsMsg}</span>
         )}
 
         <button

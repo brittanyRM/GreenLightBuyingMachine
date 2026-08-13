@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import BuyerNav, { useBuyer } from "../../../components/BuyerNav";
 import ClubProForma from "../../../components/ClubProForma";
-import { inputsFromDeal } from "../../../lib/proformaClubPresets";
+import { inputsFromDeal, applySavedInputs } from "../../../lib/proformaClubPresets";
 import { usd, amortizedPayment, runClubProForma } from "../../../lib/proformaClub";
 
 // Each tier prices at its own rate, so more equity buys both a smaller
@@ -117,12 +117,16 @@ export default function BuyerDeal({ params }) {
     return <div className="p-10 font-sans text-sm text-red-700">{error}</div>;
   if (!data) return <div className="p-10 font-sans text-sm text-neutral-500">Loading…</div>;
 
-  const inputs = inputsFromDeal({
-    deal: data.deal,
-    rooms: data.rooms,
-    market: data.market,
-    org: data.org,
-  });
+  const inputs = applySavedInputs(
+    inputsFromDeal({
+      deal: data.deal,
+      rooms: data.rooms,
+      market: data.market,
+      org: data.org,
+    }),
+    data.savedInputs,
+    { audience: "buyer" }
+  );
 
   const already = data.interest?.[0];
 

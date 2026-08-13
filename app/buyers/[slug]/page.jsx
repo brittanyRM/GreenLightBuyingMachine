@@ -359,12 +359,111 @@ export default function BuyerDeal({ params }) {
                           ))}
                         </tbody>
                       </table>
-                      <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
-                        Same price and term throughout. Each tier prices at its
-                        own rate, so more equity buys both a smaller loan and a
-                        cheaper one. Cash flow and coverage use the net
-                        operating income from the underwriting above.
-                      </p>
+                      {(() => {
+                        const ts = priceTiers(o, Number(data.deal?.list_price), noi);
+                        if (!ts.length) return null;
+
+                        // Which tier actually returns most on the cash put in.
+                        // Computed rather than assumed — the answer is rarely
+                        // the cheapest rate, because the last tier usually buys
+                        // very little rate for a lot of equity.
+                        const best = ts.reduce(
+                          (a, b) => ((b.cashOnCash ?? -1) > (a.cashOnCash ?? -1) ? b : a),
+                          ts[0]
+                        );
+                        const cheapest = ts.reduce((a, b) => (b.rate < a.rate ? b : a), ts[0]);
+                        const lightest = ts.reduce((a, b) => (b.downPct < a.downPct ? b : a), ts[0]);
+                        const strongest = ts.reduce(
+                          (a, b) => ((b.dscr ?? 0) > (a.dscr ?? 0) ? b : a),
+                          ts[0]
+                        );
+
+                        const meaning = (t) => {
+                          if (t.downPct === lightest.downPct)
+                            return "Least cash in, most leverage. The rate is highest here and coverage is thinnest, so it's the tier a lender scrutinises most.";
+                          if (t.downPct === strongest.downPct)
+                            return "Most cash in, strongest coverage, cheapest rate. Easiest to get written, and the safest if occupancy disappoints.";
+                          return "The middle. Usually where the rate improvement is largest relative to the extra equity.";
+                        };
+
+                        return (
+                          <div className="mt-3 border-t border-neutral-100 pt-3">
+                            <div className="mb-2 text-[10px] font-black uppercase tracking-[0.12em] text-neutral-500">
+                              What each option means
+                            </div>
+
+                            <div className="grid gap-2 sm:grid-cols-3">
+                              {ts.map((t) => (
+                                <div
+                                  key={t.downPct}
+                                  className="rounded-lg border px-3 py-2.5"
+                                  style={{
+                                    borderColor: t.downPct === best.downPct ? GREEN : "#E5E7EB",
+                                    backgroundColor:
+                                      t.downPct === best.downPct ? "#F2FAF5" : "white",
+                                  }}
+                                >
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-[13px] font-bold text-neutral-900">
+                                      {t.downPct}% down
+                                    </span>
+                                    {t.downPct === best.downPct && (
+                                      <span
+                                        className="text-[8px] font-black uppercase tracking-wider"
+                                        style={{ color: GREEN }}
+                                      >
+                                        Best return
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="mt-0.5 text-[11px] tabular-nums text-neutral-600">
+                                    {usd(t.cashToClose)} in ·{" "}
+                                    {t.cashOnCash == null
+                                      ? "—"
+                                      : `${(t.cashOnCash * 100).toFixed(1)}% back`}
+                                  </div>
+                                  <p className="mt-1.5 text-[11px] leading-snug text-neutral-600">
+                                    {meaning(t)}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+
+                            <p className="mt-3 text-[11px] leading-relaxed text-neutral-600">
+                              <strong>The trade-off:</strong> more equity buys
+                              both a smaller loan and a cheaper rate, so monthly
+                              cash flow rises with every tier. Return on the cash
+                              you put in does not — it peaks at{" "}
+                              <strong>{best.downPct}% down</strong> here, because
+                              the step from {lightest.downPct}% to{" "}
+                              {best.downPct}% buys{" "}
+                              {(lightest.rate - best.rate).toFixed(3)} points of
+                              rate, while going further to{" "}
+                              {cheapest.downPct}% buys only{" "}
+                              {(best.rate - cheapest.rate).toFixed(3)}.
+                              {strongest.dscr != null && (
+                                <>
+                                  {" "}
+                                  Coverage runs from{" "}
+                                  {lightest.dscr?.toFixed(2)} at{" "}
+                                  {lightest.downPct}% to{" "}
+                                  {strongest.dscr.toFixed(2)} at{" "}
+                                  {strongest.downPct}%
+                                  {lightest.dscr != null && lightest.dscr < 1.25
+                                    ? " — the lowest tier sits close to where most lenders stop writing."
+                                    : "."}
+                                </>
+                              )}
+                            </p>
+
+                            <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
+                              Same price and term throughout. Cash flow and
+                              coverage use the net operating income from the
+                              underwriting above.
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 

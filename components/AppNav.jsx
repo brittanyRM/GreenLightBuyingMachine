@@ -16,6 +16,7 @@ const LINKS = [
   { href: "/crm", label: "CRM" },
   { href: "/admin/buyers", label: "Buyers" },
   { href: "/settings", label: "Settings" },
+  { href: "/admin/health", label: "Health" },
 ];
 
 export default function AppNav() {

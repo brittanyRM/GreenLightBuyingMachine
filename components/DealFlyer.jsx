@@ -139,9 +139,37 @@ export default function DealFlyer({
   // underwrote to. Once the real number exists it wins, so the flyer
   // stops advertising an estimate.
   const sqft = deal.finished_sqft || deal.post_reno_sqft || deal.living_area_sqft;
-  const bedrooms = rooms.filter(
+  // Room chips follow the record, like every other count on this page.
+  //
+  // Drawn rooms are used where they exist, because per-room rates and
+  // labels live on them. Where the record says more rooms than have
+  // been traced, the remainder are filled in — otherwise the heading
+  // says nine bedrooms and the chips below it show eight.
+  const drawnBedrooms = rooms.filter(
     (r) => r.room_type === "shared" || r.room_type === "ensuite"
   );
+
+  const bedrooms = (() => {
+    const target = mix.bedrooms || drawnBedrooms.length;
+    if (drawnBedrooms.length >= target) return drawnBedrooms.slice(0, target);
+
+    const ensuiteShort = Math.max(
+      0,
+      mix.ensuiteCount - drawnBedrooms.filter((r) => r.room_type === "ensuite").length
+    );
+
+    const filler = Array.from({ length: target - drawnBedrooms.length }, (_, i) => {
+      const n = drawnBedrooms.length + i + 1;
+      return {
+        id: `record-${n}`,
+        room_number: n,
+        label: `Bedroom ${n}`,
+        room_type: i < ensuiteShort ? "ensuite" : "shared",
+      };
+    });
+
+    return [...drawnBedrooms, ...filler];
+  })();
   // Deal-specific first, then the brand standard. A flyer should never
   // go out with empty swatches just because nobody re-uploaded the same
   // flooring sample for the ninth time.

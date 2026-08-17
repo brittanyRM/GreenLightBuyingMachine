@@ -330,3 +330,110 @@ export function MarketPanel({ market, deal }) {
     </div>
   );
 }
+
+
+// ---------- what an analyst checks ----------
+
+// The vetting block. Not a summary of the deal — the specific numbers
+// an institutional buyer works out on the back of the sheet before
+// committing: where it breaks, how much room there is above the
+// lender's floor, and what the whole thing costs against what it earns.
+//
+// Putting these on the page rather than leaving them to be derived is
+// the difference between a marketing document and an underwriting one.
+export function VettingBlock({ p, occupancy }) {
+  if (!p || !p.grossAnnual) return null;
+
+  const annualDebt = p.payment * 12;
+
+  // Occupancy at which NOI exactly covers debt service. Everything
+  // else on the sheet moves; this is the line it can't cross.
+  const opexFixed = (p.utilities + p.fixed) * 12;
+  const variableRate = p.padsplitFeeRate + p.mgmtFeeRate + p.maintRate;
+  const breakEvenOcc =
+    p.grossAnnual && 1 - variableRate > 0
+      ? (annualDebt + opexFixed) / (p.grossAnnual * (1 - variableRate))
+      : null;
+
+  // Same for a 1.20 coverage floor, which is where most DSCR lenders
+  // stop writing.
+  const dscrFloorOcc =
+    p.grossAnnual && 1 - variableRate > 0
+      ? (annualDebt * 1.2 + opexFixed) / (p.grossAnnual * (1 - variableRate))
+      : null;
+
+  const rows = [
+    {
+      label: "Break-even occupancy",
+      value: breakEvenOcc != null ? pct(breakEvenOcc, 1) : "—",
+      note:
+        breakEvenOcc != null && occupancy
+          ? `${Math.round((occupancy - breakEvenOcc) * 100)} points of headroom from ${pct(occupancy, 0)}`
+          : "where NOI exactly covers debt service",
+      alarm: breakEvenOcc != null && occupancy != null && occupancy - breakEvenOcc < 0.1,
+    },
+    {
+      label: "Occupancy for 1.20 DSCR",
+      value: dscrFloorOcc != null ? pct(dscrFloorOcc, 1) : "—",
+      note: "the floor most DSCR lenders write to",
+      alarm: dscrFloorOcc != null && occupancy != null && occupancy < dscrFloorOcc,
+    },
+    {
+      label: "Operating expense ratio",
+      value: pct((p.opex * 12) / p.grossAnnual, 1),
+      note: "of gross scheduled rent, before debt",
+    },
+    {
+      label: "Debt yield",
+      value: p.loan ? pct((p.noi * 12) / p.loan, 1) : "—",
+      note: "NOI over loan amount — what a lender recovers if they take it back",
+      alarm: p.loan ? (p.noi * 12) / p.loan < 0.1 : false,
+    },
+    {
+      label: "Rent per bedroom",
+      value: p.mix?.bedrooms ? `${usd(p.grossAnnual / p.mix.bedrooms / 12)}/mo` : "—",
+      note: "gross, before vacancy and fees",
+    },
+    {
+      label: "All-in per bedroom",
+      value: p.mix?.bedrooms ? usd(p.price / p.mix.bedrooms) : "—",
+      note: "purchase price over rentable rooms",
+    },
+  ];
+
+  return (
+    <div className="print-section px-8 pb-4">
+      <div className="mb-2 text-[10px] font-black uppercase tracking-[0.12em] text-neutral-500">
+        What an analyst checks
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {rows.map((r) => (
+          <div
+            key={r.label}
+            className="print-keep rounded-lg border px-3 py-2.5"
+            style={{ borderColor: r.alarm ? "#FCA5A5" : "#E5E7EB" }}
+          >
+            <div className="text-[9px] font-black uppercase tracking-[0.1em] text-neutral-500">
+              {r.label}
+            </div>
+            <div
+              className="text-[17px] font-bold leading-tight tabular-nums"
+              style={{ color: r.alarm ? "#B91C1C" : "#0A0A0A" }}
+            >
+              {r.value}
+            </div>
+            <div className="mt-0.5 text-[9px] leading-snug text-neutral-500">{r.note}</div>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-2 text-[10px] leading-relaxed text-neutral-600">
+        Break-even and the DSCR floor hold price, rent and financing constant
+        and solve for occupancy — the only assumption on this sheet that
+        isn&rsquo;t contractual. Everything else here is arithmetic on the
+        tables above.
+      </p>
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { parseComps } from "../lib/comps";
 import { useState } from "react";
 import { saveDeal, slugify, upsertMarket, saveComps } from "../lib/queries";
 import DocumentIntake from "./DocumentIntake";
@@ -117,44 +118,6 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
   // reading left to right or guessing by magnitude both fail. A
   // street number read as square footage quietly wrecks $/sq ft
   // and the implied resale figure.
-  function parseComps(text) {
-    return text
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const tokens = line.match(/[\d,]+\.?\d*/g) || [];
-        const nums = tokens
-          .slice(-4)
-          .map((n) => parseFloat(n.replace(/,/g, "")));
-
-        const address = line
-          .replace(/(?:[\d,]+\.?\d*[\s$]+){3}\$?[\d,]+\.?\d*\s*$/, "")
-          .replace(/[,\s]+$/, "")
-          .trim();
-
-        const status = /pend/i.test(line)
-          ? "pending"
-          : /activ/i.test(line)
-          ? "active"
-          : /ucb|backup/i.test(line)
-          ? "ucb"
-          : "closed";
-
-        const [list, sqft, psf, sold] = nums;
-
-        return {
-          address: address || line,
-          comp_status: status,
-          list_price: list ?? null,
-          approx_sqft: sqft ?? null,
-          price_per_sqft: psf ?? (sold && sqft ? +(sold / sqft).toFixed(2) : null),
-          sold_price: sold ?? null,
-        };
-      })
-      .filter((c) => c.sold_price || c.list_price);
-  }
-
   async function handleSave() {
     setSaving(true);
     setMsg(null);

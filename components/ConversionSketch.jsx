@@ -480,15 +480,35 @@ export default function ConversionSketch({
 
     const ordered = rows.flatMap((row) => [...row].sort((a, b) => a.x - b.x));
 
+    // Hand-renamed rooms keep their names, so those names are taken
+    // before numbering starts. Without this the counter could generate
+    // "Bedroom 4" for one room while another already carried it by
+    // hand — two rooms, one label, and a rate applied twice.
+    const taken = new Set(
+      ordered.filter((r) => r.customLabel && r.label).map((r) => r.label)
+    );
+
+    const nextFree = (make, from) => {
+      let n = from;
+      while (taken.has(make(n))) n += 1;
+      taken.add(make(n));
+      return n;
+    };
+
     let bed = 0;
     let bath = 0;
     const renamed = new Map();
 
     const next = ordered.map((r) => {
       if (r.type === "shared" || r.type === "ensuite") {
-        bed += 1;
-        // A room you renamed by hand keeps its name.
-        const label = r.customLabel ? r.label : roomName(bed);
+        let label;
+        if (r.customLabel) {
+          label = r.label;
+          bed += 1;
+        } else {
+          bed = nextFree(roomName, bed + 1);
+          label = roomName(bed);
+        }
         renamed.set(r.label, label);
         return {
           ...r,
@@ -498,8 +518,14 @@ export default function ConversionSketch({
         };
       }
       if (r.type === "bath" || r.type === "bath_ensuite") {
-        bath += 1;
-        const label = r.customLabel ? r.label : `Bath ${bath}`;
+        let label;
+        if (r.customLabel) {
+          label = r.label;
+          bath += 1;
+        } else {
+          bath = nextFree((n) => `Bath ${n}`, bath + 1);
+          label = `Bath ${bath}`;
+        }
         return { ...r, number: bath, label };
       }
       return r;

@@ -26,9 +26,11 @@ import {
   IncomeAndExpenses,
   MarketPanel,
   NetPerformance,
+  VettingBlock,
   RoomRevenueStack,
 } from "./ClubCore";
 import ClubAssumptions from "./ClubAssumptions";
+import BuyerComps from "./BuyerComps";
 import {
   CompsScatter,
   CompsTable,
@@ -511,6 +513,12 @@ export default function ClubProForma({
         {isBuyer && core && <IncomeAndExpenses p={core} />}
         {isBuyer && core && <NetPerformance p={core} />}
         {isBuyer && core && <CapitalRequired p={core} />}
+        {isBuyer && core && (
+          <VettingBlock
+            p={core}
+            occupancy={modelInputs.scenarios[activeScenario].income.occupancyPct}
+          />
+        )}
 
         {isBuyer && (
           <DownPaymentOptions
@@ -880,6 +888,12 @@ export default function ClubProForma({
               <FlyerHeading>Specifications</FlyerHeading>
               <PropertyFacts deal={deal} beds={p.beds} baths={p.baths} />
             </div>
+          )}
+
+          {isBuyer && (
+            <BuyerComps
+              subject={{ price: cap.purchasePrice, sqft: p.sqft, beds: p.beds }}
+            />
           )}
 
           {isBuyer && comps.length > 1 && (

@@ -22,3 +22,28 @@ comment on column public.deals.assumption_overrides is
 
 -- Rollback:
 --   alter table public.deals drop column if exists assumption_overrides;
+
+-- A null from an older client shouldn't fail the whole save. The column
+-- keeps its default of {} but no longer rejects null outright; a
+-- trigger normalises it instead.
+alter table public.deals
+  alter column assumption_overrides drop not null;
+
+update public.deals
+set assumption_overrides = '{}'::jsonb
+where assumption_overrides is null;
+
+create or replace function public.deals_normalise_overrides()
+returns trigger language plpgsql as $$
+begin
+  if new.assumption_overrides is null then
+    new.assumption_overrides = '{}'::jsonb;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists deals_normalise_overrides on public.deals;
+create trigger deals_normalise_overrides
+  before insert or update on public.deals
+  for each row execute function public.deals_normalise_overrides();

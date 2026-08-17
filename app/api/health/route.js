@@ -131,6 +131,24 @@ export async function GET(req) {
     );
   }
 
+  // A save that sends null to a NOT NULL column fails the whole write,
+  // and the message names the column rather than the cause. Check the
+  // two on deals that have bitten before.
+  for (const col of ["assumption_overrides", "reno_complete_estimated"]) {
+    const { error: nullErr } = await admin()
+      .from("deals")
+      .select(col)
+      .is(col, null)
+      .limit(1);
+    add(
+      "Data",
+      `deals.${col}`,
+      !nullErr,
+      nullErr ? `unreadable — ${nullErr.message}` : "readable",
+      "Run migrations 030 and 031; both drop the NOT NULL and normalise existing rows."
+    );
+  }
+
   // ---------- data completeness ----------
   const { data: deals } = await admin()
     .from("deals")

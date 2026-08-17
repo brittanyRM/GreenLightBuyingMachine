@@ -494,7 +494,7 @@ export default function FloorPlanRender({
     () =>
       (rooms || [])
         .filter((r) => r.room_type === "shared" || r.room_type === "ensuite")
-        .reduce((sum, r) => sum + roomRate(r, market), 0),
+        .reduce((sum, r) => sum + roomRate(r, market, {}, deal), 0),
     [rooms, market]
   );
 

@@ -126,6 +126,7 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
       const NUM_FIELDS = [
         "year_built", "lot_sqft", "lot_acres", "living_area_sqft", "added_sqft",
         "post_reno_sqft", "assessed_tax_amount", "bathrooms", "purchase_price",
+        "shared_weekly_rate", "ensuite_weekly_rate",
         "list_price", "rehab_budget", "furniture_budget", "target_bedrooms",
         "target_bathrooms", "target_ensuites", "bedrooms", "ensuite_count",
       ];
@@ -308,6 +309,34 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
       </Section>
 
       {d.id && <MediaUploader deal={d} onSaved={(saved) => setD((p) => ({ ...p, ...saved }))} />}
+
+      <Section title="Room rates" source="what this house rents for">
+        <div className="col-span-2 mb-1 sm:col-span-4">
+          <p className="text-[11px] leading-snug text-neutral-500">
+            The rates this deal is underwritten at. Blank uses the PadSplit
+            market rate for the ZIP. A rate set on an individual room in the
+            sketch still beats both.
+          </p>
+        </div>
+        <Input
+          label="Shared room / wk"
+          type="number"
+          step="any"
+          prefix="$"
+          value={d.shared_weekly_rate ?? ""}
+          onChange={set("shared_weekly_rate")}
+          hint="blank = market rate"
+        />
+        <Input
+          label="Ensuite room / wk"
+          type="number"
+          step="any"
+          prefix="$"
+          value={d.ensuite_weekly_rate ?? ""}
+          onChange={set("ensuite_weekly_rate")}
+          hint="blank = market rate"
+        />
+      </Section>
 
       <Section title="Renovation" source="what a buyer is told">
         <Input

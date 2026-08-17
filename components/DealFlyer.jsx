@@ -474,7 +474,7 @@ export default function DealFlyer({
                   </span>
                 )}
                 <span className="text-[8.5px] font-semibold tabular-nums text-neutral-600">
-                  {usd(roomRate(r, market))}
+                  {usd(roomRate(r, market, {}, deal))}
                 </span>
               </div>
             ))}

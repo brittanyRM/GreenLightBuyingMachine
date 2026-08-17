@@ -250,8 +250,8 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
 
       <Section title="Target conversion" source="what you're underwriting to">
         <Input label="Target bedrooms" type="number" value={d.target_bedrooms} onChange={set("target_bedrooms")} hint="e.g. 9" />
-        <Input label="Target baths" type="number" step={0.5} value={d.target_bathrooms} onChange={set("target_bathrooms")} hint="common baths only — ensuites are counted below" />
-        <Input label="Of those, ensuites" type="number" value={d.target_ensuites} onChange={set("target_ensuites")} hint="each adds a bathroom to the total" />
+        <Input label="Target baths" type="number" step={0.5} value={d.target_bathrooms} onChange={set("target_bathrooms")} hint="total, including ensuites" />
+        <Input label="Of those, ensuites" type="number" value={d.target_ensuites} onChange={set("target_ensuites")} hint="how many of that total are ensuite" />
         <div className="col-span-2 flex items-end sm:col-span-1">
           <div className="w-full rounded bg-neutral-950 px-3 py-2">
             <div className="text-[9px] uppercase tracking-wider text-neutral-500">Conversion</div>
@@ -272,7 +272,7 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
       </Section>
 
       <Section title="Configuration & pricing">
-        <Input label="Marketed baths" type="number" step={0.5} value={d.bathrooms} onChange={set("bathrooms")} hint="common baths only — ensuites add to the total" />
+        <Input label="Marketed baths" type="number" step={0.5} value={d.bathrooms} onChange={set("bathrooms")} hint="total, including ensuites" />
         <Input label="Purchase price" type="number" prefix="$" value={d.purchase_price} onChange={set("purchase_price")} />
         <Input label="Rehab budget" type="number" prefix="$" value={d.rehab_budget} onChange={set("rehab_budget")} />
         <Input label="Furniture budget" type="number" prefix="$" value={d.furniture_budget} onChange={set("furniture_budget")} />

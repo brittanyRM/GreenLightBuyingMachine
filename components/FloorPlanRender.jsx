@@ -2098,7 +2098,7 @@ export default function FloorPlanRender({
 
         {[
           ["bedrooms", "Bedrooms"],
-          ["baths", "Common baths"],
+          ["baths", "Total baths"],
           ["ensuites", "Ensuites"],
         ].map(([key, label]) => (
           <label key={key} className="flex items-center gap-1.5">
@@ -2124,10 +2124,9 @@ export default function FloorPlanRender({
             subset and flagged every co-living conversion. */}
         {activeSpec.baths + activeSpec.ensuites > 0 && (
           <span className="text-[11px] text-neutral-500">
-            {activeSpec.baths + activeSpec.ensuites} bath
-            {activeSpec.baths + activeSpec.ensuites === 1 ? "" : "s"} total
+            {activeSpec.baths} bath{activeSpec.baths === 1 ? "" : "s"} total
             {activeSpec.ensuites > 0
-              ? ` — ${activeSpec.baths} common + ${activeSpec.ensuites} ensuite`
+              ? ` — ${Math.max(0, activeSpec.baths - activeSpec.ensuites)} common + ${activeSpec.ensuites} ensuite`
               : ""}
           </span>
         )}

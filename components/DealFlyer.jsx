@@ -234,7 +234,11 @@ export default function DealFlyer({
         <ul className="pr-5">
           <li className="flex gap-2 border-b border-neutral-200 pb-[5px] text-[11.5px] font-semibold">
             <Check />
-            {mix.bedrooms} Bedrooms | {mix.bathrooms} Bathroom{mix.bathrooms === 1 ? "" : "s"}{mix.ensuiteCount > 0 ? `, ${mix.ensuiteCount} Ensuite` : ""}
+            {mix.bedrooms} Bedrooms | {mix.bathrooms} Bathroom
+            {mix.bathrooms === 1 ? "" : "s"}
+            {mix.ensuiteCount > 0
+              ? ` (${mix.commonBathrooms} common + ${mix.ensuiteCount} ensuite)`
+              : ""}
           </li>
           {sqft && (
             <li className="flex gap-2 border-b border-neutral-200 py-[5px] text-[11.5px] font-semibold">
@@ -407,7 +411,11 @@ export default function DealFlyer({
 
         <div>
           <h3 className="mb-1.5 text-right text-[11px] font-black uppercase tracking-wide">
-            Floor Plan – {mix.bedrooms} Bedrooms | {mix.bathrooms} Bathroom{mix.bathrooms === 1 ? "" : "s"}{mix.ensuiteCount > 0 ? `, ${mix.ensuiteCount} Ensuite` : ""}
+            Floor Plan – {mix.bedrooms} Bedrooms | {mix.bathrooms} Bathroom
+            {mix.bathrooms === 1 ? "" : "s"}
+            {mix.ensuiteCount > 0
+              ? ` (${mix.commonBathrooms} common + ${mix.ensuiteCount} ensuite)`
+              : ""}
             {sqft ? ` | ${num(sqft)} Sq Ft` : ""}
           </h3>
 

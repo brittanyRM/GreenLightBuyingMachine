@@ -49,6 +49,8 @@ const ENV = [
   ["GOOGLE_CLIENT_ID", false, "Gmail sending"],
   ["GOOGLE_CLIENT_SECRET", false, "Gmail sending"],
   ["BUYER_NOTIFY_EMAIL", false, "Alerts when a buyer raises a hand"],
+  ["GOOGLE_AI_API_KEY", false, "Floor plan rendering via Gemini"],
+  ["OPENAI_API_KEY", false, "Floor plan rendering via OpenAI"],
 ];
 
 async function exists(target) {
@@ -93,6 +95,24 @@ export async function GET(req) {
       "Magic links and share links are built from this. A wrong value produces URLs that 404."
     );
   }
+
+  // At least one image provider, or the Plan tab can't render.
+  const hasImageProvider =
+    !!process.env.GOOGLE_AI_API_KEY || !!process.env.OPENAI_API_KEY;
+  add(
+    "Environment",
+    "Floor plan provider",
+    hasImageProvider,
+    hasImageProvider
+      ? `${process.env.RENDER_PROVIDER || "auto"} — ${[
+          process.env.GOOGLE_AI_API_KEY && "Gemini",
+          process.env.OPENAI_API_KEY && "OpenAI",
+        ]
+          .filter(Boolean)
+          .join(" and ")} available`
+      : "neither key set — Draw it again will fail",
+    "Set GOOGLE_AI_API_KEY or OPENAI_API_KEY. With both, RENDER_PROVIDER picks."
+  );
 
   // ---------- migrations ----------
   for (const [num, target, kind, feature] of MIGRATIONS) {

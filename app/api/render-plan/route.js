@@ -256,6 +256,7 @@ export async function POST(req) {
           maxDurationConfigured: maxDuration,
           GOOGLE_AI_API_KEY: present(process.env.GOOGLE_AI_API_KEY),
           OPENAI_API_KEY: present(process.env.OPENAI_API_KEY),
+          RENDER_PROVIDER: process.env.RENDER_PROVIDER || "(auto — Gemini first)",
           ANTHROPIC_API_KEY: present(process.env.ANTHROPIC_API_KEY),
           sketchReadable,
           sketchError,
@@ -272,9 +273,14 @@ export async function POST(req) {
         { status: 400 }
       );
     }
-    if (!process.env.GOOGLE_AI_API_KEY) {
+    // Either provider is enough. RENDER_PROVIDER picks between them
+    // when both are set; otherwise whichever key exists is used.
+    if (!process.env.GOOGLE_AI_API_KEY && !process.env.OPENAI_API_KEY) {
       return Response.json(
-        { error: "GOOGLE_AI_API_KEY isn't set in Vercel." },
+        {
+          error:
+            "No image provider configured. Set OPENAI_API_KEY or GOOGLE_AI_API_KEY in Vercel.",
+        },
         { status: 500 }
       );
     }
@@ -341,11 +347,19 @@ export async function POST(req) {
     // Just the images, for providers that take them separately
     const imageParts = parts.filter((p) => p.inline_data);
 
-    // ---------- Gemini first ----------
-    // Preferred while it's the key that's set up. OpenAI is the
-    // fallback; swap the order here to reverse that.
+    // ---------- provider ----------
+    //
+    // RENDER_PROVIDER = openai | gemini. With both keys set and no
+    // preference, Gemini goes first because it's the cheaper path and
+    // handles the second pass. Whichever runs first, the other is
+    // still available as a fallback below.
+    const preference = (process.env.RENDER_PROVIDER || "").toLowerCase();
+    const hasOpenAI = !!process.env.OPENAI_API_KEY;
+    const hasGemini = !!process.env.GOOGLE_AI_API_KEY;
+    const openaiFirst = hasOpenAI && (preference === "openai" || !hasGemini);
+
     // ---------- OpenAI ----------
-    if (process.env.OPENAI_API_KEY && !process.env.GOOGLE_AI_API_KEY) {
+    if (openaiFirst) {
       const form = new FormData();
       form.append("model", "gpt-image-2");
       form.append("prompt", instruction);
@@ -391,13 +405,14 @@ export async function POST(req) {
         }
       }
 
-      // Fall through to Gemini rather than failing outright
-      if (!process.env.GOOGLE_AI_API_KEY) {
+      // Fall through to Gemini rather than failing outright, but only
+      // when there's something to fall through to.
+      if (!hasGemini) {
         throw new Error(json.error?.message || "OpenAI couldn't render.");
       }
     }
 
-    if (!process.env.GOOGLE_AI_API_KEY) {
+    if (!hasGemini) {
       throw new Error("No image provider configured. Set OPENAI_API_KEY or GOOGLE_AI_API_KEY.");
     }
 

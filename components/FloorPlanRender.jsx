@@ -635,15 +635,19 @@ export default function FloorPlanRender({
     const beds = rooms.filter(
       (r) => r.room_type === "shared" || r.room_type === "ensuite"
     );
-    const ensuites = rooms.filter((r) => r.room_type === "ensuite").length;
+    const ensuites = Number.isFinite(Number(deal?.target_ensuites))
+      ? Number(deal.target_ensuites)
+      : rooms.filter((r) => r.room_type === "ensuite").length;
     // Ensuite baths are stored as bath rooms — counting them again double-counts
     const bathCount = rooms.filter((r) => r.room_type === "bath").length;
-    const bedrooms = beds.length || deal?.target_bedrooms || 0;
+    // Record first here too, so the composed plan matches what every
+    // document says the house is.
+    const bedrooms = deal?.target_bedrooms || beds.length || 0;
     if (!bedrooms) return null;
 
     const plan = composePlan({
       bedrooms,
-      baths: bathCount || deal?.target_bathrooms || 2,
+      baths: Number(deal?.target_bathrooms) || bathCount || 2,
       ensuites,
     });
 
@@ -1123,9 +1127,18 @@ export default function FloorPlanRender({
     const drawnBaths = rooms.filter((r) => r.room_type === "bath").length;
     const drawnEns = rooms.filter((r) => r.room_type === "ensuite").length;
 
-    const targetBeds = beds.length || activeSpec.bedrooms;
-    const targetBaths = drawnBaths || activeSpec.baths;
-    const targetEns = beds.length ? drawnEns : activeSpec.ensuites;
+    // The record decides what gets drawn.
+    //
+    // This used to prefer the sketch, so a half-traced plan rendered a
+    // half-sized house and the drawing disagreed with every document
+    // that quoted it. The sketch says where the rooms are; the record
+    // says how many there are. It only fills in where the record is
+    // silent.
+    const targetBeds = activeSpec.bedrooms || beds.length;
+    const targetBaths = activeSpec.baths || drawnBaths;
+    const targetEns = Number.isFinite(activeSpec.ensuites)
+      ? activeSpec.ensuites
+      : drawnEns;
 
     if (!targetBeds || !targetBaths) {
       setMsg({

@@ -1,6 +1,6 @@
 "use client";
 
-import { computeProForma, usd, num, roomMix, roomRate } from "../lib/proforma";
+import { computeProForma, resolveRooms, usd, num, roomMix, roomRate } from "../lib/proforma";
 import { useEffect, useRef } from "react";
 import { roomColor } from "../lib/rooms";
 import { BrandMark } from "./Brand";
@@ -134,7 +134,10 @@ export default function DealFlyer({
   }, []);
 
   const p = computeProForma({ deal, rooms, market, comps, orgRows });
-  const mix = roomMix(rooms);
+  // Must pass the deal — without it roomMix falls back to counting
+  // drawn rooms, which is how the flyer printed 7 while the header
+  // printed 5 from the same function.
+  const mix = roomMix(rooms, deal);
   // finished_sqft is measured on completion; post_reno_sqft is what we
   // underwrote to. Once the real number exists it wins, so the flyer
   // stops advertising an estimate.
@@ -145,31 +148,11 @@ export default function DealFlyer({
   // labels live on them. Where the record says more rooms than have
   // been traced, the remainder are filled in — otherwise the heading
   // says nine bedrooms and the chips below it show eight.
-  const drawnBedrooms = rooms.filter(
-    (r) => r.room_type === "shared" || r.room_type === "ensuite"
-  );
+  // The record decides which rooms exist; drawn rooms supply labels
+  // and rates. Same resolver the pro forma prices off, so the chips
+  // and the income can't disagree.
+  const bedrooms = resolveRooms(rooms, deal);
 
-  const bedrooms = (() => {
-    const target = mix.bedrooms || drawnBedrooms.length;
-    if (drawnBedrooms.length >= target) return drawnBedrooms.slice(0, target);
-
-    const ensuiteShort = Math.max(
-      0,
-      mix.ensuiteCount - drawnBedrooms.filter((r) => r.room_type === "ensuite").length
-    );
-
-    const filler = Array.from({ length: target - drawnBedrooms.length }, (_, i) => {
-      const n = drawnBedrooms.length + i + 1;
-      return {
-        id: `record-${n}`,
-        room_number: n,
-        label: `Bedroom ${n}`,
-        room_type: i < ensuiteShort ? "ensuite" : "shared",
-      };
-    });
-
-    return [...drawnBedrooms, ...filler];
-  })();
   // Deal-specific first, then the brand standard. A flyer should never
   // go out with empty swatches just because nobody re-uploaded the same
   // flooring sample for the ninth time.

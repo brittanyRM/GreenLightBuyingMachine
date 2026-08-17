@@ -76,3 +76,28 @@ alter table public.deal_comps
 --   alter table public.deal_documents drop column if exists buyer_visible, drop column if exists buyer_label;
 --   alter table public.deals drop column if exists finished_sqft,
 --     drop column if exists reno_complete_date, drop column if exists reno_complete_estimated;
+
+-- A boolean sent as null by an older client shouldn't fail the whole
+-- save. Same treatment as assumption_overrides in 030: keep the
+-- default, drop the hard constraint, normalise in a trigger.
+alter table public.deals
+  alter column reno_complete_estimated drop not null;
+
+update public.deals
+set reno_complete_estimated = true
+where reno_complete_estimated is null;
+
+create or replace function public.deals_normalise_reno()
+returns trigger language plpgsql as $$
+begin
+  if new.reno_complete_estimated is null then
+    new.reno_complete_estimated = true;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists deals_normalise_reno on public.deals;
+create trigger deals_normalise_reno
+  before insert or update on public.deals
+  for each row execute function public.deals_normalise_reno();

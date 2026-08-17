@@ -163,7 +163,7 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
       const NUM_FIELDS = [
         "year_built", "lot_sqft", "lot_acres", "living_area_sqft", "added_sqft",
         "post_reno_sqft", "assessed_tax_amount", "bathrooms", "purchase_price",
-        "assumption_overrides", "reno_complete_date", "reno_complete_estimated", "list_price", "rehab_budget", "furniture_budget", "target_bedrooms",
+        "list_price", "rehab_budget", "furniture_budget", "target_bedrooms",
         "target_bathrooms", "target_ensuites", "bedrooms", "ensuite_count",
       ];
       const clean = { ...d };
@@ -175,6 +175,21 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
           clean[f] = Number.isFinite(n) ? n : null;
         }
       }
+
+      // jsonb: an empty object, never null — the column is NOT NULL and
+      // "no overrides set" is {} rather than nothing.
+      clean.assumption_overrides =
+        d.assumption_overrides && typeof d.assumption_overrides === "object"
+          ? d.assumption_overrides
+          : {};
+
+      // Dates: blank means null, and they must not go through parseFloat.
+      for (const f of ["reno_complete_date", "disposition_coe"]) {
+        if (clean[f] === "" || clean[f] === undefined) clean[f] = null;
+      }
+
+      // Boolean, not a number.
+      clean.reno_complete_estimated = d.reno_complete_estimated !== false;
 
       const payload = {
         bedrooms: clean.bedrooms ?? 0,

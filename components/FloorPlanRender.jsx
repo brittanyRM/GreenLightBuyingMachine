@@ -2085,7 +2085,7 @@ export default function FloorPlanRender({
 
         {[
           ["bedrooms", "Bedrooms"],
-          ["baths", "Baths"],
+          ["baths", "Common baths"],
           ["ensuites", "Ensuites"],
         ].map(([key, label]) => (
           <label key={key} className="flex items-center gap-1.5">
@@ -2105,9 +2105,17 @@ export default function FloorPlanRender({
             More ensuites than bedrooms
           </span>
         )}
-        {activeSpec.ensuites > activeSpec.baths && (
-          <span className="text-[11px] font-semibold text-red-700">
-            Ensuites can't exceed total baths
+        {/* Baths is the common count; each ensuite adds its own, so
+            6 ensuites against 1 common bath is a 7-bath house — which
+            is what the plan draws. The old rule treated ensuites as a
+            subset and flagged every co-living conversion. */}
+        {activeSpec.baths + activeSpec.ensuites > 0 && (
+          <span className="text-[11px] text-neutral-500">
+            {activeSpec.baths + activeSpec.ensuites} bath
+            {activeSpec.baths + activeSpec.ensuites === 1 ? "" : "s"} total
+            {activeSpec.ensuites > 0
+              ? ` — ${activeSpec.baths} common + ${activeSpec.ensuites} ensuite`
+              : ""}
           </span>
         )}
 

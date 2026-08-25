@@ -892,6 +892,13 @@ export default function ClubProForma({
             </div>
           )}
 
+          {/* With the property, not with the financials. Someone
+              reading the specifications is asking what and where this
+              is; the map answers the second half. */}
+          {isBuyer && (
+            <BuyerMap deal={deal} markets={nearbyMarkets} subjectMarket={market} />
+          )}
+
           {isBuyer && (
             <BuyerComps
               subject={{ price: cap.purchasePrice, sqft: p.sqft, beds: p.beds }}
@@ -1201,13 +1208,6 @@ export default function ClubProForma({
         {isBuyer && <SupportingDocuments documents={documents} />}
 
         {isBuyer && core && <MarketPanel market={market} deal={deal} />}
-        {isBuyer && (
-          <BuyerMap
-            deal={deal}
-            markets={nearbyMarkets}
-            subjectMarket={market}
-          />
-        )}
         {isBuyer && marketReport && (
           <MarketReport report={marketReport} city={deal?.city} state={deal?.state} />
         )}

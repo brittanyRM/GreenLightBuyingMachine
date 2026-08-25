@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getDealBundle, marketIsStale } from "../../../lib/queries";
+import { getDealBundle, marketIsStale, supabase } from "../../../lib/queries";
 import { computeProForma, usd } from "../../../lib/proforma";
 import ConversionSketch from "../../../components/ConversionSketch";
 import ProForma from "../../../components/ProForma";
 import DealFlyer from "../../../components/DealFlyer";
+import BuyerMap from "../../../components/BuyerMap";
 import FloorPlanRender from "../../../components/FloorPlanRender";
 import ErrorBoundary from "../../../components/ErrorBoundary";
 import DealForm from "../../../components/DealForm";
@@ -18,12 +19,16 @@ const TABS = [
   { id: "plan", label: "Plan" },
   { id: "proforma", label: "Pro forma" },
   { id: "flyer", label: "Flyer" },
+  { id: "map", label: "Map" },
   { id: "email", label: "Email" },
   { id: "record", label: "Record" },
 ];
 
 export default function DealPage({ params }) {
   const [bundle, setBundle] = useState(null);
+  // Markets with a centroid, for the map tab. Cheap and only fetched
+  // once, so it rides along with the bundle rather than gating it.
+  const [nearbyMarkets, setNearbyMarkets] = useState([]);
   const [tab, setTab] = useState("sketch");
   const [sketchFile, setSketchFile] = useState(null);
   const [error, setError] = useState(null);
@@ -31,6 +36,14 @@ export default function DealPage({ params }) {
   async function load() {
     try {
       setBundle(await getDealBundle(params.slug));
+
+      // Markets with a centroid, for the map tab.
+      const { data: mk } = await supabase
+        .from("padsplit_market")
+        .select("zip, active_units, upcoming_units, shared_weekly, private_weekly, avg_occupancy, days_to_first_booking, latitude, longitude")
+        .not("latitude", "is", null)
+        .limit(60);
+      setNearbyMarkets(mk || []);
     } catch (e) {
       setError(e.message);
     }
@@ -183,6 +196,24 @@ export default function DealPage({ params }) {
             documents={documents}
           />
         )}
+
+        {tab === "map" && (
+          <div className="mx-auto max-w-4xl px-5 py-6">
+            <p className="mb-3 text-[12px] text-neutral-600">
+              What a buyer sees. The subject property with PadSplit occupancy,
+              rates and active units for the ZIPs around it.
+            </p>
+            <BuyerMap deal={deal} markets={nearbyMarkets} subjectMarket={market} />
+            {!deal.latitude && (
+              <p className="mt-3 text-[12px] text-amber-800">
+                This deal has no coordinates, so the map falls back to the ZIP
+                centroid. Set latitude and longitude on the record to pin the
+                house itself.
+              </p>
+            )}
+          </div>
+        )}
+
         {tab === "record" && (
           <DealForm initial={deal} initialMarket={market} onSaved={load} />
         )}

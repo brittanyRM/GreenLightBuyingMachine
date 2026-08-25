@@ -1,26 +1,31 @@
 "use client";
 
 // ============================================================
-// The property on a map, with PadSplit market data for the ZIPs
-// around it.
+// The property on a map, with the market and the comps around it.
 //
-// A buyer looking at one house in Glendale wants to know whether this
-// ZIP is strong relative to its neighbours — 95% occupancy means
-// little without knowing the metro runs at 87%. Numbers in a table
-// can't answer "is this a good part of town"; a map can.
+// Three things a buyer wants to know about location: where the house
+// is, how this ZIP performs against its neighbours, and what nearby
+// houses actually sold for. Each is a layer they can switch off.
+//
+// The numbers sit in a list beside the map rather than only in popups.
+// A popup is fine for one lookup and useless for comparing six ZIPs,
+// which is the actual task.
 //
 // Leaflet with OpenStreetMap tiles: no API key, no account, no
-// per-view billing. Loaded on demand so the sheet doesn't carry the
-// weight for buyers who never open it.
+// per-view billing. Loaded on demand.
 // ============================================================
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const GREEN = "#00A651";
 const INK = "#141914";
+const COMP = "#7C3AED";
 
-// Colour by occupancy against the set being shown, so "good" is
-// relative to this market rather than an absolute we invented.
+const usd0 = (n) =>
+  Number.isFinite(Number(n))
+    ? Number(n).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
+    : "—";
+
 function occupancyColour(occ, median) {
   if (occ == null) return "#9AA3AB";
   if (median == null) return GREEN;
@@ -29,23 +34,39 @@ function occupancyColour(occ, median) {
   return GREEN;
 }
 
-export default function BuyerMap({ deal, markets = [], subjectMarket }) {
+export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket }) {
   const holder = useRef(null);
   const mapRef = useRef(null);
+  const layersRef = useRef({ markets: null, comps: null });
+
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [showMarkets, setShowMarkets] = useState(true);
+  const [showComps, setShowComps] = useState(true);
+  const [focus, setFocus] = useState(null);
 
-  const plottable = markets.filter(
-    (m) => Number(m.latitude) && Number(m.longitude)
+  const plottableMarkets = useMemo(
+    () => markets.filter((m) => Number(m.latitude) && Number(m.longitude)),
+    [markets]
+  );
+  const plottableComps = useMemo(
+    () => comps.filter((c) => Number(c.latitude) && Number(c.longitude)),
+    [comps]
   );
 
   const lat = Number(deal?.latitude) || Number(subjectMarket?.latitude) || null;
   const lng = Number(deal?.longitude) || Number(subjectMarket?.longitude) || null;
 
-  useEffect(() => {
-    if (!open || mapRef.current || !holder.current) return;
-    if (!lat || !lng) return;
+  const median = useMemo(() => {
+    const occs = plottableMarkets
+      .map((m) => Number(m.avg_occupancy))
+      .filter((v) => v > 0)
+      .sort((a, b) => a - b);
+    return occs.length ? occs[Math.floor(occs.length / 2)] : null;
+  }, [plottableMarkets]);
 
+  useEffect(() => {
+    if (!open || mapRef.current || !holder.current || !lat || !lng) return;
     let cancelled = false;
 
     (async () => {
@@ -56,10 +77,7 @@ export default function BuyerMap({ deal, markets = [], subjectMarket }) {
         await import("leaflet/dist/leaflet.css");
         if (cancelled || !holder.current) return;
 
-        const map = L.map(holder.current, {
-          scrollWheelZoom: false,
-          attributionControl: true,
-        }).setView([lat, lng], 11);
+        const map = L.map(holder.current, { scrollWheelZoom: false }).setView([lat, lng], 12);
         mapRef.current = map;
 
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -67,71 +85,73 @@ export default function BuyerMap({ deal, markets = [], subjectMarket }) {
           attribution: "&copy; OpenStreetMap contributors",
         }).addTo(map);
 
-        const occs = plottable
-          .map((m) => Number(m.avg_occupancy))
-          .filter((v) => v > 0)
-          .sort((a, b) => a - b);
-        const median = occs.length
-          ? occs[Math.floor(occs.length / 2)]
-          : null;
-
         const bounds = [[lat, lng]];
 
-        for (const m of plottable) {
+        const marketLayer = L.layerGroup();
+        for (const m of plottableMarkets) {
           const occ = Number(m.avg_occupancy) || null;
           const isSubject = m.zip === deal?.zip;
           const colour = isSubject ? INK : occupancyColour(occ, median);
-
-          const marker = L.circleMarker([Number(m.latitude), Number(m.longitude)], {
+          L.circleMarker([Number(m.latitude), Number(m.longitude)], {
             radius: isSubject ? 13 : 9 + Math.min(6, (Number(m.active_units) || 0) / 8),
             color: colour,
             weight: isSubject ? 3 : 1.5,
             fillColor: colour,
-            fillOpacity: isSubject ? 0.9 : 0.55,
-          }).addTo(map);
-
-          const row = (label, value) =>
-            value != null && value !== ""
-              ? `<div style="display:flex;gap:10px;justify-content:space-between"><span style="color:#6B7280">${label}</span><strong>${value}</strong></div>`
-              : "";
-
-          marker.bindPopup(
-            `<div style="font:13px/1.45 system-ui;min-width:172px">
-              <div style="font-weight:700;margin-bottom:4px">
-                ${m.zip}${isSubject ? " · this property" : ""}
-              </div>
-              ${row("Occupancy", occ ? `${Math.round(occ * 100)}%` : null)}
-              ${row("Shared", m.shared_weekly ? `$${m.shared_weekly}/wk` : null)}
-              ${row("Private bath", m.private_weekly ? `$${m.private_weekly}/wk` : null)}
-              ${row("Active units", m.active_units)}
-              ${row("Upcoming", m.upcoming_units)}
-              ${row(
-                "To first booking",
-                m.days_to_first_booking ? `${m.days_to_first_booking} days` : null
-              )}
-            </div>`
-          );
-
+            fillOpacity: isSubject ? 0.85 : 0.5,
+          })
+            .bindTooltip(`${m.zip}${occ ? ` · ${Math.round(occ * 100)}%` : ""}`, {
+              permanent: false,
+              direction: "top",
+            })
+            .addTo(marketLayer);
           bounds.push([Number(m.latitude), Number(m.longitude)]);
         }
+        layersRef.current.markets = marketLayer;
+        marketLayer.addTo(map);
 
-        // The house itself, on top of its ZIP marker.
+        const compLayer = L.layerGroup();
+        for (const c of plottableComps) {
+          L.circleMarker([Number(c.latitude), Number(c.longitude)], {
+            radius: 7,
+            color: "#fff",
+            weight: 2,
+            fillColor: COMP,
+            fillOpacity: 0.95,
+          })
+            .bindTooltip(
+              `${c.address || "Comp"} · ${usd0(c.sold_price || c.list_price)}`,
+              { direction: "top" }
+            )
+            .addTo(compLayer);
+          bounds.push([Number(c.latitude), Number(c.longitude)]);
+        }
+        layersRef.current.comps = compLayer;
+        compLayer.addTo(map);
+
         L.marker([lat, lng], {
           icon: L.divIcon({
             className: "",
-            html: `<div style="background:${GREEN};border:3px solid #fff;border-radius:50%;width:18px;height:18px;box-shadow:0 1px 6px rgba(0,0,0,.4)"></div>`,
-            iconSize: [18, 18],
-            iconAnchor: [9, 9],
+            html: `<div style="background:${GREEN};border:3px solid #fff;border-radius:50%;width:20px;height:20px;box-shadow:0 1px 8px rgba(0,0,0,.45)"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
           }),
         })
-          .addTo(map)
-          .bindPopup(
-            `<div style="font:13px/1.45 system-ui"><strong>${
+          .bindTooltip(
+            `<span style="background:${INK};color:#fff;border-radius:4px;font:700 11px system-ui;padding:3px 7px;white-space:nowrap">${
               deal?.address_line || "This property"
-            }</strong><br/>${deal?.city || ""} ${deal?.zip || ""}</div>`
-          );
+            }</span>`,
+            {
+            permanent: true,
+            direction: "right",
+            offset: [12, 0],
+            opacity: 1,
+            // Styled inline rather than through a global stylesheet,
+            // which this component can't reach.
+            className: "",
+          })
+          .addTo(map);
 
-        if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
+        if (bounds.length > 1) map.fitBounds(bounds, { padding: [44, 44] });
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -142,11 +162,53 @@ export default function BuyerMap({ deal, markets = [], subjectMarket }) {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        layersRef.current = { markets: null, comps: null };
       }
     };
-  }, [open, lat, lng, plottable, deal]);
+  }, [open, lat, lng, plottableMarkets, plottableComps, median, deal]);
+
+  // Toggling a layer shouldn't rebuild the map or lose the view.
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = layersRef.current.markets;
+    if (!map || !layer) return;
+    showMarkets ? layer.addTo(map) : map.removeLayer(layer);
+  }, [showMarkets]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = layersRef.current.comps;
+    if (!map || !layer) return;
+    showComps ? layer.addTo(map) : map.removeLayer(layer);
+  }, [showComps]);
+
+  const flyTo = (a, b) => {
+    if (mapRef.current && a && b) {
+      mapRef.current.setView([Number(a), Number(b)], 14, { animate: true });
+      setFocus(`${a},${b}`);
+    }
+  };
 
   if (!lat || !lng) return null;
+
+  const Toggle = ({ on, set, colour, label, count }) => (
+    <button
+      onClick={() => set(!on)}
+      className="flex items-center gap-2 rounded border px-2.5 py-1.5 text-[11px] font-semibold transition"
+      style={{
+        borderColor: on ? colour : "#D4D4D4",
+        backgroundColor: on ? `${colour}14` : "#fff",
+        color: on ? "#0A0A0A" : "#8A9198",
+      }}
+    >
+      <span
+        className="inline-block h-2.5 w-2.5 rounded-full"
+        style={{ backgroundColor: on ? colour : "#D4D4D4" }}
+      />
+      {label}
+      <span className="text-neutral-400">{count}</span>
+    </button>
+  );
 
   return (
     <div className="no-print px-8 pb-4">
@@ -157,9 +219,8 @@ export default function BuyerMap({ deal, markets = [], subjectMarket }) {
               This property on the map
             </div>
             <div className="text-[11px] leading-snug text-neutral-600">
-              With PadSplit occupancy, room rates and active units for the ZIPs
-              around it — so you can see how this one sits against its
-              neighbours.
+              PadSplit performance for the ZIPs around it, and the comparable
+              sales it&rsquo;s priced against. Switch either off.
             </div>
           </div>
           <button
@@ -179,40 +240,150 @@ export default function BuyerMap({ deal, markets = [], subjectMarket }) {
               </div>
             ) : (
               <>
-                <div
-                  ref={holder}
-                  className="h-[420px] w-full overflow-hidden rounded-lg border border-neutral-200"
-                  style={{ background: "#EEF2F0" }}
-                />
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-neutral-600">
-                  <span className="flex items-center gap-1.5">
-                    <span
-                      className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: GREEN, border: "2px solid #fff", boxShadow: "0 0 0 1px #ccc" }}
-                    />
-                    This property
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#046A38" }} />
-                    Occupancy above the local median
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#B45309" }} />
-                    Below it
-                  </span>
-                  <span className="text-neutral-400">
-                    Marker size is active units. Tap one for its numbers.
-                  </span>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <Toggle
+                    on={showMarkets}
+                    set={setShowMarkets}
+                    colour={GREEN}
+                    label="PadSplit ZIPs"
+                    count={plottableMarkets.length}
+                  />
+                  <Toggle
+                    on={showComps}
+                    set={setShowComps}
+                    colour={COMP}
+                    label="Comparable sales"
+                    count={plottableComps.length}
+                  />
+                  {comps.length > plottableComps.length && (
+                    <span className="text-[10px] text-neutral-400">
+                      {comps.length - plottableComps.length} comp
+                      {comps.length - plottableComps.length === 1 ? "" : "s"} not
+                      placed
+                    </span>
+                  )}
                 </div>
-                <p className="mt-1.5 text-[10px] leading-relaxed text-neutral-500">
-                  PadSplit market data as last recorded. Occupancy and rates
-                  move; treat these as indicative rather than current.
+
+                <div className="grid gap-3 lg:grid-cols-[1fr_300px]">
+                  <div
+                    ref={holder}
+                    className="h-[460px] w-full overflow-hidden rounded-lg border border-neutral-200"
+                    style={{ background: "#EEF2F0" }}
+                  />
+
+                  {/* The numbers, readable without hovering anything. */}
+                  <div className="max-h-[460px] overflow-y-auto rounded-lg border border-neutral-200">
+                    {showMarkets && plottableMarkets.length > 0 && (
+                      <div>
+                        <div className="sticky top-0 border-b border-neutral-200 bg-neutral-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-neutral-500">
+                          PadSplit by ZIP
+                        </div>
+                        {[...plottableMarkets]
+                          .sort(
+                            (a, b) =>
+                              (Number(b.avg_occupancy) || 0) - (Number(a.avg_occupancy) || 0)
+                          )
+                          .map((m) => {
+                            const occ = Number(m.avg_occupancy) || null;
+                            const isSubject = m.zip === deal?.zip;
+                            return (
+                              <button
+                                key={m.zip}
+                                onClick={() => flyTo(m.latitude, m.longitude)}
+                                className="block w-full border-b border-neutral-100 px-3 py-2 text-left transition hover:bg-neutral-50"
+                                style={{
+                                  backgroundColor: isSubject ? "#F2FAF5" : undefined,
+                                }}
+                              >
+                                <div className="flex items-baseline justify-between gap-2">
+                                  <span className="text-[12px] font-bold text-neutral-900">
+                                    {m.zip}
+                                    {isSubject && (
+                                      <span
+                                        className="ml-1.5 text-[8px] font-black uppercase tracking-wider"
+                                        style={{ color: GREEN }}
+                                      >
+                                        this one
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span
+                                    className="text-[13px] font-bold tabular-nums"
+                                    style={{ color: occupancyColour(occ, median) }}
+                                  >
+                                    {occ ? `${Math.round(occ * 100)}%` : "—"}
+                                  </span>
+                                </div>
+                                <div className="mt-0.5 flex flex-wrap gap-x-3 text-[10px] tabular-nums text-neutral-500">
+                                  {m.shared_weekly ? <span>${m.shared_weekly} shared</span> : null}
+                                  {m.private_weekly ? <span>${m.private_weekly} private</span> : null}
+                                  {m.active_units != null ? (
+                                    <span>{m.active_units} active</span>
+                                  ) : null}
+                                </div>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    )}
+
+                    {showComps && plottableComps.length > 0 && (
+                      <div>
+                        <div className="sticky top-0 border-b border-neutral-200 bg-neutral-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-neutral-500">
+                          Comparable sales
+                        </div>
+                        {plottableComps.map((c) => (
+                          <button
+                            key={c.id}
+                            onClick={() => flyTo(c.latitude, c.longitude)}
+                            className="block w-full border-b border-neutral-100 px-3 py-2 text-left transition hover:bg-neutral-50"
+                          >
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="truncate text-[11.5px] font-semibold text-neutral-900">
+                                {c.address}
+                              </span>
+                              <span
+                                className="text-[12px] font-bold tabular-nums"
+                                style={{ color: COMP }}
+                              >
+                                {usd0(c.sold_price || c.list_price)}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 flex flex-wrap gap-x-3 text-[10px] tabular-nums text-neutral-500">
+                              {c.bedrooms ? <span>{c.bedrooms} bed</span> : null}
+                              {c.approx_sqft ? (
+                                <span>{Number(c.approx_sqft).toLocaleString()} sq ft</span>
+                              ) : null}
+                              {c.price_per_sqft ? <span>${c.price_per_sqft}/sf</span> : null}
+                              {c.sold_date ? (
+                                <span>{new Date(c.sold_date).toLocaleDateString("en-US", { month: "short", year: "2-digit" })}</span>
+                              ) : null}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {!showMarkets && !showComps && (
+                      <div className="px-3 py-6 text-center text-[11px] text-neutral-400">
+                        Both layers are off.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
+                  Marker size is active units; colour is occupancy against the
+                  local median. Tap any row to centre the map on it. PadSplit
+                  data as last recorded — occupancy and rates move.
                 </p>
               </>
             )}
           </div>
         )}
       </div>
+
+
     </div>
   );
 }

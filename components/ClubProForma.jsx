@@ -954,7 +954,7 @@ export default function ClubProForma({
               reading the specifications is asking what and where this
               is; the map answers the second half. */}
           {isBuyer && show("property") && (
-            <BuyerMap deal={deal} markets={nearbyMarkets} subjectMarket={market} />
+            <BuyerMap deal={deal} markets={nearbyMarkets} comps={comps} subjectMarket={market} />
           )}
 
           {isBuyer && show("market") && (

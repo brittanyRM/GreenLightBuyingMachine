@@ -29,6 +29,8 @@ export default function DealPage({ params }) {
   // Markets with a centroid, for the map tab. Cheap and only fetched
   // once, so it rides along with the bundle rather than gating it.
   const [nearbyMarkets, setNearbyMarkets] = useState([]);
+  const [geocoding, setGeocoding] = useState(false);
+  const [geoMsg, setGeoMsg] = useState(null);
   const [tab, setTab] = useState("sketch");
   const [sketchFile, setSketchFile] = useState(null);
   const [error, setError] = useState(null);
@@ -203,7 +205,59 @@ export default function DealPage({ params }) {
               What a buyer sees. The subject property with PadSplit occupancy,
               rates and active units for the ZIPs around it.
             </p>
-            <BuyerMap deal={deal} markets={nearbyMarkets} subjectMarket={market} />
+            <BuyerMap
+              deal={deal}
+              markets={nearbyMarkets}
+              comps={comps}
+              subjectMarket={market}
+            />
+
+            {comps.filter((c) => c.latitude).length < comps.length && (
+              <div className="mt-3 rounded border border-neutral-200 bg-white px-4 py-3">
+                <p className="text-[12px] text-neutral-700">
+                  {comps.length - comps.filter((c) => c.latitude).length} of{" "}
+                  {comps.length} comps have no coordinates, so they aren&rsquo;t
+                  on the map.
+                </p>
+                <button
+                  onClick={async () => {
+                    setGeocoding(true);
+                    try {
+                      const { data: sess } = await supabase.auth.getSession();
+                      const res = await fetch("/api/geocode-comps", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${sess?.session?.access_token || ""}`,
+                        },
+                        body: JSON.stringify({ slug: params.slug }),
+                      });
+                      const j = await res.json();
+                      setGeoMsg(
+                        j.error
+                          ? j.error
+                          : `Placed ${j.located}${j.failed ? `, ${j.failed} couldn't be found` : ""}. Reload to see them.`
+                      );
+                    } catch (e) {
+                      setGeoMsg(e.message);
+                    } finally {
+                      setGeocoding(false);
+                    }
+                  }}
+                  disabled={geocoding}
+                  className="mt-2 rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-50"
+                  style={{ backgroundColor: GREEN }}
+                >
+                  {geocoding ? "Placing…" : "Place comps on the map"}
+                </button>
+                {geoMsg && (
+                  <span className="ml-3 text-[12px] text-neutral-600">{geoMsg}</span>
+                )}
+                <p className="mt-1.5 text-[10px] text-neutral-400">
+                  Looked up once and stored. Takes about a second per comp.
+                </p>
+              </div>
+            )}
             {!deal.latitude && (
               <p className="mt-3 text-[12px] text-amber-800">
                 This deal has no coordinates, so the map falls back to the ZIP

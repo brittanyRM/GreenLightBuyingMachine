@@ -73,6 +73,14 @@ export async function GET(req, { params }) {
     // Lender terms. Same rows the deal-page pro forma reads, so the
     // two documents can't quote different loans on one house.
     admin().from("org_assumptions").select("key, value"),
+    // Markets around this one, for the buyer map. Only rows with a
+    // centroid can be plotted, so unplaced ZIPs are filtered out here
+    // rather than shipped and discarded in the browser.
+    admin()
+      .from("padsplit_market")
+      .select("zip, metro, active_units, upcoming_units, shared_weekly, private_weekly, avg_occupancy, days_to_first_booking, latitude, longitude")
+      .not("latitude", "is", null)
+      .limit(60),
     // City demographics. Matched on city first, then the ZIP cut if
     // one exists — every Gilbert property shares the same market.
     admin()
@@ -110,6 +118,7 @@ export async function GET(req, { params }) {
     defaults: (settings || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {}),
     org: orgRows || [],
     marketReport: marketReport || null,
+    nearbyMarkets: nearbyMarkets || [],
     documents: documents || [],
     savedInputs: savedInputs?.inputs || null,
     scenario: link.scenario,

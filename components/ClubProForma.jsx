@@ -31,6 +31,7 @@ import {
 } from "./ClubCore";
 import ClubAssumptions from "./ClubAssumptions";
 import BuyerComps from "./BuyerComps";
+import BuyerMap from "./BuyerMap";
 import {
   CompsScatter,
   CompsTable,
@@ -170,6 +171,7 @@ export default function ClubProForma({
   rooms = [],
   orgRows = null,
   marketReport = null,
+  nearbyMarkets = [],
   // GLBM leads: it's the standard we underwrite to, and it's the case
   // a buyer should see first. Falls back to base where a saved model
   // predates the GLBM scenario.
@@ -1199,6 +1201,13 @@ export default function ClubProForma({
         {isBuyer && <SupportingDocuments documents={documents} />}
 
         {isBuyer && core && <MarketPanel market={market} deal={deal} />}
+        {isBuyer && (
+          <BuyerMap
+            deal={deal}
+            markets={nearbyMarkets}
+            subjectMarket={market}
+          />
+        )}
         {isBuyer && marketReport && (
           <MarketReport report={marketReport} city={deal?.city} state={deal?.state} />
         )}

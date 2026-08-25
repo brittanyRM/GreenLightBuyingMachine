@@ -43,7 +43,10 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
   const [failed, setFailed] = useState(false);
   const [showMarkets, setShowMarkets] = useState(true);
   const [showComps, setShowComps] = useState(true);
-  const [focus, setFocus] = useState(null);
+  // What's currently selected, shown in a card above the map so it
+  // doesn't require hunting at zoom. Clicking a marker or a row in the
+  // list both land here.
+  const [selected, setSelected] = useState(null);
 
   const plottableMarkets = useMemo(
     () => markets.filter((m) => Number(m.latitude) && Number(m.longitude)),
@@ -100,9 +103,9 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
             fillOpacity: isSubject ? 0.85 : 0.5,
           })
             .bindTooltip(`${m.zip}${occ ? ` · ${Math.round(occ * 100)}%` : ""}`, {
-              permanent: false,
               direction: "top",
             })
+            .on("click", () => setSelected({ kind: "market", data: m }))
             .addTo(marketLayer);
           bounds.push([Number(m.latitude), Number(m.longitude)]);
         }
@@ -122,6 +125,7 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
               `${c.address || "Comp"} · ${usd0(c.sold_price || c.list_price)}`,
               { direction: "top" }
             )
+            .on("click", () => setSelected({ kind: "comp", data: c }))
             .addTo(compLayer);
           bounds.push([Number(c.latitude), Number(c.longitude)]);
         }
@@ -182,11 +186,11 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
     showComps ? layer.addTo(map) : map.removeLayer(layer);
   }, [showComps]);
 
-  const flyTo = (a, b) => {
+  const flyTo = (a, b, sel) => {
     if (mapRef.current && a && b) {
-      mapRef.current.setView([Number(a), Number(b)], 14, { animate: true });
-      setFocus(`${a},${b}`);
+      mapRef.current.setView([Number(a), Number(b)], 15, { animate: true });
     }
+    if (sel) setSelected(sel);
   };
 
   if (!lat || !lng) return null;
@@ -264,6 +268,90 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
                   )}
                 </div>
 
+                {/* What's selected, spelled out above the map. Reading
+                    a marker shouldn't mean zooming in to find it again. */}
+                {selected && (
+                  <div
+                    className="mb-2 rounded-lg border-2 px-4 py-3"
+                    style={{
+                      borderColor: selected.kind === "comp" ? COMP : GREEN,
+                      backgroundColor: selected.kind === "comp" ? "#FAF5FF" : "#F2FAF5",
+                    }}
+                  >
+                    <div className="flex flex-wrap items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[9px] font-black uppercase tracking-[0.14em] text-neutral-500">
+                          {selected.kind === "comp" ? "Comparable sale" : "PadSplit market"}
+                        </div>
+                        <div className="text-[15px] font-bold text-neutral-900">
+                          {selected.kind === "comp"
+                            ? selected.data.address
+                            : `ZIP ${selected.data.zip}`}
+                          {selected.kind === "market" && selected.data.zip === deal?.zip && (
+                            <span className="ml-2 text-[10px] font-black uppercase tracking-wider" style={{ color: GREEN }}>
+                              this property
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSelected(null)}
+                        className="text-[11px] text-neutral-400 underline underline-offset-2"
+                      >
+                        Clear
+                      </button>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+                      {(selected.kind === "comp"
+                        ? [
+                            ["Sold", usd0(selected.data.sold_price || selected.data.list_price)],
+                            ["Beds", selected.data.bedrooms],
+                            ["Baths", selected.data.bathrooms],
+                            ["Sq ft", selected.data.approx_sqft ? Number(selected.data.approx_sqft).toLocaleString() : null],
+                            ["$/sq ft", selected.data.price_per_sqft ? `$${selected.data.price_per_sqft}` : null],
+                            ["Built", selected.data.year_built],
+                            [
+                              "Date",
+                              selected.data.sold_date
+                                ? new Date(selected.data.sold_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+                                : null,
+                            ],
+                          ]
+                        : [
+                            [
+                              "Occupancy",
+                              selected.data.avg_occupancy
+                                ? `${Math.round(selected.data.avg_occupancy * 100)}%`
+                                : null,
+                            ],
+                            ["Shared", selected.data.shared_weekly ? `$${selected.data.shared_weekly}/wk` : null],
+                            ["Private bath", selected.data.private_weekly ? `$${selected.data.private_weekly}/wk` : null],
+                            ["Active units", selected.data.active_units],
+                            ["Upcoming", selected.data.upcoming_units],
+                            [
+                              "To first booking",
+                              selected.data.days_to_first_booking
+                                ? `${selected.data.days_to_first_booking} days`
+                                : null,
+                            ],
+                          ]
+                      )
+                        .filter(([, v]) => v !== null && v !== undefined && v !== "")
+                        .map(([label, value]) => (
+                          <div key={label}>
+                            <div className="text-[9px] uppercase tracking-wider text-neutral-500">
+                              {label}
+                            </div>
+                            <div className="text-[15px] font-bold tabular-nums leading-tight text-neutral-900">
+                              {value}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid gap-3 lg:grid-cols-[1fr_300px]">
                   <div
                     ref={holder}
@@ -289,7 +377,7 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
                             return (
                               <button
                                 key={m.zip}
-                                onClick={() => flyTo(m.latitude, m.longitude)}
+                                onClick={() => flyTo(m.latitude, m.longitude, { kind: "market", data: m })}
                                 className="block w-full border-b border-neutral-100 px-3 py-2 text-left transition hover:bg-neutral-50"
                                 style={{
                                   backgroundColor: isSubject ? "#F2FAF5" : undefined,
@@ -335,7 +423,7 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
                         {plottableComps.map((c) => (
                           <button
                             key={c.id}
-                            onClick={() => flyTo(c.latitude, c.longitude)}
+                            onClick={() => flyTo(c.latitude, c.longitude, { kind: "comp", data: c })}
                             className="block w-full border-b border-neutral-100 px-3 py-2 text-left transition hover:bg-neutral-50"
                           >
                             <div className="flex items-baseline justify-between gap-2">

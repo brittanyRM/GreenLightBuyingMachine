@@ -142,6 +142,18 @@ export default function SettingsPage() {
       </div>
 
       <div className="mx-auto max-w-3xl space-y-8 px-5 py-6">
+        <a
+          href="/settings/market"
+          className="block rounded border border-neutral-200 bg-white px-4 py-3 transition hover:border-neutral-400"
+        >
+          <div className="text-[13px] font-bold text-neutral-900">
+            PadSplit market data →
+          </div>
+          <div className="text-[12px] text-neutral-600">
+            Room rates and occupancy by ZIP. Feeds deal rates and the buyer map.
+          </div>
+        </a>
+
         <Suspense fallback={null}>
           <StatusBanner />
         </Suspense>

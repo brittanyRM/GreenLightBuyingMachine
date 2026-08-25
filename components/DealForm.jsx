@@ -1,8 +1,8 @@
 "use client";
 
 import { parseComps } from "../lib/comps";
-import { useState } from "react";
-import { saveDeal, slugify, upsertMarket, saveComps } from "../lib/queries";
+import { useEffect, useState } from "react";
+import { saveDeal, slugify, upsertMarket, saveComps, supabase } from "../lib/queries";
 import DocumentIntake from "./DocumentIntake";
 import MediaUploader from "./MediaUploader";
 
@@ -78,6 +78,23 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
   });
   const [mk, setMk] = useState(initialMarket || { zip: initial.zip || "" });
   const [compsText, setCompsText] = useState("");
+  // How many comps are on the deal, so an empty box doesn't read as
+  // "no comps". They were being lost silently: a failed deal write
+  // aborts before saveComps runs, and nothing on screen said so.
+  const [compsSaved, setCompsSaved] = useState(null);
+
+  useEffect(() => {
+    if (!d?.id) return;
+    let cancelled = false;
+    supabase
+      .from("deal_comps")
+      .select("id", { count: "exact", head: true })
+      .eq("deal_id", d.id)
+      .then(({ count }) => !cancelled && setCompsSaved(count ?? 0));
+    return () => {
+      cancelled = true;
+    };
+  }, [d?.id]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
@@ -174,14 +191,25 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
         });
       }
       if (compsText.trim()) {
-        await saveComps(deal.id, parseComps(compsText));
+        const parsed = parseComps(compsText);
+        await saveComps(deal.id, parsed);
+        setCompsSaved(parsed.length);
       }
 
       setD(deal);
       setMsg({ ok: true, text: `Saved. Slug: ${deal.slug}` });
       onSaved?.(deal);
     } catch (e) {
-      setMsg({ ok: false, text: e.message });
+      // A failed deal write aborts before the comps are saved. Say so,
+      // otherwise a pasted block vanishes and the error names an
+      // unrelated column.
+      setMsg({
+        ok: false,
+        text:
+          compsText.trim() && !compsSaved
+            ? `${e.message} — your comps were not saved either. Fix this, then save again.`
+            : e.message,
+      });
     } finally {
       setSaving(false);
     }

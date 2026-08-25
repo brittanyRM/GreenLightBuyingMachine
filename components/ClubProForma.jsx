@@ -61,6 +61,14 @@ import {
 
 const GREEN = "#00A651";
 
+const SECTIONS = [
+  { id: "summary", label: "Summary", hint: "the deal in one screen" },
+  { id: "numbers", label: "The numbers", hint: "income, costs, financing" },
+  { id: "property", label: "The property", hint: "specs, plan, location" },
+  { id: "market", label: "The market", hint: "comps and PadSplit data" },
+  { id: "diligence", label: "Diligence", hint: "sources and assumptions" },
+];
+
 const SCENARIOS = [
   {
     key: "glbm",
@@ -204,6 +212,29 @@ export default function ClubProForma({
   // gets its own control rather than being buried in the panel.
   // null follows the selected case; a number overrides it.
   const [occupancyOverride, setOccupancyOverride] = useState(null);
+
+  // Twenty-six sections is four documents stacked, so they're grouped
+  // and one shows at a time. Print ignores this and emits everything —
+  // a PDF is read differently from a screen, and an analyst who prints
+  // it wants the whole package in one file.
+  const [section, setSection] = useState("summary");
+  const [printing, setPrinting] = useState(false);
+  const show = (name) => printing || !isBuyer || section === name;
+
+  // A PDF is read differently from a screen. Before the print dialog
+  // opens, drop the section filter so the file carries the whole
+  // package; restore it afterwards.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const before = () => setPrinting(true);
+    const after = () => setPrinting(false);
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => {
+      window.removeEventListener("beforeprint", before);
+      window.removeEventListener("afterprint", after);
+    };
+  }, []);
 
   const holdYears = base.exit.holdYears;
   const setHoldYears = (h) =>
@@ -470,9 +501,36 @@ export default function ClubProForma({
           capped={occupancyOverride != null && occupancyOverride >= 0.99}
         />
 
-        {isBuyer && <IncludedBar defaults={defaults} />}
-
         {isBuyer && (
+          <div className="no-print border-b border-neutral-200 bg-white px-6 sm:px-8">
+            <div className="flex flex-wrap gap-x-1">
+              {SECTIONS.map((sec) => {
+                const active = section === sec.id;
+                return (
+                  <button
+                    key={sec.id}
+                    onClick={() => setSection(sec.id)}
+                    title={sec.hint}
+                    className="relative px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider transition"
+                    style={{
+                      color: active ? "#0A0A0A" : "#8A9198",
+                      boxShadow: active ? `inset 0 -2px 0 ${GREEN}` : "none",
+                    }}
+                  >
+                    {sec.label}
+                  </button>
+                );
+              })}
+              <span className="ml-auto hidden self-center text-[10px] text-neutral-400 sm:block">
+                Printing gives you all of it
+              </span>
+            </div>
+          </div>
+        )}
+
+        {isBuyer && show("summary") && <IncludedBar defaults={defaults} />}
+
+        {isBuyer && show("diligence") && (
           <ScenarioBasis
             scenario={activeScenario}
             income={modelInputs.scenarios[activeScenario].income}
@@ -484,7 +542,7 @@ export default function ClubProForma({
           />
         )}
 
-        {isBuyer && deal && (
+        {isBuyer && show("property") && deal && (
           <PropertyGallery
             gallery={deal.gallery}
             address={deal.address_line}
@@ -511,18 +569,18 @@ export default function ClubProForma({
           </div>
         )}
 
-        {isBuyer && core && <RoomRevenueStack p={core} market={market} />}
-        {isBuyer && core && <IncomeAndExpenses p={core} />}
-        {isBuyer && core && <NetPerformance p={core} />}
-        {isBuyer && core && <CapitalRequired p={core} />}
-        {isBuyer && core && (
+        {isBuyer && core && show("summary") && <RoomRevenueStack p={core} market={market} />}
+        {isBuyer && core && show("numbers") && <IncomeAndExpenses p={core} />}
+        {isBuyer && core && show("numbers") && <NetPerformance p={core} />}
+        {isBuyer && core && show("numbers") && <CapitalRequired p={core} />}
+        {isBuyer && core && show("numbers") && (
           <VettingBlock
             p={core}
             occupancy={modelInputs.scenarios[activeScenario].income.occupancyPct}
           />
         )}
 
-        {isBuyer && (
+        {isBuyer && show("numbers") && (
           <DownPaymentOptions
             noi={y1.noi}
             options={downPaymentOptions({
@@ -537,7 +595,7 @@ export default function ClubProForma({
           />
         )}
 
-        {isBuyer && deal && (
+        {isBuyer && show("property") && deal && (
           <FloorPlan
             url={deal.marketed_floor_plan_url}
             beds={p.beds}
@@ -885,7 +943,7 @@ export default function ClubProForma({
 
         {/* ---------------- page one ---------------- */}
         <div className="px-6 py-6 sm:px-8">
-          {isBuyer && deal && (
+          {isBuyer && show("property") && deal && (
             <div className="print-section mb-7">
               <FlyerHeading>Specifications</FlyerHeading>
               <PropertyFacts deal={deal} beds={p.beds} baths={p.baths} />
@@ -895,24 +953,24 @@ export default function ClubProForma({
           {/* With the property, not with the financials. Someone
               reading the specifications is asking what and where this
               is; the map answers the second half. */}
-          {isBuyer && (
+          {isBuyer && show("property") && (
             <BuyerMap deal={deal} markets={nearbyMarkets} subjectMarket={market} />
           )}
 
-          {isBuyer && (
+          {isBuyer && show("market") && (
             <BuyerComps
               subject={{ price: cap.purchasePrice, sqft: p.sqft, beds: p.beds }}
             />
           )}
 
-          {isBuyer && comps.length > 1 && (
+          {isBuyer && show("market") && comps.length > 1 && (
             <CompsScatter
               comps={comps}
               subject={{ sqft: p.sqft, price: cap.purchasePrice, beds: p.beds }}
             />
           )}
 
-          {isBuyer && comps.length > 0 && (
+          {isBuyer && show("market") && comps.length > 0 && (
             <div className="print-section mb-7">
               <FlyerHeading>Comparable Sales</FlyerHeading>
               <CompsTable
@@ -938,6 +996,7 @@ export default function ClubProForma({
             </p>
           </div>
 
+          {show("numbers") && (
           <div className="print-section mb-7 grid gap-6 md:grid-cols-2">
             <div>
               <SectionTitle kicker="Year 1">Income</SectionTitle>
@@ -981,6 +1040,7 @@ export default function ClubProForma({
               <Row label="NOI" value={usd(y1.noi)} tone="total" />
             </div>
           </div>
+          )}
 
           <div className="print-section mb-2">
             <SectionTitle kicker="Year 1 · ranked">Expense stack</SectionTitle>
@@ -1205,10 +1265,10 @@ export default function ClubProForma({
         </div>
 
         {isBuyer && deal && <Readiness deal={deal} sqft={p.sqft} />}
-        {isBuyer && <SupportingDocuments documents={documents} />}
+        {isBuyer && show("diligence") && <SupportingDocuments documents={documents} />}
 
-        {isBuyer && core && <MarketPanel market={market} deal={deal} />}
-        {isBuyer && marketReport && (
+        {isBuyer && core && show("market") && <MarketPanel market={market} deal={deal} />}
+        {isBuyer && show("market") && marketReport && (
           <MarketReport report={marketReport} city={deal?.city} state={deal?.state} />
         )}
 

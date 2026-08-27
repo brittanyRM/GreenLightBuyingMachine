@@ -439,11 +439,21 @@ export function PropertyFacts({ deal = {}, beds, baths }) {
       Number(deal.ensuite_count) > 0 ? deal.ensuite_count : null,
     ],
     [
-      deal.finished_sqft ? "Finished area" : "Living area",
+      // The label has to follow whichever number actually gets printed.
+      // Previously it read "Living area" whenever finished_sqft was
+      // absent, then printed post_reno_sqft underneath it — the
+      // marketed figure wearing the as-is label.
+      deal.finished_sqft
+        ? "Finished area"
+        : deal.post_reno_sqft
+        ? "Marketed area"
+        : "Living area",
       deal.finished_sqft
         ? `${deal.finished_sqft.toLocaleString()} sq ft`
         : deal.post_reno_sqft
         ? `${deal.post_reno_sqft.toLocaleString()} sq ft`
+        : deal.living_area_sqft
+        ? `${deal.living_area_sqft.toLocaleString()} sq ft`
         : null,
     ],
     [

@@ -892,7 +892,7 @@ export default function FloorPlanRender({
         (r) => r.room_type === "shared" || r.room_type === "ensuite"
       ).length;
       const baths = rooms.filter((r) => r.room_type === "bath").length;
-      const sqft = deal?.post_reno_sqft || deal?.living_area_sqft;
+      const sqft = deal?.finished_sqft || deal?.post_reno_sqft || deal?.living_area_sqft;
 
       for (const t of [
         `${beds} BEDROOMS`,
@@ -1276,7 +1276,7 @@ export default function FloorPlanRender({
           bedrooms: targetBeds,
           baths: Number(targetBaths),
           ensuites: targetEns,
-          sqft: deal?.post_reno_sqft || deal?.living_area_sqft,
+          sqft: deal?.finished_sqft || deal?.post_reno_sqft || deal?.living_area_sqft,
           labels: beds.map((r) => r.label).filter(Boolean),
           address: deal?.address_line,
           dealId: deal?.id,
@@ -1485,7 +1485,7 @@ export default function FloorPlanRender({
           bedrooms: targetBeds,
           baths: Number(targetBaths),
           ensuites: targetEns,
-          sqft: deal?.post_reno_sqft || deal?.living_area_sqft,
+          sqft: deal?.finished_sqft || deal?.post_reno_sqft || deal?.living_area_sqft,
           labels: beds.map((r) => r.label).filter(Boolean),
         }),
       });
@@ -1697,7 +1697,7 @@ export default function FloorPlanRender({
             const beds = laid.rooms.filter((r) => r.kind === "bed");
             const bathN = laid.rooms.filter((r) => r.kind === "bath").length;
             const ens = beds.filter((r) => r.ensuite).length;
-            const sqft = deal?.post_reno_sqft || deal?.living_area_sqft;
+            const sqft = deal?.finished_sqft || deal?.post_reno_sqft || deal?.living_area_sqft;
 
             const weekly = grossWeekly;
             const monthly = (weekly * 52) / 12;

@@ -153,6 +153,16 @@ export default function DealFlyer({
   // and the income can't disagree.
   const bedrooms = resolveRooms(rooms, deal);
 
+  // What this house is priced at, through the same resolver the income
+  // is computed from. The market block below prints both these and the
+  // ZIP averages, labelled — printing the ZIP rate unlabelled beside
+  // per-room chips resolved from the record is how one flyer showed
+  // $223 in the market panel and $240 on the rooms.
+  const ourShared = roomRate({ room_type: "shared" }, market, {}, deal);
+  const ourEnsuite = roomRate({ room_type: "ensuite" }, market, {}, deal);
+  const ratesAreOurs =
+    deal.shared_weekly_rate != null || deal.ensuite_weekly_rate != null;
+
   // Deal-specific first, then the brand standard. A flyer should never
   // go out with empty swatches just because nobody re-uploaded the same
   // flooring sample for the ninth time.
@@ -301,16 +311,27 @@ export default function DealFlyer({
                   <div className="text-[11.5px] font-black uppercase tracking-wide">
                     Weekly Room Price
                   </div>
+                  <div className="text-[9px] font-bold uppercase tracking-wide text-neutral-500">
+                    ZIP {deal.zip} average
+                  </div>
                   <div className="mt-1.5 text-[12px] leading-snug text-neutral-800">
-                    {usd(market.shared_weekly)} per week
+                    {usd(market.shared_weekly)} shared bath
                     <br />
-                    with a shared bathroom
+                    {usd(market.private_weekly)} private bath
                   </div>
-                  <div className="mt-2 text-[12px] leading-snug text-neutral-800">
-                    {usd(market.private_weekly)} per week
-                    <br />
-                    with a private bathroom
-                  </div>
+
+                  {ratesAreOurs && (
+                    <>
+                      <div className="mt-2.5 text-[9px] font-bold uppercase tracking-wide text-neutral-500">
+                        This home
+                      </div>
+                      <div className="mt-1 text-[12px] font-bold leading-snug text-neutral-900">
+                        {usd(ourShared)} shared bath
+                        <br />
+                        {usd(ourEnsuite)} private bath
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

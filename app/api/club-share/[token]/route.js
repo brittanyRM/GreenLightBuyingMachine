@@ -33,13 +33,30 @@ export async function GET(req, { params }) {
 
   if (!deal) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const [{ data: rooms }, { data: market }, { data: comps }, { data: settings }, { data: buyerDocs }, { data: orgRows }, { data: savedInputs }, { data: docs }] =
+  // One binding per query, in order. These drifted apart once already:
+  // eleven queries were destructured into eight names, so orgRows held
+  // documents, savedInputs held the lender terms, and the sixty-ZIP
+  // market pull landed in `docs`. Add a query, add a name, same line.
+  const [
+    { data: rooms },
+    { data: market },
+    { data: comps },
+    { data: settings },
+    { data: documents },
+    { data: orgRows },
+    { data: marketReport },
+    { data: savedInputs },
+  ] =
     await Promise.all([
     admin()
       .from("deal_rooms")
       .select("id, room_number, label, room_type, weekly_rate, is_ensuite")
       .eq("deal_id", deal.id)
       .order("room_number"),
+    // The subject's own ZIP only. The engine needs it for the occupancy
+    // fallback, and a buyer is entitled to the market context for the
+    // house they're being shown. What does NOT go out is the compiled
+    // set of surrounding ZIPs — see nearbyMarkets in the response.
     admin()
       .from("padsplit_market")
       .select("zip, shared_weekly, private_weekly, avg_occupancy")
@@ -47,40 +64,27 @@ export async function GET(req, { params }) {
       .maybeSingle(),
     admin()
       .from("deal_comps")
-      .select("id, address, comp_status, list_price, sold_price, sold_date, approx_sqft, price_per_sqft, bedrooms, bathrooms, year_built, distance_miles")
+      .select("id, address, comp_status, list_price, sold_price, sold_date, approx_sqft, price_per_sqft, adom, cdom, bedrooms, bathrooms, year_built, distance_miles, latitude, longitude")
       .eq("deal_id", deal.id)
       .order("sold_date", { ascending: false, nullsFirst: false }),
     // Brand defaults: standard hero, standard gallery, flyer copy.
     // Already anon-readable by policy and carries nothing deal-specific.
     admin().from("org_settings").select("key, value"),
     // Evidence a buyer can open: the comps package and the PadSplit
-    // screenshot. Opt-in per document — this table also holds our loan
-    // request and closing statement.
-    admin()
-      .from("deal_documents")
-      .select("id, doc_type, title, public_url, file_type, created_at")
-      .eq("deal_id", deal.id)
-      .eq("buyer_visible", true)
-      .order("created_at", { ascending: false }),
-    // Evidence only. buyer_visible is opt-in per document because this
+    // screenshot. buyer_visible is opt-in per document because this
     // table also holds closing statements and loan requests.
+    //
+    // This was three separate queries returning near-identical rows.
+    // One now, with the superset of columns.
     admin()
       .from("deal_documents")
       .select("id, doc_type, title, buyer_label, public_url, file_type, created_at")
       .eq("deal_id", deal.id)
       .eq("buyer_visible", true)
-      .order("created_at"),
+      .order("created_at", { ascending: false }),
     // Lender terms. Same rows the deal-page pro forma reads, so the
     // two documents can't quote different loans on one house.
     admin().from("org_assumptions").select("key, value"),
-    // Markets around this one, for the buyer map. Only rows with a
-    // centroid can be plotted, so unplaced ZIPs are filtered out here
-    // rather than shipped and discarded in the browser.
-    admin()
-      .from("padsplit_market")
-      .select("zip, metro, active_units, upcoming_units, shared_weekly, private_weekly, avg_occupancy, days_to_first_booking, latitude, longitude")
-      .not("latitude", "is", null)
-      .limit(60),
     // City demographics. Matched on city first, then the ZIP cut if
     // one exists — every Gilbert property shares the same market.
     admin()
@@ -92,12 +96,6 @@ export async function GET(req, { params }) {
       .order("zip", { nullsFirst: true })
       .limit(1)
       .maybeSingle(),
-    admin()
-      .from("deal_documents")
-      .select("id, doc_type, title, public_url, file_type, created_at")
-      .eq("deal_id", deal.id)
-      .eq("buyer_visible", true)
-      .order("created_at", { ascending: false }),
     // Assumptions saved against this deal. What the team tuned is what
     // a buyer sees — otherwise the sheet they open is not the sheet we
     // built.
@@ -118,7 +116,10 @@ export async function GET(req, { params }) {
     defaults: (settings || []).reduce((a, r) => ({ ...a, [r.key]: r.value }), {}),
     org: orgRows || [],
     marketReport: marketReport || null,
-    nearbyMarkets: nearbyMarkets || [],
+    // Deliberately empty on an outside-facing route. The surrounding-ZIP
+    // rows are a compiled market set and don't leave the building; the
+    // buyer map plots the subject and its comps.
+    nearbyMarkets: [],
     documents: documents || [],
     savedInputs: savedInputs?.inputs || null,
     scenario: link.scenario,

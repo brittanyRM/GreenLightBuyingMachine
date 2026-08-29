@@ -33,6 +33,7 @@ import ClubAssumptions from "./ClubAssumptions";
 import BuyerComps from "./BuyerComps";
 import BuyerMap from "./BuyerMap";
 import ViewPicker from "./ViewPicker";
+import SyndicationPanel from "./SyndicationPanel";
 import {
   CompsScatter,
   CompsTable,
@@ -68,6 +69,7 @@ const SECTIONS = [
   { id: "property", label: "The property", hint: "specs, floor plan, finishes" },
   { id: "market", label: "Comps & market", hint: "what sold nearby, PadSplit data" },
   { id: "diligence", label: "Diligence", hint: "documents and assumptions" },
+  { id: "syndication", label: "Syndication", hint: "raise, waterfall, break-even" },
 ];
 
 // Which tiles are lit when a buyer arrives with nothing in the URL.
@@ -187,6 +189,7 @@ export default function ClubProForma({
   orgRows = null,
   marketReport = null,
   nearbyMarkets = [],
+  enabledViews = null,
   // GLBM leads: it's the standard we underwrite to, and it's the case
   // a buyer should see first. Falls back to base where a saved model
   // predates the GLBM scenario.
@@ -229,6 +232,16 @@ export default function ClubProForma({
   // the pro forma shouldn't have to flip between them. Seeded from
   // ?views= so a forwarded link opens on the same thing the sender
   // was looking at.
+  // Sections this firm is entitled to. Null means the route did not
+  // send a list — an older client or an unmigrated database — so fall
+  // back to everything except syndication, which is always opt-in.
+  const visibleSections = useMemo(() => {
+    const allowed = enabledViews
+      ? new Set(enabledViews)
+      : new Set(SECTIONS.filter((s) => s.id !== "syndication").map((s) => s.id));
+    return SECTIONS.filter((s) => allowed.has(s.id));
+  }, [enabledViews]);
+
   const [views, setViews] = useState(() => {
     if (typeof window !== "undefined") {
       const raw = new URLSearchParams(window.location.search).get("views");
@@ -241,8 +254,24 @@ export default function ClubProForma({
     }
     return new Set(DEFAULT_VIEWS);
   });
+
+  // A URL can name a section the firm is not entitled to, either
+  // because it was forwarded from a firm that has it or because
+  // someone typed it. Intersect rather than trust.
+  const allowedIds = useMemo(() => new Set(visibleSections.map((s) => s.id)), [visibleSections]);
+  const effectiveViews = useMemo(
+    () => new Set([...views].filter((v) => allowedIds.has(v))),
+    [views, allowedIds]
+  );
   const [printing, setPrinting] = useState(false);
-  const show = (name) => printing || !isBuyer || views.has(name);
+  // Order matters. Entitlement is checked before printing, so a firm
+  // cannot reach a section it was not given by opening the print
+  // dialog. Everything else — seller and admin views — is unfiltered.
+  const show = (name) => {
+    if (!isBuyer) return true;
+    if (!allowedIds.has(name)) return false;
+    return printing || effectiveViews.has(name);
+  };
 
   // Reflect the selection in the URL without adding history entries —
   // back should leave the page, not undo five tile clicks.
@@ -251,14 +280,14 @@ export default function ClubProForma({
     const url = new URL(window.location.href);
     url.searchParams.delete("views");
     let qs = url.searchParams.toString();
-    if (views.size !== SECTIONS.length) {
+    if (effectiveViews.size !== visibleSections.length) {
       // Written by hand rather than through searchParams, which
       // percent-encodes the separator: a link someone forwards should
       // read ?views=summary,market and not ?views=summary%2Cmarket.
-      qs = (qs ? qs + "&" : "") + "views=" + [...views].join(",");
+      qs = (qs ? qs + "&" : "") + "views=" + [...effectiveViews].join(",");
     }
     window.history.replaceState(null, "", url.pathname + (qs ? "?" + qs : "") + url.hash);
-  }, [views, isBuyer]);
+  }, [effectiveViews, visibleSections, isBuyer]);
 
   const toggleView = (id) =>
     setViews((prev) => {
@@ -266,7 +295,7 @@ export default function ClubProForma({
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  const showAllViews = () => setViews(new Set(SECTIONS.map((s) => s.id)));
+  const showAllViews = () => setViews(new Set(visibleSections.map((s) => s.id)));
   const onlyView = (id) => setViews(new Set([id]));
 
   // A PDF is read differently from a screen. Before the print dialog
@@ -551,8 +580,8 @@ export default function ClubProForma({
 
         {isBuyer && (
           <ViewPicker
-            sections={SECTIONS}
-            selected={views}
+            sections={visibleSections}
+            selected={effectiveViews}
             onToggle={toggleView}
             onAll={showAllViews}
             onOnly={onlyView}
@@ -1296,6 +1325,41 @@ export default function ClubProForma({
         </div>
 
         {isBuyer && deal && <Readiness deal={deal} sqft={p.sqft} />}
+        {isBuyer && show("syndication") && (
+          <SyndicationPanel
+            price={inputs.capitalization.purchasePrice}
+            loan={s.capitalization.loanAmount}
+            cashToClose={s.capitalization.totalCapitalizedEquity}
+            grossScheduledRent={s.years[0].income.grossScheduledRent}
+            annualDebtService={s.years[0].debtService}
+            monthlyDebtService={s.years[0].debtService / 12}
+            // Two kinds of expense behave differently as occupancy
+            // falls. Management and the capex reserve are struck off
+            // net income, so they shrink with it; taxes, insurance and
+            // utilities do not. Break-even is wrong if they are
+            // averaged together.
+            variableExpensePct={
+              s.years[0].income.grossScheduledRent > 0
+                ? (s.years[0].income.grossScheduledRent -
+                    s.years[0].income.netToOwner +
+                    s.years[0].expenses.management +
+                    s.years[0].expenses.capexReserve) /
+                  s.years[0].income.grossScheduledRent
+                : 0
+            }
+            fixedExpenses={
+              s.years[0].expenses.total -
+              s.years[0].expenses.management -
+              s.years[0].expenses.capexReserve
+            }
+            projectCashFlows={s.leveredStream}
+            holdYears={inputs.exit.holdYears}
+            occupancyLabel={`${Math.round(
+              modelInputs.scenarios[activeScenario].income.occupancyPct * 100
+            )}% occupancy`}
+          />
+        )}
+
         {isBuyer && show("diligence") && <SupportingDocuments documents={documents} />}
 
         {isBuyer && core && show("market") && <MarketPanel market={market} deal={deal} />}

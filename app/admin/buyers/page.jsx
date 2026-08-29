@@ -39,6 +39,18 @@ import { describeBuyBox, parseList } from "../../../lib/buyBox";
 
 const GREEN = "#00A651";
 
+// Must stay in step with SECTIONS in components/ClubProForma.jsx and
+// BUYER_VIEW_IDS in the orgs admin route.
+const BUYER_VIEWS = [
+  ["summary", "Summary"],
+  ["numbers", "Pro forma"],
+  ["property", "The property"],
+  ["market", "Comps & market"],
+  ["diligence", "Diligence"],
+  ["syndication", "Syndication"],
+];
+const DEFAULT_BUYER_VIEWS = ["summary", "numbers", "property", "market", "diligence"];
+
 function Field({ label, ...props }) {
   return (
     <label className="block">
@@ -670,6 +682,41 @@ export default function BuyerAdmin() {
                     <span className="pb-2 text-[11px] text-neutral-500">
                       Shown in their portal header only. Ask them first.
                     </span>
+                  </div>
+
+                  <div className="mt-3 border-t border-neutral-200 pt-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+                      Sections this buyer can see
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-neutral-500">
+                      Unticked sections are removed before the page is sent, not hidden in the
+                      browser. Syndication shows the raise, the waterfall and the sponsor promote —
+                      give it to firms raising capital, not to someone buying one house.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
+                      {BUYER_VIEWS.map(([id, label]) => {
+                        const current = org.enabled_views || DEFAULT_BUYER_VIEWS;
+                        const on = current.includes(id);
+                        return (
+                          <label key={id} className="flex items-center gap-1.5 text-[12px]">
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() =>
+                                patchOrg(org.id, {
+                                  enabled_views: on
+                                    ? current.filter((v) => v !== id)
+                                    : [...current, id],
+                                })
+                              }
+                            />
+                            <span className={on ? "text-neutral-900" : "text-neutral-500"}>
+                              {label}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>

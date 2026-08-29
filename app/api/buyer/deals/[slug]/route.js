@@ -9,6 +9,12 @@ import {
 
 export const dynamic = "force-dynamic";
 
+// What a firm sees when nothing has been configured for it. Matches
+// the sections that existed before entitlements, so an unmigrated or
+// newly created firm is not silently shown less than it was.
+// Syndication is deliberately absent: it is opt-in per firm.
+const DEFAULT_BUYER_VIEWS = ["summary", "numbers", "property", "market", "diligence"];
+
 export async function GET(req, { params }) {
   const buyer = await getBuyerFromRequest(req);
   if (!buyer) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
@@ -107,6 +113,10 @@ export async function GET(req, { params }) {
     // Deliberately empty. The surrounding-ZIP rows are a compiled
     // market set and don't go out to buyers; the map plots the subject
     // and its comps. The subject's own ZIP row is still sent above.
+    // Entitlements are applied here rather than in the browser. A
+    // hidden tile is a hidden tile; a tile filtered client-side is a
+    // tile anyone can restore with the dev tools.
+    enabledViews: buyer?.org?.enabledViews || DEFAULT_BUYER_VIEWS,
     nearbyMarkets: [],
     documents: docs || [],
     savedInputs: savedInputs?.inputs || null,

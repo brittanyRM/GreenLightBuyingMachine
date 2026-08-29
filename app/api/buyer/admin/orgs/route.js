@@ -4,30 +4,52 @@ import { requireTeam } from "../../../../../lib/buyerAuth";
 
 export const dynamic = "force-dynamic";
 
+// Must stay in step with SECTIONS in components/ClubProForma.jsx.
+// Kept as a plain list rather than imported because that file is a
+// client component and this route runs on the server.
+const BUYER_VIEW_IDS = [
+  "summary",
+  "numbers",
+  "property",
+  "market",
+  "diligence",
+  "syndication",
+];
+
 export async function GET(req) {
   if (!(await requireTeam(req))) {
     return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   }
 
-  const withLogos =
-    "id, name, slug, active, logo_url, logo_dark_url, created_at, buyer_users(id, email, name, active, last_login_at, password_hash)";
-  const withoutLogos =
-    "id, name, slug, active, created_at, buyer_users(id, email, name, active, last_login_at, password_hash)";
+  const USERS = "buyer_users(id, email, name, active, last_login_at, password_hash)";
+  // Widest first, then fall back a column group at a time. Migration
+  // 021 adds the logos, 038 adds enabled_views; selecting a column
+  // that does not exist fails the whole query and would show an empty
+  // buyer list rather than the firms that are actually there.
+  const selects = [
+    `id, name, slug, active, logo_url, logo_dark_url, enabled_views, created_at, ${USERS}`,
+    `id, name, slug, active, logo_url, logo_dark_url, created_at, ${USERS}`,
+    `id, name, slug, active, created_at, ${USERS}`,
+  ];
 
   // Migration 021 adds the logo columns. Selecting a column that
   // doesn't exist fails the whole query, which would show an empty
   // list rather than the buyers that are actually there — so fall
   // back and tell the caller what's missing.
-  let { data, error } = await admin().from("buyer_orgs").select(withLogos).order("name");
-
+  let data = null;
+  let lastError = null;
   let needsMigration = false;
-  if (error) {
-    const retry = await admin().from("buyer_orgs").select(withoutLogos).order("name");
-    if (retry.error) {
-      return NextResponse.json({ error: retry.error.message }, { status: 500 });
+  for (let i = 0; i < selects.length; i++) {
+    const res = await admin().from("buyer_orgs").select(selects[i]).order("name");
+    if (!res.error) {
+      data = res.data;
+      needsMigration = i > 0;
+      break;
     }
-    data = retry.data;
-    needsMigration = true;
+    lastError = res.error;
+  }
+  if (data === null) {
+    return NextResponse.json({ error: lastError?.message || "Query failed." }, { status: 500 });
   }
 
   // Never ship a hash to the browser — collapse it to a boolean so the
@@ -87,7 +109,8 @@ export async function PATCH(req) {
     return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   }
 
-  const { id, name, active, logo_url, logo_dark_url } = await req.json().catch(() => ({}));
+  const { id, name, active, logo_url, logo_dark_url, enabled_views } =
+    await req.json().catch(() => ({}));
   if (!id) return NextResponse.json({ error: "A buyer id is required." }, { status: 400 });
 
   const patch = {};
@@ -95,6 +118,12 @@ export async function PATCH(req) {
   if (typeof active === "boolean") patch.active = active;
   if (logo_url !== undefined) patch.logo_url = logo_url || null;
   if (logo_dark_url !== undefined) patch.logo_dark_url = logo_dark_url || null;
+  // Validated against a fixed list rather than stored as sent: this
+  // column decides what a buyer can see, so an unrecognised id should
+  // be dropped here and not discovered later as a blank tile.
+  if (Array.isArray(enabled_views)) {
+    patch.enabled_views = enabled_views.filter((v) => BUYER_VIEW_IDS.includes(v));
+  }
 
   if (!Object.keys(patch).length) {
     return NextResponse.json({ error: "Nothing to change." }, { status: 400 });
@@ -104,7 +133,7 @@ export async function PATCH(req) {
     .from("buyer_orgs")
     .update(patch)
     .eq("id", id)
-    .select("id, name, slug, active, logo_url, logo_dark_url")
+    .select("id, name, slug, active, logo_url, logo_dark_url, enabled_views")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

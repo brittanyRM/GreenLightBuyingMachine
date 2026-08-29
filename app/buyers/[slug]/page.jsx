@@ -195,6 +195,7 @@ export default function BuyerDeal({ params }) {
         orgRows={data.org}
         marketReport={data.marketReport}
         nearbyMarkets={data.nearbyMarkets || []}
+        enabledViews={data.enabledViews || null}
         defaults={data.defaults}
         allowAdjust
       />

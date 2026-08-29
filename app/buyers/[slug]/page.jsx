@@ -190,13 +190,11 @@ export default function BuyerDeal({ params }) {
         deal={data.deal}
         comps={data.comps || []}
         documents={data.documents || []}
-        documents={data.documents || []}
         market={data.market}
         rooms={data.rooms}
         orgRows={data.org}
         marketReport={data.marketReport}
         nearbyMarkets={data.nearbyMarkets || []}
-        documents={data.documents || []}
         defaults={data.defaults}
         allowAdjust
       />

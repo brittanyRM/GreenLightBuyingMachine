@@ -32,6 +32,7 @@ import {
 import ClubAssumptions from "./ClubAssumptions";
 import BuyerComps from "./BuyerComps";
 import BuyerMap from "./BuyerMap";
+import ViewPicker from "./ViewPicker";
 import {
   CompsScatter,
   CompsTable,
@@ -63,11 +64,17 @@ const GREEN = "#00A651";
 
 const SECTIONS = [
   { id: "summary", label: "Summary", hint: "the deal in one screen" },
-  { id: "numbers", label: "The numbers", hint: "income, costs, financing" },
-  { id: "property", label: "The property", hint: "specs, plan, location" },
-  { id: "market", label: "The market", hint: "comps and PadSplit data" },
-  { id: "diligence", label: "Diligence", hint: "sources and assumptions" },
+  { id: "numbers", label: "Pro forma", hint: "income, costs, financing" },
+  { id: "property", label: "The property", hint: "specs, floor plan, finishes" },
+  { id: "market", label: "Comps & market", hint: "what sold nearby, PadSplit data" },
+  { id: "diligence", label: "Diligence", hint: "documents and assumptions" },
 ];
+
+// Which tiles are lit when a buyer arrives with nothing in the URL.
+// Not all five: the first screen should be readable without scrolling
+// past four sections to reach the ask. Not one either — the two a
+// buyer opens the link for are the numbers and the comps.
+const DEFAULT_VIEWS = ["summary", "numbers", "market"];
 
 const SCENARIOS = [
   {
@@ -217,9 +224,50 @@ export default function ClubProForma({
   // and one shows at a time. Print ignores this and emits everything —
   // a PDF is read differently from a screen, and an analyst who prints
   // it wants the whole package in one file.
-  const [section, setSection] = useState("summary");
+  //
+  // A set rather than a single id: a buyer reading the comps against
+  // the pro forma shouldn't have to flip between them. Seeded from
+  // ?views= so a forwarded link opens on the same thing the sender
+  // was looking at.
+  const [views, setViews] = useState(() => {
+    if (typeof window !== "undefined") {
+      const raw = new URLSearchParams(window.location.search).get("views");
+      if (raw != null) {
+        const valid = new Set(SECTIONS.map((s) => s.id));
+        // An empty ?views= is a deliberate "hide everything", so it is
+        // honoured. Only a missing parameter falls back to the default.
+        return new Set(raw.split(",").filter((v) => valid.has(v)));
+      }
+    }
+    return new Set(DEFAULT_VIEWS);
+  });
   const [printing, setPrinting] = useState(false);
-  const show = (name) => printing || !isBuyer || section === name;
+  const show = (name) => printing || !isBuyer || views.has(name);
+
+  // Reflect the selection in the URL without adding history entries —
+  // back should leave the page, not undo five tile clicks.
+  useEffect(() => {
+    if (typeof window === "undefined" || !isBuyer) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("views");
+    let qs = url.searchParams.toString();
+    if (views.size !== SECTIONS.length) {
+      // Written by hand rather than through searchParams, which
+      // percent-encodes the separator: a link someone forwards should
+      // read ?views=summary,market and not ?views=summary%2Cmarket.
+      qs = (qs ? qs + "&" : "") + "views=" + [...views].join(",");
+    }
+    window.history.replaceState(null, "", url.pathname + (qs ? "?" + qs : "") + url.hash);
+  }, [views, isBuyer]);
+
+  const toggleView = (id) =>
+    setViews((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  const showAllViews = () => setViews(new Set(SECTIONS.map((s) => s.id)));
+  const onlyView = (id) => setViews(new Set([id]));
 
   // A PDF is read differently from a screen. Before the print dialog
   // opens, drop the section filter so the file carries the whole
@@ -502,30 +550,13 @@ export default function ClubProForma({
         />
 
         {isBuyer && (
-          <div className="no-print border-b border-neutral-200 bg-white px-6 sm:px-8">
-            <div className="flex flex-wrap gap-x-1">
-              {SECTIONS.map((sec) => {
-                const active = section === sec.id;
-                return (
-                  <button
-                    key={sec.id}
-                    onClick={() => setSection(sec.id)}
-                    title={sec.hint}
-                    className="relative px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider transition"
-                    style={{
-                      color: active ? "#0A0A0A" : "#8A9198",
-                      boxShadow: active ? `inset 0 -2px 0 ${GREEN}` : "none",
-                    }}
-                  >
-                    {sec.label}
-                  </button>
-                );
-              })}
-              <span className="ml-auto hidden self-center text-[10px] text-neutral-400 sm:block">
-                Printing gives you all of it
-              </span>
-            </div>
-          </div>
+          <ViewPicker
+            sections={SECTIONS}
+            selected={views}
+            onToggle={toggleView}
+            onAll={showAllViews}
+            onOnly={onlyView}
+          />
         )}
 
         {isBuyer && show("summary") && <IncludedBar defaults={defaults} />}

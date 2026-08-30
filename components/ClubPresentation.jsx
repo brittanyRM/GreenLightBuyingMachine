@@ -207,7 +207,15 @@ export function HeadlineMetrics({ scenario, holdYears, listPrice, grossAnnual, n
 // headline figures rather than in a control bar further down. A slider
 // because the useful action is sweeping a range to find where coverage
 // breaks, not picking one value from a list.
-export function OccupancyControl({ value, modelled, onChange, dscr }) {
+// One dial rather than a row of named cases.
+//
+// This replaced a bear/base/bull picker on the buyer sheet. Those
+// cases each moved rent growth, expense growth and appreciation at the
+// same time, so the spread between them was real but no one could say
+// which change caused it. Occupancy is the variable a buyer actually
+// has intuitions about, and the market figure is shown beside it so
+// the downside is still one click away rather than deleted.
+export function OccupancyControl({ value, modelled, onChange, dscr, marketOccupancy, standardLabel }) {
   const shown = value ?? modelled;
   const overridden = value != null && Math.abs(value - modelled) > 0.001;
 
@@ -244,7 +252,8 @@ export function OccupancyControl({ value, modelled, onChange, dscr }) {
           {overridden ? (
             <>
               <strong>Your figure</strong>, not the modelled{" "}
-              {Math.round(modelled * 100)}%.{" "}
+              {Math.round(modelled * 100)}%
+              {standardLabel ? ` (${standardLabel})` : ""}.{" "}
               <button
                 onClick={() => onChange(null)}
                 className="underline underline-offset-2"
@@ -254,8 +263,26 @@ export function OccupancyControl({ value, modelled, onChange, dscr }) {
               </button>
             </>
           ) : (
-            <>Modelled at {Math.round(modelled * 100)}%. Drag to test it.</>
+            <>
+              Modelled at {Math.round(modelled * 100)}%
+              {standardLabel ? ` — ${standardLabel}` : ""}. Drag to test it.
+            </>
           )}
+          {marketOccupancy != null &&
+            Number.isFinite(marketOccupancy) &&
+            Math.abs(marketOccupancy - shown) > 0.005 && (
+              <>
+                {" "}
+                <button
+                  onClick={() => onChange(marketOccupancy)}
+                  className="underline underline-offset-2"
+                  style={{ color: "#0A0A0A" }}
+                >
+                  Run it at the {Math.round(marketOccupancy * 100)}% this ZIP averages
+                </button>
+                .
+              </>
+            )}
           {dscr != null && Number.isFinite(dscr) && (
             <>
               {" · "}

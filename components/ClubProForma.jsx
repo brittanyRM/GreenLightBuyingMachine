@@ -363,7 +363,18 @@ export default function ClubProForma({
 
   // A model saved before GLBM existed has no such case. Fall back
   // rather than reading a scenario that isn't there.
-  const activeScenario = modelInputs?.scenarios?.[scenario] ? scenario : "base";
+  // Buyers see one case. The bear/base/bull picker moved rent growth,
+  // expense growth and appreciation together, so the spread between
+  // the cases was real but unattributable — and it sat next to an
+  // occupancy slider that does the same job on one axis a buyer can
+  // reason about. Internal and seller views keep all four.
+  const scenarioLocked = isBuyer;
+  const requestedScenario = scenarioLocked ? "glbm" : scenario;
+  const activeScenario = modelInputs?.scenarios?.[requestedScenario]
+    ? requestedScenario
+    : modelInputs?.scenarios?.glbm
+    ? "glbm"
+    : "base";
 
   const result = useMemo(() => runClubProForma(modelInputs), [modelInputs]);
   const s = result[activeScenario] || result.base;
@@ -496,7 +507,10 @@ export default function ClubProForma({
             </div>
             <div className="text-right">
               <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-neutral-500">
-                {resolveLabel(internalView)} · {scenarioLabel} case
+                {resolveLabel(internalView)}
+                {scenarioLocked
+                  ? " · Green Light underwriting"
+                  : ` · ${scenarioLabel} case`}
               </div>
               <div className="text-3xl font-bold tabular-nums text-white">
                 {usd(cap.purchasePrice)}
@@ -576,6 +590,12 @@ export default function ClubProForma({
           onChange={setOccupancyOverride}
           dscr={core ? core.dscr : s.year1Dscr}
           capped={occupancyOverride != null && occupancyOverride >= 0.99}
+          marketOccupancy={market ? Number(market.avg_occupancy) : null}
+          // With the case picker gone from the buyer sheet, the dial is
+          // the only place left to say whose number the modelled rate
+          // is. Unattributed it reads as a generic default rather than
+          // a standard we hold every deal to.
+          standardLabel={scenarioLocked ? "Green Light underwriting standard" : null}
         />
 
         {isBuyer && (
@@ -617,7 +637,8 @@ export default function ClubProForma({
           >
             <span className="text-[12px] text-amber-900">
               <strong>Occupancy set to {Math.round(occupancyOverride * 100)}%.</strong>{" "}
-              Every figure below reflects that, not the case above.
+              Every figure below reflects that
+              {scenarioLocked ? " rather than the modelled rate" : ", not the case above"}.
             </span>
             <button
               onClick={() => setOccupancyOverride(null)}
@@ -666,10 +687,18 @@ export default function ClubProForma({
 
         {/* Controls. Screen only. */}
         <div className="no-print flex flex-wrap items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-6 py-3 sm:px-8">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-            Scenario
-          </span>
-          {SCENARIOS.filter((sc) => modelInputs?.scenarios?.[sc.key]).map((sc) => (
+          {/* The case picker is internal only. On the buyer sheet one
+              case is shown and the occupancy dial below is the single
+              thing they move — four named cases that each shifted rent
+              growth, expense growth and appreciation together was the
+              confusing part. */}
+          {!scenarioLocked && (
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+              Scenario
+            </span>
+          )}
+          {!scenarioLocked &&
+            SCENARIOS.filter((sc) => modelInputs?.scenarios?.[sc.key]).map((sc) => (
             <button
               key={sc.key}
               onClick={() => setScenario(sc.key)}
@@ -685,9 +714,9 @@ export default function ClubProForma({
           ))}
 
           {/* Hover card rather than a title attribute: the browser
-              tooltip is slow, untruncated and unstyled, and this is
-              the one explanation a buyer needs before trusting the
-              spread between the cases. */}
+              tooltip is slow, untruncated and unstyled. Internal only,
+              because it explains a picker the buyer no longer has. */}
+          {!scenarioLocked && (
           <span className="no-print group relative inline-flex self-center">
             <span
               className="flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border text-[9px] font-bold text-neutral-500"
@@ -721,6 +750,7 @@ export default function ClubProForma({
               </span>
             </span>
           </span>
+          )}
 
           <span className="ml-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
             Hold
@@ -1138,17 +1168,23 @@ export default function ClubProForma({
             />
           </div>
 
-          <div className="print-section">
-            <SectionTitle kicker="Bear · base · bull">Levered IRR by scenario</SectionTitle>
-            <ScenarioCompare result={result} metric="leveredIrr" format={(v) => pct(v)} />
-            <div className="mt-3">
-              <ScenarioCompare
-                result={result}
-                metric="leveredMoic"
-                format={(v) => multiple(v)}
-              />
+          {/* Internal only. A buyer has no case picker, so a chart
+              comparing cases they cannot select is three numbers with
+              no way to interrogate them — the occupancy dial is where
+              a buyer tests the downside now. */}
+          {!isBuyer && (
+            <div className="print-section">
+              <SectionTitle kicker="Bear · base · bull">Levered IRR by scenario</SectionTitle>
+              <ScenarioCompare result={result} metric="leveredIrr" format={(v) => pct(v)} />
+              <div className="mt-3">
+                <ScenarioCompare
+                  result={result}
+                  metric="leveredMoic"
+                  format={(v) => multiple(v)}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ---------------- page three ---------------- */}

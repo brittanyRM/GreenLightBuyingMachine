@@ -34,6 +34,7 @@ import BuyerComps from "./BuyerComps";
 import BuyerMap from "./BuyerMap";
 import ViewPicker from "./ViewPicker";
 import SyndicationPanel from "./SyndicationPanel";
+import ProvenancePanel from "./ProvenancePanel";
 import {
   CompsScatter,
   CompsTable,
@@ -1433,6 +1434,25 @@ export default function ClubProForma({
             occupancyLabel={`${Math.round(
               modelInputs.scenarios[activeScenario].income.occupancyPct * 100
             )}% occupancy`}
+          />
+        )}
+
+        {isBuyer && show("diligence") && (
+          <ProvenancePanel
+            deal={deal}
+            market={market}
+            comps={comps}
+            rooms={rooms || []}
+            sharedRate={roomRate({ room_type: "shared" }, market, {}, deal)}
+            ensuiteRate={roomRate({ room_type: "ensuite" }, market, {}, deal)}
+            occupancyPct={modelInputs.scenarios[activeScenario].income.occupancyPct}
+            pricePerSqft={
+              deal?.list_price && (deal.finished_sqft || deal.post_reno_sqft || deal.living_area_sqft)
+                ? deal.list_price /
+                  (deal.finished_sqft || deal.post_reno_sqft || deal.living_area_sqft)
+                : null
+            }
+            sqft={deal?.finished_sqft || deal?.post_reno_sqft || deal?.living_area_sqft}
           />
         )}
 

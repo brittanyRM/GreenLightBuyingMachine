@@ -18,7 +18,12 @@ import { useState } from "react";
 import { usd } from "../lib/proformaClub";
 
 const GREEN = "#00A651";
-const KEYS = ["base", "bull", "bear"];
+// The one case the sheet renders. This edited base/bull/bear while
+// the sheet showed glbm, so every change here moved numbers nobody
+// was looking at and left the displayed figures untouched. One case,
+// one column, and the column is the one on screen.
+const KEYS = ["glbm"];
+const COLUMN_LABELS = ["Green Light"];
 
 function Field({ value, onChange, kind = "money", width = "w-full" }) {
   const [draft, setDraft] = useState(null);
@@ -79,7 +84,7 @@ function Group({ title, children, defaultOpen = false, note }) {
 // A row with one editable cell per scenario.
 function ScenarioRow({ label, model, path, kind, onChange, hint }) {
   return (
-    <div className="grid grid-cols-[1fr_repeat(3,4.5rem)] items-center gap-2 border-b border-neutral-100 py-1.5">
+    <div className="grid grid-cols-[1fr_repeat(1,6rem)] items-center gap-2 border-b border-neutral-100 py-1.5">
       <div className="text-[12px] text-neutral-700">
         {label}
         {hint && <span className="ml-1.5 text-[10px] text-neutral-400">{hint}</span>}
@@ -99,7 +104,7 @@ function ScenarioRow({ label, model, path, kind, onChange, hint }) {
 // A row that applies across all three scenarios.
 function SharedRow({ label, value, kind, onChange, hint }) {
   return (
-    <div className="grid grid-cols-[1fr_repeat(3,4.5rem)] items-center gap-2 border-b border-neutral-100 py-1.5">
+    <div className="grid grid-cols-[1fr_repeat(1,6rem)] items-center gap-2 border-b border-neutral-100 py-1.5">
       <div className="text-[12px] text-neutral-700">
         {label}
         {hint && <span className="ml-1.5 text-[10px] text-neutral-400">{hint}</span>}
@@ -136,7 +141,7 @@ export default function ClubAssumptions({ model, setModel, onReset, perBedOpex }
     setScenario(key, (sc) => ({ ...sc, exit: { ...sc.exit, appreciationPct: v } }));
 
   // Dollar expense lines are a property of the house, not of the
-  // scenario, so they write to all three at once.
+  // scenario, so they write to every case at once.
   const setExpenseAll = (field, v) =>
     setModel((m) => ({
       ...m,
@@ -145,7 +150,11 @@ export default function ClubAssumptions({ model, setModel, onReset, perBedOpex }
           ...acc,
           [k]: { ...m.scenarios[k], expenses: { ...m.scenarios[k].expenses, [field]: v } },
         }),
-        {}
+        // Seeded with the existing scenarios, not {}. Reducing into
+        // an empty object replaced the whole map with just KEYS, which
+        // quietly dropped every scenario not being edited — including
+        // the one the sheet renders.
+        { ...m.scenarios }
       ),
     }));
 
@@ -165,7 +174,11 @@ export default function ClubAssumptions({ model, setModel, onReset, perBedOpex }
             },
           },
         }),
-        {}
+        // Seeded with the existing scenarios, not {}. Reducing into
+        // an empty object replaced the whole map with just KEYS, which
+        // quietly dropped every scenario not being edited — including
+        // the one the sheet renders.
+        { ...m.scenarios }
       ),
     }));
 
@@ -206,9 +219,9 @@ export default function ClubAssumptions({ model, setModel, onReset, perBedOpex }
         </button>
       </div>
 
-      <div className="mb-1.5 grid grid-cols-[1fr_repeat(3,4.5rem)] gap-2">
+      <div className="mb-1.5 grid grid-cols-[1fr_repeat(1,6rem)] gap-2">
         <div />
-        {["Base", "Bull", "Bear"].map((h) => (
+        {COLUMN_LABELS.map((h) => (
           <div
             key={h}
             className="text-right text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-500"

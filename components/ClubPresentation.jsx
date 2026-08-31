@@ -123,9 +123,12 @@ export function FlyerMasthead({ deal = {}, beds, baths, sqft, price, scenarioLab
           </div>
         )}
 
+        {/* Named the standard rather than the case. With one case
+            there is nothing to distinguish it from, and the point of
+            the banner is to say whose underwriting these figures are. */}
         <div className="absolute left-0 top-0 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-white"
              style={{ backgroundColor: BANNER }}>
-          {scenarioLabel} case
+          {scenarioLabel || "Green Light underwriting"}
         </div>
       </div>
     </div>
@@ -575,14 +578,12 @@ export function ScenarioBasis({ scenario, income, expenses, exit, marketOccupanc
   return (
     <div className="print-section px-8 pb-4">
       <FlyerHeading>
-        {scenario === "glbm"
-          ? "GLBM standard"
-          : scenario === "bear"
-          ? "Bear case"
-          : scenario === "bull"
-          ? "Bull case"
-          : "Base case"}{" "}
-        — what changes
+        {/* One case now. The old model still carries bear/base/bull
+            and a legacy deal without a glbm scenario falls back to
+            base, so this is named for the standard rather than the
+            key — otherwise an old deal would print "Base case" on a
+            sheet that has no cases. */}
+        Green Light underwriting — what changes
       </FlyerHeading>
 
       <p className="mb-3 text-[11.5px] leading-snug text-neutral-700">{blurb}</p>

@@ -58,7 +58,6 @@ import {
   EquityCurve,
   ExpenseBars,
   IncomeWaterfall,
-  ScenarioCompare,
 } from "./ClubCharts";
 
 const GREEN = "#00A651";
@@ -377,12 +376,16 @@ export default function ClubProForma({
 
   // A model saved before GLBM existed has no such case. Fall back
   // rather than reading a scenario that isn't there.
-  // Buyers see one case. The bear/base/bull picker moved rent growth,
-  // expense growth and appreciation together, so the spread between
-  // the cases was real but unattributable — and it sat next to an
-  // occupancy slider that does the same job on one axis a buyer can
-  // reason about. Internal and seller views keep all four.
-  const scenarioLocked = isBuyer;
+  // One case, everywhere — buyer sheet, share link and the editor
+  // alike. The bear/base/bull picker moved rent growth, expense growth
+  // and appreciation together, so the spread between the cases was
+  // real but no one could say which change caused it, and it sat next
+  // to an occupancy slider that does the same job on a single axis.
+  //
+  // The engine still computes all four; nothing downstream that reads
+  // result.base changes. They are simply no longer a thing anyone is
+  // asked to choose between.
+  const scenarioLocked = true;
   const requestedScenario = scenarioLocked ? "glbm" : scenario;
   const activeScenario = modelInputs?.scenarios?.[requestedScenario]
     ? requestedScenario
@@ -475,7 +478,6 @@ export default function ClubProForma({
   const glbmResult = useMemo(() => runClubProForma(inputs), [inputs]);
 
   const dscrTight = s.minDscr < 1.2;
-  const scenarioLabel = SCENARIOS.find((x) => x.key === activeScenario).label;
 
   const asOf = new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -493,7 +495,7 @@ export default function ClubProForma({
             baths={p.baths}
             sqft={deal.finished_sqft || p.sqft}
             price={cap.purchasePrice}
-            scenarioLabel={scenarioLabel}
+            scenarioLabel="Green Light underwriting"
             defaults={defaults}
             readyDate={deal.reno_complete_date || deal.disposition_coe || null}
             readyLabel={deal.reno_complete_estimated === false ? "Complete" : "Ready"}
@@ -522,9 +524,7 @@ export default function ClubProForma({
             <div className="text-right">
               <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-neutral-500">
                 {resolveLabel(internalView)}
-                {scenarioLocked
-                  ? " · Green Light underwriting"
-                  : ` · ${scenarioLabel} case`}
+                {" · Green Light underwriting"}
               </div>
               <div className="text-3xl font-bold tabular-nums text-white">
                 {usd(cap.purchasePrice)}
@@ -974,7 +974,7 @@ export default function ClubProForma({
             left for the buyer to discover. */}
         <div className="print-section border-b border-neutral-200 px-6 py-4 sm:px-8">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
-            Same house · both conventions · {scenarioLabel} case
+            Same house · both conventions
           </div>
           <table className="w-full">
             <thead>
@@ -1156,23 +1156,11 @@ export default function ClubProForma({
             <CashOnCashBars years={s.years} />
           </div>
 
-          {/* Internal only. A buyer has no case picker, so a chart
-              comparing cases they cannot select is three numbers with
-              no way to interrogate them — the occupancy dial is where
-              a buyer tests the downside now. */}
-          {!isBuyer && (
-            <div className="print-section">
-              <SectionTitle kicker="Bear · base · bull">Levered IRR by scenario</SectionTitle>
-              <ScenarioCompare result={result} metric="leveredIrr" format={(v) => pct(v)} />
-              <div className="mt-3">
-                <ScenarioCompare
-                  result={result}
-                  metric="leveredMoic"
-                  format={(v) => multiple(v)}
-                />
-              </div>
-            </div>
-          )}
+          {/* The bear/base/bull comparison chart was removed with the
+              picker. Nobody chooses between the cases now, so a chart
+              contrasting them is three numbers with no way to
+              interrogate any of them — the occupancy dial is where the
+              downside gets tested. */}
         </div>
 
         {/* ---------------- page three ---------------- */}

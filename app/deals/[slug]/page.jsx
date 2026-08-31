@@ -11,6 +11,7 @@ import FloorPlanRender from "../../../components/FloorPlanRender";
 import ErrorBoundary from "../../../components/ErrorBoundary";
 import DealForm from "../../../components/DealForm";
 import CompImport from "../../../components/CompImport";
+import MarketResearch from "../../../components/MarketResearch";
 import EmailComposer from "../../../components/EmailComposer";
 
 const GREEN = "#00A651";
@@ -318,8 +319,18 @@ export default function DealPage({ params }) {
                 record, and because DealForm's own paste box takes the
                 short clipboard format while this one reads the full
                 summary report. */}
-            <div className="mx-auto max-w-4xl px-5 pb-10">
+            <div className="mx-auto max-w-4xl space-y-4 px-5 pb-10">
               <CompImport slug={params.slug} onImported={load} />
+              {/* City-level demographics. The table and the panel that
+                  renders it have existed since migration 032, but
+                  nothing ever wrote to it, so the section never
+                  appeared on a buyer sheet. */}
+              <MarketResearch
+                city={deal?.city}
+                state={deal?.state}
+                zip={deal?.zip}
+                onSaved={load}
+              />
             </div>
           </>
         )}

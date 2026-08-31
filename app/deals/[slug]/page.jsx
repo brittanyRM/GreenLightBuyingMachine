@@ -10,6 +10,7 @@ import BuyerMap from "../../../components/BuyerMap";
 import FloorPlanRender from "../../../components/FloorPlanRender";
 import ErrorBoundary from "../../../components/ErrorBoundary";
 import DealForm from "../../../components/DealForm";
+import CompImport from "../../../components/CompImport";
 import EmailComposer from "../../../components/EmailComposer";
 
 const GREEN = "#00A651";
@@ -281,7 +282,16 @@ export default function DealPage({ params }) {
         )}
 
         {tab === "record" && (
-          <DealForm initial={deal} initialMarket={market} onSaved={load} />
+          <>
+            <DealForm initial={deal} initialMarket={market} onSaved={load} />
+            {/* Sits under the record because comps are part of the
+                record, and because DealForm's own paste box takes the
+                short clipboard format while this one reads the full
+                summary report. */}
+            <div className="mx-auto max-w-4xl px-5 pb-10">
+              <CompImport slug={params.slug} onImported={load} />
+            </div>
+          </>
         )}
       </div>
     </div>

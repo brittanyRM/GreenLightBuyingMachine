@@ -1,6 +1,6 @@
 "use client";
 
-import { parseComps } from "../lib/comps";
+import { parseComps, normalizeExtractedComps } from "../lib/comps";
 import { useEffect, useState } from "react";
 import { saveDeal, slugify, upsertMarket, saveComps, supabase } from "../lib/queries";
 import DocumentIntake from "./DocumentIntake";
@@ -82,6 +82,13 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
   // "no comps". They were being lost silently: a failed deal write
   // aborts before saveComps runs, and nothing on screen said so.
   const [compsSaved, setCompsSaved] = useState(null);
+  // Comps as the extractor returned them, kept alongside the text box.
+  // The box shows a readable version so they can be checked, but the
+  // structured rows are what gets saved — flattening them to a line
+  // and re-parsing dropped the sale date, the MLS number and the days
+  // on market, and shifted a column whenever a field was missing.
+  const [extractedComps, setExtractedComps] = useState(null);
+  const [extractedText, setExtractedText] = useState("");
 
   useEffect(() => {
     if (!d?.id) return;
@@ -112,15 +119,26 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
     }));
     if (market?.zip) setMk((prev) => ({ ...prev, ...market }));
     if (comps?.length) {
-      setCompsText(
-        comps
-          .map((c) =>
-            [c.address, c.list_price, c.approx_sqft, c.price_per_sqft, c.sold_price]
-              .filter(Boolean)
-              .join("  ")
-          )
-          .join("\n")
-      );
+      const clean = normalizeExtractedComps(comps);
+      setExtractedComps(clean);
+      // Readable, and deliberately not the format parseComps expects —
+      // this is for checking against the packet, not for re-parsing.
+      const text = clean
+        .map((c) =>
+          [
+            c.mls_number || "—",
+            c.address,
+            c.comp_status,
+            c.approx_sqft ? `${c.approx_sqft} sqft` : "",
+            c.sold_price ? `$${c.sold_price.toLocaleString()}` : `$${(c.list_price || 0).toLocaleString()} list`,
+            c.sold_date || "",
+          ]
+            .filter(Boolean)
+            .join("  ")
+        )
+        .join("\n");
+      setCompsText(text);
+      setExtractedText(text);
     }
     setMsg({ ok: true, text: "Form filled from the packet. Review, then save." });
   }
@@ -138,6 +156,10 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
   async function handleSave() {
     setSaving(true);
     setMsg(null);
+    // Declared out here so the success message can report what the
+    // merge did, and so a failure after the comps write still knows
+    // they landed.
+    let compsResult = null;
     try {
       // Anything typed or pasted can still arrive as "$525,000"
       const NUM_FIELDS = [
@@ -191,13 +213,29 @@ export default function DealForm({ initial = {}, initialMarket = null, onSaved }
         });
       }
       if (compsText.trim()) {
-        const parsed = parseComps(compsText);
-        await saveComps(deal.id, parsed);
-        setCompsSaved(parsed.length);
+        // Untouched since extraction, so the structured rows still
+        // describe what is in the box. Edit the box and the text wins,
+        // because then it is the more recent statement of intent.
+        const useExtracted =
+          extractedComps?.length && compsText.trim() === extractedText.trim();
+        const parsed = useExtracted ? extractedComps : parseComps(compsText);
+        // Merges. Comps already on the deal are kept and updated in
+        // place rather than deleted and re-inserted, so a re-read of a
+        // packet that happens to contain fewer rows does not throw the
+        // rest away.
+        compsResult = await saveComps(deal.id, parsed);
+        setCompsSaved(compsResult.rows.length);
       }
 
       setD(deal);
-      setMsg({ ok: true, text: `Saved. Slug: ${deal.slug}` });
+      setMsg({
+        ok: true,
+        text: compsResult
+          ? `Saved. Slug: ${deal.slug} — comps: ${compsResult.inserted} added, ` +
+            `${compsResult.updated} updated, ${compsResult.unchanged} unchanged` +
+            (compsResult.kept ? `, ${compsResult.kept} already on the deal left alone` : "")
+          : `Saved. Slug: ${deal.slug}`,
+      });
       onSaved?.(deal);
     } catch (e) {
       // A failed deal write aborts before the comps are saved. Say so,

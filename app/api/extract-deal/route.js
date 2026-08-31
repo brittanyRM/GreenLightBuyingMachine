@@ -72,6 +72,7 @@ Extract into JSON. Use null for anything not present — never guess, never infe
   },
   "comps": [
     {
+      "mls_number": "the MLS number, usually the leftmost column",
       "address": null,
       "comp_status": "closed | pending | active | ucb | ccbs",
       "list_price": null,
@@ -88,6 +89,7 @@ Extract into JSON. Use null for anything not present — never guess, never infe
 }
 
 Comps — the sale date matters more than anything derived:
+- mls_number identifies the row. It is a 6-8 digit number in the first column. Read it digit by digit; it is how a re-import matches an existing comp rather than duplicating it, so a single wrong digit creates a comp that does not exist.
 - sold_date is required on every closed comp. It is usually a column headed "Sold Date", "Close of Escrow", "COE" or "Closed". Read it even when it is abbreviated (3/14/26 is 2026-03-14).
 - Never leave sold_date null on a closed sale. A comp without a date can't be weighted, and a stale sale is worse than no comp.
 - price_per_sqft is derived, not observed. If it disagrees with sold_price divided by approx_sqft, report the sale price and the area and leave price_per_sqft null — the calculation is done later.

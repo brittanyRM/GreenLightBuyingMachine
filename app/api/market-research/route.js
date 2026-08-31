@@ -64,6 +64,66 @@ Rules:
 - Never estimate, interpolate or round to make a set look complete. Null is a real answer and a wrong number is worse than a missing one.
 - notes is for a buyer deciding whether people will rent rooms here. Employment concentration, a single dominant employer, a university, a growing or shrinking population — the things that make room demand durable or fragile.`;
 
+// GET — which cities have a report and which don't.
+//
+// The table is keyed by city, so one run covers every deal in that
+// city. Without a view of coverage that saving is invisible: you can
+// research Phoenix from one deal and have no way of knowing the other
+// two Phoenix deals are now covered, or that Chandler never was.
+export async function GET(req) {
+  if (!(await requireTeam(req))) {
+    return NextResponse.json({ error: "Not authorized." }, { status: 401 });
+  }
+
+  const [{ data: deals }, { data: reports }] = await Promise.all([
+    admin().from("deals").select("id, slug, address_line, city, state, zip"),
+    admin().from("market_reports").select("*").eq("active", true),
+  ]);
+
+  const key = (c, st) => `${String(c || "").toLowerCase()}|${String(st || "").toLowerCase()}`;
+  const byPlace = new Map();
+  for (const r of reports || []) byPlace.set(key(r.city, r.state), r);
+
+  const places = new Map();
+  for (const d of deals || []) {
+    if (!d.city || !d.state) continue;
+    const k = key(d.city, d.state);
+    if (!places.has(k))
+      places.set(k, { city: d.city, state: d.state, deals: [], report: byPlace.get(k) || null });
+    places.get(k).deals.push({ slug: d.slug, address: d.address_line });
+  }
+
+  const STALE_DAYS = 180;
+  const rows = [...places.values()].map((p) => {
+    const asOf = p.report?.as_of || p.report?.updated_at || null;
+    const ageDays = asOf ? Math.floor((Date.now() - new Date(asOf).getTime()) / 86400000) : null;
+    return {
+      city: p.city,
+      state: p.state,
+      dealCount: p.deals.length,
+      deals: p.deals,
+      hasReport: !!p.report,
+      asOf,
+      ageDays,
+      // Rents and population move. A report from last year is not
+      // wrong so much as no longer evidence.
+      stale: ageDays != null && ageDays > STALE_DAYS,
+      population: p.report?.population ?? null,
+      medianIncome: p.report?.median_household_income ?? null,
+      employers: p.report?.major_employers?.length ?? 0,
+    };
+  });
+
+  rows.sort((a, b) => Number(a.hasReport) - Number(b.hasReport) || b.dealCount - a.dealCount);
+
+  return NextResponse.json({
+    places: rows,
+    covered: rows.filter((r) => r.hasReport && !r.stale).length,
+    total: rows.length,
+    dealsUncovered: rows.filter((r) => !r.hasReport).reduce((a, r) => a + r.dealCount, 0),
+  });
+}
+
 export async function POST(req) {
   if (!(await requireTeam(req))) {
     return NextResponse.json({ error: "Not authorized." }, { status: 401 });

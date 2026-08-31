@@ -10,7 +10,7 @@
 // confidence mark first; saving is a separate decision.
 // ============================================================
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/queries";
 
 const GREEN = "#00A651";
@@ -41,6 +41,37 @@ export default function MarketResearch({ city, state, zip, onSaved }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [savedMsg, setSavedMsg] = useState(null);
+  // Whether this city already has a report, and how old. The table is
+  // keyed by city, so a deal can be covered by research run from a
+  // different house — without saying so, every deal looks unresearched
+  // and the work gets repeated.
+  const [existing, setExisting] = useState(undefined);
+
+  useEffect(() => {
+    if (!city || !state) return;
+    let dead = false;
+    (async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const res = await fetch("/api/market-research", {
+          headers: { Authorization: `Bearer ${sess?.session?.access_token || ""}` },
+        });
+        const j = await res.json();
+        if (dead) return;
+        const hit = (j.places || []).find(
+          (p) =>
+            p.city?.toLowerCase() === city.toLowerCase() &&
+            p.state?.toLowerCase() === state.toLowerCase()
+        );
+        setExisting(hit || null);
+      } catch {
+        if (!dead) setExisting(null);
+      }
+    })();
+    return () => {
+      dead = true;
+    };
+  }, [city, state, savedMsg]);
 
   const call = async (save) => {
     setBusy(true);
@@ -98,6 +129,29 @@ export default function MarketResearch({ city, state, zip, onSaved }) {
             </strong>
             . Shown for review first — nothing is saved until you say so.
           </p>
+          {existing !== undefined && (
+            <p className="mt-1 text-[11px]">
+              {existing?.hasReport ? (
+                <span className={existing.stale ? "text-amber-800" : "text-neutral-500"}>
+                  Researched
+                  {existing.asOf ? ` ${new Date(existing.asOf).toLocaleDateString()}` : ""}
+                  {existing.ageDays != null ? ` · ${existing.ageDays} days ago` : ""}
+                  {existing.stale ? " — old enough to be worth re-running" : ""}
+                  {existing.dealCount > 1
+                    ? ` · covers ${existing.dealCount} deals in ${city}`
+                    : ""}
+                </span>
+              ) : (
+                <span className="text-amber-800">
+                  No report for {city} yet
+                  {existing?.dealCount > 1
+                    ? ` — running it covers all ${existing.dealCount} ${city} deals`
+                    : ""}
+                  .
+                </span>
+              )}
+            </p>
+          )}
         </div>
         <button
           onClick={() => call(false)}

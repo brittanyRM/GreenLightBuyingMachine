@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../../../lib/queries";
+import MarketCoverage from "../../../components/MarketCoverage";
 
 const GREEN = "#00A651";
 const STALE_DAYS = 90;
@@ -110,6 +111,14 @@ export default function MarketSettings() {
         <a href="/settings" className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900">
           ← Settings
         </a>
+      </div>
+
+      {/* City demographics, distinct from the PadSplit ZIP rates below.
+          Both are "market data" and they answer different questions:
+          the ZIP table is what a room lets for, this is whether the
+          city has people and jobs to fill it. */}
+      <div className="mt-5">
+        <MarketCoverage />
       </div>
 
       {error && (

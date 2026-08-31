@@ -38,6 +38,9 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
   const holder = useRef(null);
   const mapRef = useRef(null);
   const layersRef = useRef({ markets: null, comps: null });
+  // Kept so the zoom buttons can return to a known frame rather than
+  // stepping out one level at a time.
+  const boundsRef = useRef({ near: null, all: null });
 
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -88,7 +91,13 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
           attribution: "&copy; OpenStreetMap contributors",
         }).addTo(map);
 
+        // Two sets. The ZIP markers span the whole metro, so fitting
+        // to them zooms out until the comps are a single cluster of
+        // dots — which is what made this unreadable. The default view
+        // is the subject and the sales it is priced against; the ZIPs
+        // are context you can zoom out to.
         const bounds = [[lat, lng]];
+        const nearBounds = [[lat, lng]];
 
         const marketLayer = L.layerGroup();
         for (const m of plottableMarkets) {
@@ -122,12 +131,24 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
             fillOpacity: 0.95,
           })
             .bindTooltip(
-              `${c.address || "Comp"} · ${usd0(c.sold_price || c.list_price)}`,
-              { direction: "top" }
+              `<span style="background:#fff;border:1px solid ${COMP};color:#1B2A20;border-radius:4px;font:700 10.5px system-ui;padding:2px 5px;white-space:nowrap">${usd0(
+                c.sold_price || c.list_price
+              )}</span>`,
+              {
+                // Permanent: the price is the reason a comp is on the
+                // map, and hiding it behind a hover means it cannot be
+                // read at all on a phone.
+                permanent: true,
+                direction: "top",
+                offset: [0, -6],
+                opacity: 1,
+                className: "",
+              }
             )
             .on("click", () => setSelected({ kind: "comp", data: c }))
             .addTo(compLayer);
           bounds.push([Number(c.latitude), Number(c.longitude)]);
+          nearBounds.push([Number(c.latitude), Number(c.longitude)]);
         }
         layersRef.current.comps = compLayer;
         compLayer.addTo(map);
@@ -155,7 +176,16 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
           })
           .addTo(map);
 
-        if (bounds.length > 1) map.fitBounds(bounds, { padding: [44, 44] });
+        // maxZoom so a deal with one nearby comp doesn't land on the
+        // roof of a single house with no streets for orientation.
+        const fitTo = nearBounds.length > 1 ? nearBounds : bounds;
+        if (fitTo.length > 1) map.fitBounds(fitTo, { padding: [44, 44], maxZoom: 15 });
+        boundsRef.current = { near: nearBounds, all: bounds };
+
+        // Scroll-to-zoom is off until the map is clicked, so scrolling
+        // the page past it doesn't get captured. Once someone has
+        // clicked into it, they mean to be here.
+        map.once("click", () => map.scrollWheelZoom.enable());
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -259,6 +289,31 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
                     label="Comparable sales"
                     count={plottableComps.length}
                   />
+                  {/* Two framings rather than pinch-and-hunt. The
+                      neighbourhood is what a buyer is judging; the metro
+                      is where the ZIP data lives. */}
+                  <span className="ml-auto flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        const b = boundsRef.current.near;
+                        if (mapRef.current && b?.length > 1)
+                          mapRef.current.fitBounds(b, { padding: [44, 44], maxZoom: 15 });
+                      }}
+                      className="rounded border border-neutral-300 px-2 py-1 text-[10.5px] font-semibold text-neutral-700 hover:border-neutral-500"
+                    >
+                      This neighbourhood
+                    </button>
+                    <button
+                      onClick={() => {
+                        const b = boundsRef.current.all;
+                        if (mapRef.current && b?.length > 1)
+                          mapRef.current.fitBounds(b, { padding: [30, 30] });
+                      }}
+                      className="rounded border border-neutral-300 px-2 py-1 text-[10.5px] font-semibold text-neutral-700 hover:border-neutral-500"
+                    >
+                      All ZIPs
+                    </button>
+                  </span>
                   {comps.length > plottableComps.length && (
                     <span className="text-[10px] text-neutral-400">
                       {comps.length - plottableComps.length} comp
@@ -355,12 +410,12 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
                 <div className="grid gap-3 lg:grid-cols-[1fr_300px]">
                   <div
                     ref={holder}
-                    className="h-[460px] w-full overflow-hidden rounded-lg border border-neutral-200"
+                    className="h-[560px] w-full overflow-hidden rounded-lg border border-neutral-200"
                     style={{ background: "#EEF2F0" }}
                   />
 
                   {/* The numbers, readable without hovering anything. */}
-                  <div className="max-h-[460px] overflow-y-auto rounded-lg border border-neutral-200">
+                  <div className="max-h-[560px] overflow-y-auto rounded-lg border border-neutral-200">
                     {showMarkets && plottableMarkets.length > 0 && (
                       <div>
                         <div className="sticky top-0 border-b border-neutral-200 bg-neutral-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-neutral-500">
@@ -462,8 +517,10 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
 
                 <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">
                   Marker size is active units; colour is occupancy against the
-                  local median. Tap any row to centre the map on it. PadSplit
-                  data as last recorded — occupancy and rates move.
+                  local median. Comp prices are labelled on the map. Tap any row
+                  to centre on it, and click the map once to turn on scroll
+                  zoom. PadSplit data as last recorded &mdash; occupancy and
+                  rates move.
                 </p>
               </>
             )}

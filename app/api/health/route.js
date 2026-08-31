@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { admin } from "../../../lib/supabaseAdmin";
 import { requireTeam } from "../../../lib/buyerAuth";
+import { APP_VERSION, APP_BUILT } from "../../../lib/version";
 
 export const dynamic = "force-dynamic";
 
@@ -157,14 +158,30 @@ export async function GET(req) {
 
   const forSale = (deals || []).filter((d) => d.status === "for_sale");
 
+  // Assignment grants visibility too, so "no deals for sale" stopped
+  // meaning "the portal is empty". Reporting it as a failure while a
+  // buyer had an assigned deal sent us looking in the wrong place.
+  const { data: liveAssigned } = await admin()
+    .from("deal_assignments")
+    .select("deal_id, org_id, status, expires_at");
+  const assignedNow = (liveAssigned || []).filter(
+    (a) => a.status !== "released" && (!a.expires_at || new Date(a.expires_at) > new Date())
+  );
+  const assignedDealIds = new Set(assignedNow.map((a) => a.deal_id));
+  const assignedNotSold = (deals || []).filter(
+    (d) => assignedDealIds.has(d.id) && d.status !== "sold"
+  );
+  const reachable = new Set([...forSale.map((d) => d.id), ...assignedNotSold.map((d) => d.id)]);
+
   add(
     "Data",
-    "Deals for sale",
-    forSale.length > 0,
-    forSale.length
-      ? `${forSale.length} visible to buyers`
+    "Deals buyers can see",
+    reachable.size > 0,
+    reachable.size
+      ? `${reachable.size} reachable — ${forSale.length} for sale, ` +
+        `${assignedNotSold.length} by assignment`
       : "none — the buyer portal will be empty",
-    "Set a deal's status to for_sale on the Record tab."
+    "Set a deal's status to for_sale, or assign one to a buying firm."
   );
 
   for (const d of forSale) {
@@ -272,6 +289,12 @@ export async function GET(req) {
   const failed = checks.filter((c) => !c.ok);
   return NextResponse.json({
     ok: failed.length === 0,
+    // Which build is actually answering. Half an hour went into a
+    // buyer-portal bug that could not be diagnosed because there was
+    // no way to tell from the outside whether the deployed code was
+    // the code being reasoned about.
+    version: APP_VERSION,
+    built: APP_BUILT,
     summary: { total: checks.length, passed: checks.length - failed.length, failed: failed.length },
     checks,
   });

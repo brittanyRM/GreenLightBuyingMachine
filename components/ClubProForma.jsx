@@ -20,7 +20,7 @@ import { useEffect, useMemo, useState } from "react";
 import { runClubProForma, downPaymentOptions, usd, pct, multiple } from "../lib/proformaClub";
 import { resolveLabel, toTemplateLens } from "../lib/proformaClubPresets";
 import { BrandMark } from "./Brand";
-import { computeProForma } from "../lib/proforma";
+import { computeProForma, roomRate } from "../lib/proforma";
 import {
   CapitalRequired,
   IncomeAndExpenses,

@@ -31,12 +31,13 @@ export async function GET(req) {
       .select(BUYER_DEAL_SELECT)
       .in("status", BUYER_VISIBLE_STATUS)
       .order("updated_at", { ascending: false }),
+    // Fetched by id alone. The sold exclusion is applied in JS below
+    // rather than as .not("status","in",...) — PostgREST is particular
+    // about that syntax and a filter it rejects comes back as an empty
+    // set with no error, which is indistinguishable from "this firm has
+    // no assignments" and impossible to spot from the outside.
     assignedIds.length
-      ? admin()
-          .from("deals")
-          .select(BUYER_DEAL_SELECT)
-          .in("id", assignedIds)
-          .not("status", "in", `(${BUYER_ASSIGNED_HIDDEN_STATUS.join(",")})`)
+      ? admin().from("deals").select(BUYER_DEAL_SELECT).in("id", assignedIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -45,7 +46,10 @@ export async function GET(req) {
 
   const seen = new Set();
   const data = [];
-  for (const d of [...(assigned.data || []), ...(forSale.data || [])]) {
+  const assignedVisible = (assigned.data || []).filter(
+    (d) => !BUYER_ASSIGNED_HIDDEN_STATUS.includes(d.status)
+  );
+  for (const d of [...assignedVisible, ...(forSale.data || [])]) {
     if (seen.has(d.id)) continue;
     seen.add(d.id);
     data.push(d);

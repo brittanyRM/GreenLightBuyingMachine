@@ -51,6 +51,15 @@ export default function HealthPage() {
             Migrations, settings and data completeness. Anything failing here
             shows up in the app as a blank panel or an empty list.
           </p>
+          {/* Which build is answering. Without it there is no way to
+              tell a bug in the code from a deploy that never landed,
+              and the two look identical from the browser. */}
+          {data?.version && (
+            <p className="mt-1 text-[12px] font-semibold text-neutral-900">
+              Running version {data.version}
+              {data.built ? ` · built ${data.built}` : ""}
+            </p>
+          )}
         </div>
         <button
           onClick={run}

@@ -9,11 +9,12 @@ export const dynamic = "force-dynamic";
 // client component and this route runs on the server.
 const BUYER_VIEW_IDS = [
   "summary",
+  "flyer",
   "numbers",
-  "property",
-  "market",
-  "diligence",
+  "comps",
+  "padsplit",
   "syndication",
+  "diligence",
 ];
 
 export async function GET(req) {

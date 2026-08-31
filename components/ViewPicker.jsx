@@ -47,7 +47,7 @@ export default function ViewPicker({ sections, selected, onToggle, onAll, onOnly
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {sections.map((sec) => {
           const on = selected.has(sec.id);
           return (

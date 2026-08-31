@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 // the sections that existed before entitlements, so an unmigrated or
 // newly created firm is not silently shown less than it was.
 // Syndication is deliberately absent: it is opt-in per firm.
-const DEFAULT_BUYER_VIEWS = ["summary", "numbers", "property", "market", "diligence"];
+const DEFAULT_BUYER_VIEWS = ["summary", "flyer", "numbers", "comps", "padsplit", "diligence"];
 
 export async function GET(req, { params }) {
   const buyer = await getBuyerFromRequest(req);

@@ -62,20 +62,29 @@ import {
 
 const GREEN = "#00A651";
 
+// The tiles a buyer picks from, in reading order.
+//
+// "Comps & market" used to be one tile carrying two unrelated things:
+// houses that sold nearby, and PadSplit's figures for the ZIP. A buyer
+// checking what the neighbours went for and a buyer checking room
+// rates are asking different questions, and one of those is Green
+// Light's evidence while the other is a third party's. Separate tiles,
+// separately labelled.
 const SECTIONS = [
   { id: "summary", label: "Summary", hint: "the deal in one screen" },
+  { id: "flyer", label: "Flyer", hint: "photos, specs, floor plan, finishes" },
   { id: "numbers", label: "Pro forma", hint: "income, costs, financing" },
-  { id: "property", label: "The property", hint: "specs, floor plan, finishes" },
-  { id: "market", label: "Comps & market", hint: "what sold nearby, PadSplit data" },
-  { id: "diligence", label: "Diligence", hint: "documents and assumptions" },
+  { id: "comps", label: "Comps", hint: "recent sales near this house" },
+  { id: "padsplit", label: "PadSplit market", hint: "ZIP room rates and occupancy" },
   { id: "syndication", label: "Syndication", hint: "raise, waterfall, break-even" },
+  { id: "diligence", label: "Diligence", hint: "documents and assumptions" },
 ];
 
-// Which tiles are lit when a buyer arrives with nothing in the URL.
-// Not all five: the first screen should be readable without scrolling
-// past four sections to reach the ask. Not one either — the two a
-// buyer opens the link for are the numbers and the comps.
-const DEFAULT_VIEWS = ["summary", "numbers", "market"];
+// Lit on arrival. The four a buyer opens the link for; the rest are
+// one click away. Syndication is never a default — it is entitlement
+// gated per firm.
+const DEFAULT_VIEWS = ["summary", "flyer", "numbers", "comps"];
+
 
 const SCENARIOS = [
   {
@@ -636,7 +645,7 @@ export default function ClubProForma({
           />
         )}
 
-        {isBuyer && show("property") && deal && (
+        {isBuyer && show("flyer") && deal && (
           <PropertyGallery
             gallery={deal.gallery}
             address={deal.address_line}
@@ -690,7 +699,7 @@ export default function ClubProForma({
           />
         )}
 
-        {isBuyer && show("property") && deal && (
+        {isBuyer && show("flyer") && deal && (
           <FloorPlan
             url={deal.marketed_floor_plan_url}
             beds={p.beds}
@@ -1047,7 +1056,7 @@ export default function ClubProForma({
 
         {/* ---------------- page one ---------------- */}
         <div className="px-6 py-6 sm:px-8">
-          {isBuyer && show("property") && deal && (
+          {isBuyer && show("flyer") && deal && (
             <div className="print-section mb-7">
               <FlyerHeading>Specifications</FlyerHeading>
               <PropertyFacts deal={deal} beds={p.beds} baths={p.baths} />
@@ -1056,25 +1065,29 @@ export default function ClubProForma({
 
           {/* With the property, not with the financials. Someone
               reading the specifications is asking what and where this
-              is; the map answers the second half. */}
-          {isBuyer && show("property") && (
+              is; the map answers the second half.
+
+              Filed under comps rather than the flyer: what it plots is
+              the comparable sales around the subject, so it belongs
+              with the table it illustrates. */}
+          {isBuyer && show("comps") && (
             <BuyerMap deal={deal} markets={nearbyMarkets} comps={comps} subjectMarket={market} />
           )}
 
-          {isBuyer && show("market") && (
+          {isBuyer && show("comps") && (
             <BuyerComps
               subject={{ price: cap.purchasePrice, sqft: p.sqft, beds: p.beds }}
             />
           )}
 
-          {isBuyer && show("market") && comps.length > 1 && (
+          {isBuyer && show("comps") && comps.length > 1 && (
             <CompsScatter
               comps={comps}
               subject={{ sqft: p.sqft, price: cap.purchasePrice, beds: p.beds }}
             />
           )}
 
-          {isBuyer && show("market") && comps.length > 0 && (
+          {isBuyer && show("comps") && comps.length > 0 && (
             <div className="print-section mb-7">
               <FlyerHeading>Comparable Sales</FlyerHeading>
               <CompsTable
@@ -1425,8 +1438,8 @@ export default function ClubProForma({
 
         {isBuyer && show("diligence") && <SupportingDocuments documents={documents} />}
 
-        {isBuyer && core && show("market") && <MarketPanel market={market} deal={deal} />}
-        {isBuyer && show("market") && marketReport && (
+        {isBuyer && core && show("padsplit") && <MarketPanel market={market} deal={deal} />}
+        {isBuyer && show("padsplit") && marketReport && (
           <MarketReport report={marketReport} city={deal?.city} state={deal?.state} />
         )}
 

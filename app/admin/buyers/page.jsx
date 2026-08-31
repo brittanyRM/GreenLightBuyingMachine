@@ -43,13 +43,14 @@ const GREEN = "#00A651";
 // BUYER_VIEW_IDS in the orgs admin route.
 const BUYER_VIEWS = [
   ["summary", "Summary"],
+  ["flyer", "Flyer"],
   ["numbers", "Pro forma"],
-  ["property", "The property"],
-  ["market", "Comps & market"],
-  ["diligence", "Diligence"],
+  ["comps", "Comps"],
+  ["padsplit", "PadSplit market"],
   ["syndication", "Syndication"],
+  ["diligence", "Diligence"],
 ];
-const DEFAULT_BUYER_VIEWS = ["summary", "numbers", "property", "market", "diligence"];
+const DEFAULT_BUYER_VIEWS = ["summary", "flyer", "numbers", "comps", "padsplit", "diligence"];
 
 function Field({ label, ...props }) {
   return (

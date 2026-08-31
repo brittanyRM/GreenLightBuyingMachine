@@ -3,7 +3,8 @@ import { admin } from "../../../../../lib/supabaseAdmin";
 import {
   getBuyerFromRequest,
   BUYER_DEAL_SELECT,
-  BUYER_VISIBLE_STATUS,
+  liveAssignmentsFor,
+  buyerCanSee,
   scrubDeal,
 } from "../../../../../lib/buyerAuth";
 
@@ -23,7 +24,6 @@ export async function GET(req, { params }) {
     .from("deals")
     .select(BUYER_DEAL_SELECT)
     .eq("slug", params.slug)
-    .in("status", BUYER_VISIBLE_STATUS)
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -31,6 +31,16 @@ export async function GET(req, { params }) {
   // Same 404 whether the deal doesn't exist or isn't for sale — a
   // buyer shouldn't be able to probe slugs to learn the pipeline.
   if (!deal) return NextResponse.json({ error: "Not found." }, { status: 404 });
+
+  // The query above no longer filters on status, because a deal this
+  // firm is assigned should be reachable whatever its status. That
+  // makes the decision this route's job — without it, removing the
+  // filter would hand every buyer every deal.
+  const { mine } = await liveAssignmentsFor(admin(), buyer.org.id);
+  if (!buyerCanSee(deal, mine)) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+
 
   const [
     { data: rooms },

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { admin } from "../../../../lib/supabaseAdmin";
-import { getBuyerFromRequest, BUYER_VISIBLE_STATUS } from "../../../../lib/buyerAuth";
+import {
+  getBuyerFromRequest,
+  liveAssignmentsFor,
+  buyerCanSee,
+} from "../../../../lib/buyerAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -53,11 +57,20 @@ export async function POST(req) {
 
   const { data: deal } = await admin()
     .from("deals")
-    .select("id")
+    .select("id, status")
     .eq("slug", slug || "")
-    .in("status", BUYER_VISIBLE_STATUS)
     .maybeSingle();
   if (!deal) return NextResponse.json({ error: "Not found." }, { status: 404 });
+
+  // The query above no longer filters on status, because a deal this
+  // firm is assigned should be reachable whatever its status. That
+  // makes the decision this route's job — without it, removing the
+  // filter would hand every buyer every deal.
+  const { mine } = await liveAssignmentsFor(admin(), buyer.org.id);
+  if (!buyerCanSee(deal, mine)) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+
 
   const kind = KINDS.includes(form.get("kind")) ? form.get("kind") : "comps";
   const safe = String(file.name || "upload")

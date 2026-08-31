@@ -6,6 +6,8 @@ import {
   getBuyerFromRequest,
   BUYER_DEAL_SELECT,
   BUYER_VISIBLE_STATUS,
+  BUYER_ASSIGNED_HIDDEN_STATUS,
+  liveAssignmentsFor,
   scrubDeal,
 } from "../../../../lib/buyerAuth";
 
@@ -15,38 +17,41 @@ export async function GET(req) {
   const buyer = await getBuyerFromRequest(req);
   if (!buyer) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const { data, error } = await admin()
-    .from("deals")
-    .select(BUYER_DEAL_SELECT)
-    .in("status", BUYER_VISIBLE_STATUS)
-    .order("updated_at", { ascending: false });
+  // Assignments first, because they widen what the status filter
+  // allows rather than only narrowing it.
+  const { mine, exclusiveElsewhere } = await liveAssignmentsFor(admin(), buyer.org.id);
+  const assignedIds = Object.keys(mine);
 
+  // Two reads rather than one: everything for sale, plus anything this
+  // firm has been assigned whatever its status. A single .in() on
+  // status could not express "for_sale OR assigned to me".
+  const [forSale, assigned] = await Promise.all([
+    admin()
+      .from("deals")
+      .select(BUYER_DEAL_SELECT)
+      .in("status", BUYER_VISIBLE_STATUS)
+      .order("updated_at", { ascending: false }),
+    assignedIds.length
+      ? admin()
+          .from("deals")
+          .select(BUYER_DEAL_SELECT)
+          .in("id", assignedIds)
+          .not("status", "in", `(${BUYER_ASSIGNED_HIDDEN_STATUS.join(",")})`)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const error = forSale.error || assigned.error;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Assignments. An exclusive held by another buyer is filtered out
-  // entirely; one held by this buyer is flagged. An expired exclusive
-  // reverts to ordinary visibility rather than vanishing.
-  let assignments = [];
-  const asg = await admin()
-    .from("deal_assignments")
-    .select("deal_id, org_id, status, expires_at, note");
-  if (!asg.error) assignments = asg.data || [];
-
-  const live = (a) =>
-    a.status !== "released" && (!a.expires_at || new Date(a.expires_at) > new Date());
-
-  const mine = {};
-  const exclusiveElsewhere = new Set();
-  for (const a of assignments) {
-    if (!live(a)) continue;
-    if (a.org_id === buyer.org.id) mine[a.deal_id] = a;
-    else if (a.status === "exclusive" || a.status === "reserved")
-      exclusiveElsewhere.add(a.deal_id);
+  const seen = new Set();
+  const data = [];
+  for (const d of [...(assigned.data || []), ...(forSale.data || [])]) {
+    if (seen.has(d.id)) continue;
+    seen.add(d.id);
+    data.push(d);
   }
 
-  const visible = (data || []).filter(
-    (d) => mine[d.id] || !exclusiveElsewhere.has(d.id)
-  );
+  const visible = data.filter((d) => mine[d.id] || !exclusiveElsewhere.has(d.id));
 
   // Which of these has this firm already raised a hand on.
   const { data: interest } = await admin()

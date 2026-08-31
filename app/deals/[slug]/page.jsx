@@ -225,12 +225,29 @@ export default function DealPage({ params }) {
               subjectMarket={market}
             />
 
-            {comps.filter((c) => c.latitude).length < comps.length && (
+            {/* Shown when the subject has no coordinates as well as when
+                the comps don't. A deal with no lat/long gives the map
+                nothing to centre on, so it renders blank — and the old
+                condition only looked at comps, which meant the one
+                button that would fix it stayed hidden. */}
+            {(!deal?.latitude ||
+              !deal?.longitude ||
+              comps.filter((c) => c.latitude).length < comps.length) && (
               <div className="mt-3 rounded border border-neutral-200 bg-white px-4 py-3">
                 <p className="text-[12px] text-neutral-700">
-                  {comps.length - comps.filter((c) => c.latitude).length} of{" "}
-                  {comps.length} comps have no coordinates, so they aren&rsquo;t
-                  on the map.
+                  {!deal?.latitude || !deal?.longitude ? (
+                    <>
+                      This property has no coordinates, so the map has nothing to
+                      centre on and stays blank.{" "}
+                    </>
+                  ) : null}
+                  {comps.length - comps.filter((c) => c.latitude).length > 0 ? (
+                    <>
+                      {comps.length - comps.filter((c) => c.latitude).length} of{" "}
+                      {comps.length} comps have no coordinates, so they
+                      aren&rsquo;t on the map.
+                    </>
+                  ) : null}
                 </p>
                 <button
                   onClick={async () => {
@@ -255,7 +272,8 @@ export default function DealPage({ params }) {
                           ? `The geocoder refused this server after ${j.located} of ${j.attempted}. ${
                               j.failures?.[0]?.reason || ""
                             }`
-                          : `Placed ${j.located} of ${j.attempted}.` +
+                          : (j.dealLocated ? "Placed the property. " : "") +
+                            `Placed ${j.located} of ${j.attempted} comps.` +
                             (j.failed
                               ? ` ${j.failed} failed — ${j.failures
                                   ?.map((f) => `${f.address}: ${f.reason}`)
@@ -273,7 +291,7 @@ export default function DealPage({ params }) {
                   className="mt-2 rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-50"
                   style={{ backgroundColor: GREEN }}
                 >
-                  {geocoding ? "Placing…" : "Place comps on the map"}
+                  {geocoding ? "Placing…" : "Place on the map"}
                 </button>
                 {geoMsg && (
                   <span className="ml-3 text-[12px] text-neutral-600">{geoMsg}</span>

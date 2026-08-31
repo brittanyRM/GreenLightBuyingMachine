@@ -29,7 +29,7 @@ export async function POST(req) {
 
   const { data: deal } = await admin()
     .from("deals")
-    .select("id, city, state, zip")
+    .select("id, address_line, city, state, zip, latitude, longitude")
     .eq("slug", slug)
     .maybeSingle();
   if (!deal) return NextResponse.json({ error: "Property not found." }, { status: 404 });
@@ -41,16 +41,48 @@ export async function POST(req) {
     .is("latitude", null);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!comps?.length) {
-    return NextResponse.json({ located: 0, message: "All comps already placed." });
-  }
+  const compsToPlace = comps || [];
 
   let located = 0;
   let blocked = false;
+  let dealLocated = false;
   const failures = [];
 
-  for (const c of comps) {
+  // The subject first. This route only ever placed the comps, so a
+  // deal with no coordinates left the map with nothing to centre on
+  // and it rendered as an empty panel — the comps could all be placed
+  // and the map would still be blank.
+  if (!deal.latitude || !deal.longitude) {
+    const q = [deal.address_line, deal.city, deal.state, deal.zip].filter(Boolean).join(", ");
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(q)}`,
+        { headers: { "User-Agent": "GreenLightBuyingMachine/1.0 (deal mapping)", "Accept-Language": "en" } }
+      );
+      if (res.ok) {
+        const hits = await res.json();
+        if (hits?.[0]?.lat && hits[0].lon) {
+          await admin()
+            .from("deals")
+            .update({ latitude: Number(hits[0].lat), longitude: Number(hits[0].lon) })
+            .eq("id", deal.id);
+          dealLocated = true;
+        } else {
+          failures.push({ address: q, reason: "subject property not found at the geocoder" });
+        }
+      } else {
+        failures.push({ address: q, reason: `geocoder returned ${res.status} on the subject` });
+        if (res.status === 403 || res.status === 429) blocked = true;
+      }
+    } catch (e) {
+      failures.push({ address: q, reason: e.message || "subject lookup failed" });
+    }
+    await new Promise((r) => setTimeout(r, 1100));
+  }
+
+  for (const c of compsToPlace) {
     if (!c.address) continue;
+    if (blocked) break;
 
     // The comp address usually carries city and state already; add the
     // deal's as a fallback so a bare street line still resolves.
@@ -114,7 +146,8 @@ export async function POST(req) {
 
   return NextResponse.json({
     located,
-    attempted: comps.length,
+    dealLocated,
+    attempted: compsToPlace.length,
     failed: failures.length,
     blocked,
     // The reason, not just the count. "3 couldn't be found" and "the

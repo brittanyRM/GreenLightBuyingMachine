@@ -3,6 +3,12 @@ import { admin } from "../../../lib/supabaseAdmin";
 import { requireTeam } from "../../../lib/buyerAuth";
 
 export const dynamic = "force-dynamic";
+// One second per comp by policy, so ten comps is eleven seconds and the
+// default serverless ceiling cuts it off mid-loop. The work already
+// done is saved — each comp is written as it resolves — but the caller
+// gets a dead connection rather than a result, which reads as "the
+// button does nothing".
+export const maxDuration = 300;
 
 // Geocode a deal's comps so they can go on the buyer map.
 //
@@ -40,6 +46,7 @@ export async function POST(req) {
   }
 
   let located = 0;
+  let blocked = false;
   const failures = [];
 
   for (const c of comps) {
@@ -75,13 +82,30 @@ export async function POST(req) {
             .eq("id", c.id);
           located += 1;
         } else {
-          failures.push(c.address);
+          failures.push({ address: c.address, reason: "no match at the geocoder" });
         }
       } else {
-        failures.push(c.address);
+        // 403 and 429 are what a blocked or throttled caller gets, and
+        // they need different answers — one is "wait", the other is
+        // "this host is not allowed to use the service". Swallowing
+        // both into a count made them indistinguishable.
+        failures.push({
+          address: c.address,
+          reason: `geocoder returned ${res.status}${
+            res.status === 403
+              ? " — blocked. Nominatim refuses most cloud hosts; this needs a keyed provider."
+              : res.status === 429
+              ? " — rate limited."
+              : ""
+          }`,
+        });
+        if (res.status === 403 || res.status === 429) {
+          blocked = true;
+          break;
+        }
       }
-    } catch {
-      failures.push(c.address);
+    } catch (e) {
+      failures.push({ address: c.address, reason: e.message || "request failed" });
     }
 
     // One a second, per their usage policy.
@@ -90,7 +114,12 @@ export async function POST(req) {
 
   return NextResponse.json({
     located,
+    attempted: comps.length,
     failed: failures.length,
+    blocked,
+    // The reason, not just the count. "3 couldn't be found" and "the
+    // geocoder refused this server" are the same number and completely
+    // different problems.
     failures: failures.slice(0, 5),
   });
 }

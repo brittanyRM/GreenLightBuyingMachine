@@ -246,10 +246,22 @@ export default function DealPage({ params }) {
                         body: JSON.stringify({ slug: params.slug }),
                       });
                       const j = await res.json();
+                      // Show why, not just how many. A silent count is
+                      // what made this read as "the button does nothing".
                       setGeoMsg(
                         j.error
                           ? j.error
-                          : `Placed ${j.located}${j.failed ? `, ${j.failed} couldn't be found` : ""}. Reload to see them.`
+                          : j.blocked
+                          ? `The geocoder refused this server after ${j.located} of ${j.attempted}. ${
+                              j.failures?.[0]?.reason || ""
+                            }`
+                          : `Placed ${j.located} of ${j.attempted}.` +
+                            (j.failed
+                              ? ` ${j.failed} failed — ${j.failures
+                                  ?.map((f) => `${f.address}: ${f.reason}`)
+                                  .join("; ")}`
+                              : "") +
+                            " Reload to see them."
                       );
                     } catch (e) {
                       setGeoMsg(e.message);

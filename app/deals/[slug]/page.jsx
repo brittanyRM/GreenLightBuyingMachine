@@ -14,6 +14,7 @@ import EmailComposer from "../../../components/EmailComposer";
 
 const GREEN = "#00A651";
 
+// Tabs that swap the panel below. Everything here renders in place.
 const TABS = [
   { id: "sketch", label: "Sketch" },
   { id: "plan", label: "Plan" },
@@ -22,6 +23,20 @@ const TABS = [
   { id: "map", label: "Map" },
   { id: "email", label: "Email" },
   { id: "record", label: "Record" },
+];
+
+// Tabs that navigate. Both are standalone documents with their own
+// print layout and share flow, so they stay separate routes rather
+// than being mounted here — but they read as tabs because that is
+// what they are to whoever is working the deal. Tucked to the right
+// with an arrow they looked like an afterthought.
+//
+// "Club sheet" was the internal name for the format this was modelled
+// against and it meant nothing to anyone else. It is the sheet a buyer
+// is sent, so that is what it is called.
+const LINK_TABS = [
+  { id: "buyer-sheet", label: "Buyer sheet", href: (slug) => `/proforma-club/${slug}` },
+  { id: "financing", label: "Financing", href: (slug) => `/financing/${slug}` },
 ];
 
 export default function DealPage({ params }) {
@@ -113,21 +128,18 @@ export default function DealPage({ params }) {
             </button>
           ))}
 
-          {/* Links out rather than mounting a tab — the club sheet is a
-              standalone document with its own print layout and share
-              flow, and nothing on this page needs to know about it. */}
-          <a
-            href={`/proforma-club/${params.slug}`}
-            className="ml-auto self-center px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
-          >
-            Club sheet →
-          </a>
-          <a
-            href={`/financing/${params.slug}`}
-            className="self-center px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
-          >
-            Financing →
-          </a>
+          {/* Same shape as the tabs above, and a divider so it is
+              still clear these leave the page. */}
+          <span className="my-2 ml-2 mr-1 w-px self-stretch bg-neutral-800" aria-hidden="true" />
+          {LINK_TABS.map((t) => (
+            <a
+              key={t.id}
+              href={t.href(params.slug)}
+              className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
+            >
+              {t.label}
+            </a>
+          ))}
         </div>
       </div>
 

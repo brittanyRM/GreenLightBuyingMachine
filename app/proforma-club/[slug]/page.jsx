@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Club-format pro forma for a saved deal.
+// The buyer sheet for a saved deal.
 //
 // The working loop is: adjust assumptions → preview what a buyer
 // sees → share. Adjustments survive the preview toggle and are frozen

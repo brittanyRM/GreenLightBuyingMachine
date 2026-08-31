@@ -264,6 +264,20 @@ export default function ClubProForma({
     [views, allowedIds]
   );
   const [printing, setPrinting] = useState(false);
+
+  // The pro forma section carried eight blocks and several said the
+  // same thing twice: a ranked expense stack under a table of those
+  // expenses, an equity curve beside an investor-position table, a
+  // return-of-capital line beside cash-on-cash by year. All of it is
+  // real and none of it is what a buyer reads first.
+  //
+  // Collapsed rather than deleted, and gathered into one run at the
+  // end so a single control governs a single region — scattered
+  // toggles that pop content in above where you clicked are worse
+  // than the clutter they fix. Internal views and the printed sheet
+  // are unaffected.
+  const [detailOpen, setDetailOpen] = useState(false);
+  const showDetail = !isBuyer || printing || detailOpen;
   // Order matters. Entitlement is checked before printing, so a firm
   // cannot reach a section it was not given by opening the print
   // dialog. Everything else — seller and admin views — is unfiltered.
@@ -1132,40 +1146,14 @@ export default function ClubProForma({
           </div>
           )}
 
-          <div className="print-section mb-2">
-            <SectionTitle kicker="Year 1 · ranked">Expense stack</SectionTitle>
-            <ExpenseBars expenses={y1.expenses} />
           </div>
-        </div>
 
         {/* ---------------- page two ---------------- */}
         <div className="print-break-before px-6 py-6 sm:px-8">
-          <div className="print-section mb-7">
-            <SectionTitle kicker="Hold period">Equity, after the debt is repaid</SectionTitle>
-            <EquityCurve
-              years={s.years}
-              purchasePrice={cap.purchasePrice}
-              equityBasis={cap.totalCapitalizedEquity}
-            />
-            <p className="mt-2 text-[11px] leading-snug text-neutral-500">
-              The solid line is what the position is actually worth: property
-              value less the outstanding loan. The dashed line is gross property
-              value, shown for reference only — it is not a return.
-            </p>
-          </div>
 
           <div className="print-section mb-7">
             <SectionTitle kicker="By year">Cash-on-cash yield</SectionTitle>
             <CashOnCashBars years={s.years} />
-          </div>
-
-          <div className="print-section mb-7">
-            <SectionTitle kicker="Cumulative position">Return of capital</SectionTitle>
-            <BreakEvenCurve
-              years={s.years}
-              equityBasis={cap.totalCapitalizedEquity}
-              breakEvenMonths={s.breakEvenMonths}
-            />
           </div>
 
           {/* Internal only. A buyer has no case picker, so a chart
@@ -1265,6 +1253,55 @@ export default function ClubProForma({
             )}
           </div>
 
+          {isBuyer && (
+            <div className="no-print mb-6 border-t border-neutral-200 pt-4">
+              <button
+                onClick={() => setDetailOpen((v) => !v)}
+                className="text-[12px] font-semibold underline underline-offset-4"
+                style={{ color: "#00A651" }}
+              >
+                {detailOpen ? "Hide the full detail" : "Show the full detail"}
+              </button>
+              <span className="ml-2 text-[11.5px] text-neutral-500">
+                Expense ranking, equity and return-of-capital curves, and the
+                year-by-year cash flows.
+              </span>
+              <span className="ml-2 text-[11px] text-neutral-400">
+                In the printed sheet either way.
+              </span>
+            </div>
+          )}
+
+          {showDetail && (
+            <>
+          <div className="print-section mb-2">
+            <SectionTitle kicker="Year 1 · ranked">Expense stack</SectionTitle>
+            <ExpenseBars expenses={y1.expenses} />
+          </div>
+
+          <div className="print-section mb-7">
+            <SectionTitle kicker="Hold period">Equity, after the debt is repaid</SectionTitle>
+            <EquityCurve
+              years={s.years}
+              purchasePrice={cap.purchasePrice}
+              equityBasis={cap.totalCapitalizedEquity}
+            />
+            <p className="mt-2 text-[11px] leading-snug text-neutral-500">
+              The solid line is what the position is actually worth: property
+              value less the outstanding loan. The dashed line is gross property
+              value, shown for reference only — it is not a return.
+            </p>
+          </div>
+
+          <div className="print-section mb-7">
+            <SectionTitle kicker="Cumulative position">Return of capital</SectionTitle>
+            <BreakEvenCurve
+              years={s.years}
+              equityBasis={cap.totalCapitalizedEquity}
+              breakEvenMonths={s.breakEvenMonths}
+            />
+          </div>
+
           <div className="print-section">
             <SectionTitle kicker={`${inputs.exit.holdYears}-year hold`}>Cash flows</SectionTitle>
             <table className="w-full">
@@ -1311,6 +1348,8 @@ export default function ClubProForma({
               </tbody>
             </table>
           </div>
+            </>
+          )}
 
           {/* Internal only, and no-print on top of that — these two
               panels reference the benchmark method and must not reach

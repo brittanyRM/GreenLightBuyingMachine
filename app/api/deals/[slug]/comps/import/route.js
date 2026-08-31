@@ -63,12 +63,24 @@ export async function POST(req, { params }) {
     .select("id, mls_number, sold_price, list_price")
     .eq("deal_id", deal.id);
 
-  const byMls = new Map((existing || []).map((c) => [c.mls_number, c]));
+  // Matched on MLS number or, failing that, on a normalised address.
+  // Comps saved before the importer existed have no MLS number, so
+  // keying on it alone would insert a second copy of every house
+  // rather than filling in the columns that were missing.
+  const norm = (a) =>
+    String(a || "").toLowerCase().replace(/[.,]/g, "").replace(/\s+/g, " ").trim();
+  const byMls = new Map();
+  const byAddr = new Map();
+  for (const c of existing || []) {
+    if (c.mls_number) byMls.set(String(c.mls_number), c);
+    if (c.address) byAddr.set(norm(c.address), c);
+  }
+
   const toInsert = [];
   const toUpdate = [];
 
   for (const c of comps) {
-    const prior = byMls.get(c.mls_number);
+    const prior = byMls.get(String(c.mls_number)) || byAddr.get(norm(c.address));
     if (!prior) toInsert.push(c);
     else if (
       Number(prior.sold_price) !== Number(c.sold_price) ||

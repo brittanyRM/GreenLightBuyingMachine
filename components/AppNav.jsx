@@ -71,6 +71,18 @@ export default function AppNav() {
           </Link>
         ))}
 
+        {/* A static file in public/, not a route — a Link would try to
+            resolve it client-side and 404. Opens in its own tab so a
+            projection in progress isn't lost by navigating away. */}
+        <a
+          href="/buyer-calculator.html"
+          target="_blank"
+          rel="noopener"
+          className="rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-400 transition hover:text-neutral-200"
+        >
+          Calculator
+        </a>
+
         <button
           onClick={async () => {
             await supabase.auth.signOut();

@@ -143,6 +143,18 @@ export default function DealPage({ params }) {
               {t.label}
             </a>
           ))}
+
+          {/* Static file in public/, so a plain anchor. Opens in its
+              own tab — it is a scratchpad you run alongside a deal,
+              not somewhere you navigate to and come back from. */}
+          <a
+            href="/buyer-calculator.html"
+            target="_blank"
+            rel="noopener"
+            className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
+          >
+            Calculator
+          </a>
         </div>
       </div>
 

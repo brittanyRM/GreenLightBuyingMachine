@@ -12,7 +12,6 @@ const HIDDEN = ["/login", "/p/", "/s/", "/buyers"];
 
 const LINKS = [
   { href: "/", label: "Deals" },
-  { href: "/buyer-sheets", label: "Buyer sheets" },
   { href: "/crm", label: "CRM" },
   { href: "/admin/buyers", label: "Buyers" },
   { href: "/settings", label: "Settings" },

@@ -4,7 +4,8 @@
 // Club-format pro forma — screen and printed sheet.
 //
 // Takes a fully built inputs object. The demo route seeds it from
-// presets; /buyer-sheets/[slug] seeds it from the deals table.
+// presets. The internal buyer-sheet route was removed; this now
+// renders only for the buyer portal and share links.
 //
 // Laid out as a document rather than a dashboard, so Print produces
 // the thing on screen instead of a reflowed approximation. It borrows

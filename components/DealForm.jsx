@@ -1,0 +1,537 @@
+"use client";
+
+import { parseComps, normalizeExtractedComps } from "../lib/comps";
+import { useEffect, useState } from "react";
+import { saveDeal, slugify, upsertMarket, saveComps, supabase } from "../lib/queries";
+import DocumentIntake from "./DocumentIntake";
+import MediaUploader from "./MediaUploader";
+
+// ============================================================
+// Deal intake — the form that starts every deal.
+// Sections mirror the source documents so someone can key
+// straight off the assessor printout, the MLS comps sheet,
+// and the PadSplit market screen without hunting for fields.
+// ============================================================
+
+const GREEN = "#00A651";
+
+const STATUSES = [
+  "underwriting",
+  "acquiring",
+  "rehab",
+  "launching",
+  "for_sale",
+  "sold",
+];
+
+function Input({ label, value, onChange, type = "text", prefix, suffix, hint, span }) {
+  return (
+    <label className={`block ${span ? `sm:col-span-${span}` : ""}`}>
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-500">
+        {label}
+      </span>
+      <div className="mt-1 flex items-center rounded border border-neutral-300 bg-white focus-within:border-neutral-900">
+        {prefix && <span className="pl-2 text-sm text-neutral-400">{prefix}</span>}
+        <input
+          type={type}
+          value={value ?? ""}
+          onChange={(e) =>
+            onChange(
+              type === "number"
+                ? e.target.value === ""
+                  ? null
+                  : parseFloat(e.target.value)
+                : e.target.value
+            )
+          }
+          className="w-full bg-transparent px-2 py-1.5 text-sm outline-none"
+        />
+        {suffix && <span className="pr-2 text-xs text-neutral-400">{suffix}</span>}
+      </div>
+      {hint && <span className="mt-0.5 block text-[10px] text-neutral-400">{hint}</span>}
+    </label>
+  );
+}
+
+function Section({ title, source, children }) {
+  return (
+    <section className="mb-6">
+      <div className="mb-3 flex items-baseline justify-between border-b-2 border-neutral-900 pb-1">
+        <h2 className="text-[12px] font-bold uppercase tracking-[0.12em]">{title}</h2>
+        {source && (
+          <span className="text-[10px] italic text-neutral-400">from {source}</span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{children}</div>
+    </section>
+  );
+}
+
+export default function DealForm({ initial = {}, initialMarket = null, onSaved }) {
+  const [d, setD] = useState({
+    status: "underwriting",
+    visibility: "private",
+    state: "AZ",
+    added_sqft: 0,
+    ensuite_count: 0,
+    ...initial,
+  });
+  const [mk, setMk] = useState(initialMarket || { zip: initial.zip || "" });
+  const [compsText, setCompsText] = useState("");
+  // How many comps are on the deal, so an empty box doesn't read as
+  // "no comps". They were being lost silently: a failed deal write
+  // aborts before saveComps runs, and nothing on screen said so.
+  const [compsSaved, setCompsSaved] = useState(null);
+  // Comps as the extractor returned them, kept alongside the text box.
+  // The box shows a readable version so they can be checked, but the
+  // structured rows are what gets saved — flattening them to a line
+  // and re-parsing dropped the sale date, the MLS number and the days
+  // on market, and shifted a column whenever a field was missing.
+  const [extractedComps, setExtractedComps] = useState(null);
+  const [extractedText, setExtractedText] = useState("");
+
+  useEffect(() => {
+    if (!d?.id) return;
+    let cancelled = false;
+    supabase
+      .from("deal_comps")
+      .select("id", { count: "exact", head: true })
+      .eq("deal_id", d.id)
+      .then(({ count }) => !cancelled && setCompsSaved(count ?? 0));
+    return () => {
+      cancelled = true;
+    };
+  }, [d?.id]);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  // Extraction fills the form; it never writes to the database.
+  function applyExtraction({ deal, market, comps, conversion }) {
+    setD((prev) => ({
+      ...prev,
+      ...deal,
+      // The conversion the packet describes becomes the target, never
+      // the bedroom count itself — that still comes from the sketch.
+      ...(conversion?.bedrooms_after ? { target_bedrooms: conversion.bedrooms_after } : {}),
+      ...(conversion?.bathrooms_after ? { target_bathrooms: conversion.bathrooms_after } : {}),
+      ...(conversion?.ensuite_count ? { target_ensuites: conversion.ensuite_count } : {}),
+      ...(conversion?.bathrooms_after && !deal.bathrooms ? { bathrooms: conversion.bathrooms_after } : {}),
+    }));
+    if (market?.zip) setMk((prev) => ({ ...prev, ...market }));
+    if (comps?.length) {
+      const clean = normalizeExtractedComps(comps);
+      setExtractedComps(clean);
+      // Readable, and deliberately not the format parseComps expects —
+      // this is for checking against the packet, not for re-parsing.
+      const text = clean
+        .map((c) =>
+          [
+            c.mls_number || "—",
+            c.address,
+            c.comp_status,
+            c.approx_sqft ? `${c.approx_sqft} sqft` : "",
+            c.sold_price ? `$${c.sold_price.toLocaleString()}` : `$${(c.list_price || 0).toLocaleString()} list`,
+            c.sold_date || "",
+          ]
+            .filter(Boolean)
+            .join("  ")
+        )
+        .join("\n");
+      setCompsText(text);
+      setExtractedText(text);
+    }
+    setMsg({ ok: true, text: "Form filled from the packet. Review, then save." });
+  }
+
+  const set = (k) => (v) => setD((prev) => ({ ...prev, [k]: v }));
+  const setM = (k) => (v) => setMk((prev) => ({ ...prev, [k]: v }));
+
+  // Paste MLS rows: address, list price, sqft, $/sqft, sold price
+  //
+  // The data is the LAST four numbers on the line. Addresses are
+  // full of numbers — "14622 N 18TH DR" contributes two — so
+  // reading left to right or guessing by magnitude both fail. A
+  // street number read as square footage quietly wrecks $/sq ft
+  // and the implied resale figure.
+  async function handleSave() {
+    setSaving(true);
+    setMsg(null);
+    // Declared out here so the success message can report what the
+    // merge did, and so a failure after the comps write still knows
+    // they landed.
+    let compsResult = null;
+    try {
+      // Anything typed or pasted can still arrive as "$525,000"
+      const NUM_FIELDS = [
+        "year_built", "lot_sqft", "lot_acres", "living_area_sqft", "added_sqft",
+        "post_reno_sqft", "assessed_tax_amount", "bathrooms", "purchase_price",
+        "shared_weekly_rate", "ensuite_weekly_rate",
+        "list_price", "rehab_budget", "furniture_budget", "target_bedrooms",
+        "target_bathrooms", "target_ensuites", "bedrooms", "ensuite_count",
+      ];
+      const clean = { ...d };
+      for (const f of NUM_FIELDS) {
+        if (clean[f] === "" || clean[f] === undefined) {
+          clean[f] = null;
+        } else if (typeof clean[f] === "string") {
+          const n = parseFloat(clean[f].replace(/[^0-9.\-]/g, ""));
+          clean[f] = Number.isFinite(n) ? n : null;
+        }
+      }
+
+      // jsonb: an empty object, never null — the column is NOT NULL and
+      // "no overrides set" is {} rather than nothing.
+      clean.assumption_overrides =
+        d.assumption_overrides && typeof d.assumption_overrides === "object"
+          ? d.assumption_overrides
+          : {};
+
+      // Dates: blank means null, and they must not go through parseFloat.
+      for (const f of ["reno_complete_date", "disposition_coe"]) {
+        if (clean[f] === "" || clean[f] === undefined) clean[f] = null;
+      }
+
+      // Boolean, not a number.
+      clean.reno_complete_estimated = d.reno_complete_estimated !== false;
+
+      const payload = {
+        bedrooms: clean.bedrooms ?? 0,
+        ...clean,
+        slug: d.slug || slugify(d.address_line || "", d.city || ""),
+        post_reno_sqft:
+          clean.post_reno_sqft ??
+          (clean.living_area_sqft
+            ? clean.living_area_sqft + (clean.added_sqft || 0)
+            : null),
+      };
+      const deal = await saveDeal(payload);
+
+      if (mk.zip && mk.active_units != null) {
+        await upsertMarket({
+          ...mk,
+          avg_occupancy: mk.avg_occupancy > 1 ? mk.avg_occupancy / 100 : mk.avg_occupancy,
+        });
+      }
+      if (compsText.trim()) {
+        // Untouched since extraction, so the structured rows still
+        // describe what is in the box. Edit the box and the text wins,
+        // because then it is the more recent statement of intent.
+        const useExtracted =
+          extractedComps?.length && compsText.trim() === extractedText.trim();
+        const parsed = useExtracted ? extractedComps : parseComps(compsText);
+        // Merges. Comps already on the deal are kept and updated in
+        // place rather than deleted and re-inserted, so a re-read of a
+        // packet that happens to contain fewer rows does not throw the
+        // rest away.
+        compsResult = await saveComps(deal.id, parsed);
+        setCompsSaved(compsResult.rows.length);
+      }
+
+      setD(deal);
+      setMsg({
+        ok: true,
+        text: compsResult
+          ? `Saved. Slug: ${deal.slug} — comps: ${compsResult.inserted} added, ` +
+            `${compsResult.updated} updated, ${compsResult.unchanged} unchanged` +
+            (compsResult.kept ? `, ${compsResult.kept} already on the deal left alone` : "")
+          : `Saved. Slug: ${deal.slug}`,
+      });
+      onSaved?.(deal);
+    } catch (e) {
+      // A failed deal write aborts before the comps are saved. Say so,
+      // otherwise a pasted block vanishes and the error names an
+      // unrelated column.
+      setMsg({
+        ok: false,
+        text:
+          compsText.trim() && !compsSaved
+            ? `${e.message} — your comps were not saved either. Fix this, then save again.`
+            : e.message,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const impliedSqft =
+    d.living_area_sqft != null ? d.living_area_sqft + (d.added_sqft || 0) : null;
+  const sqftMismatch =
+    impliedSqft != null && d.post_reno_sqft != null && impliedSqft !== d.post_reno_sqft;
+
+  return (
+    <div className="mx-auto max-w-4xl p-4 font-sans sm:p-8">
+      <div className="mb-6 bg-neutral-950 px-5 py-4">
+        <div className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: GREEN }}>
+          Green Light Buying Machine
+        </div>
+        <h1 className="text-xl font-bold text-white">
+          {d.id ? "Edit deal" : "New deal"}
+        </h1>
+      </div>
+
+      <DocumentIntake onApply={applyExtraction} />
+
+      <Section title="Location" source="assessor record">
+        <Input label="Street address" value={d.address_line} onChange={set("address_line")} span={2} />
+        <Input label="City" value={d.city} onChange={set("city")} />
+        <Input
+          label="ZIP"
+          value={d.zip}
+          onChange={(v) => {
+            // Market data keys on five digits — a +4 extension never matches
+            const five = String(v || "").replace(/\D/g, "").slice(0, 5);
+            set("zip")(five);
+            setM("zip")(five);
+          }}
+        />
+        <Input label="Parcel number" value={d.parcel_number} onChange={set("parcel_number")} />
+        <Input label="Subdivision" value={d.subdivision} onChange={set("subdivision")} span={2} />
+        <Input label="School district" value={d.school_district} onChange={set("school_district")} />
+      </Section>
+
+      <Section title="Structure" source="assessor record">
+        <Input label="Year built" type="number" value={d.year_built} onChange={set("year_built")} />
+        <Input label="Lot sq ft" type="number" value={d.lot_sqft} onChange={set("lot_sqft")} />
+        <Input label="Lot acres" type="number" value={d.lot_acres} onChange={set("lot_acres")} />
+        <Input label="Zoning" value={d.zoning} onChange={set("zoning")} />
+        <Input label="Living area" type="number" suffix="sq ft" value={d.living_area_sqft} onChange={set("living_area_sqft")} />
+        <Input label="Added attached" type="number" suffix="sq ft" value={d.added_sqft} onChange={set("added_sqft")} />
+        <Input
+          label="Marketed sq ft"
+          type="number"
+          value={d.post_reno_sqft}
+          onChange={set("post_reno_sqft")}
+          hint={impliedSqft ? `Assessor implies ${impliedSqft.toLocaleString()}` : null}
+        />
+        <Input label="Construction" value={d.construction_type} onChange={set("construction_type")} />
+      </Section>
+
+      {sqftMismatch && (
+        <div className="-mt-3 mb-6 rounded border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+          Marketed square footage doesn't match assessor living area plus added space. Fine
+          if part of the addition stays unconditioned — worth confirming before it reaches a
+          buyer email.
+        </div>
+      )}
+
+      <Section title="Target conversion" source="what you're underwriting to">
+        <Input label="Target bedrooms" type="number" value={d.target_bedrooms} onChange={set("target_bedrooms")} hint="e.g. 9" />
+        <Input label="Target baths" type="number" step={0.5} value={d.target_bathrooms} onChange={set("target_bathrooms")} hint="total, including ensuites" />
+        <Input label="Of those, ensuites" type="number" value={d.target_ensuites} onChange={set("target_ensuites")} hint="how many of that total are ensuite" />
+        <div className="col-span-2 flex items-end sm:col-span-1">
+          <div className="w-full rounded bg-neutral-950 px-3 py-2">
+            <div className="text-[9px] uppercase tracking-wider text-neutral-500">Conversion</div>
+            <div className="text-lg font-bold tabular-nums" style={{ color: "#00A651" }}>
+              {d.target_bedrooms || "?"} /{" "}
+              {(() => {
+                // An ensuite bedroom contains a bathroom, so the badge
+                // shows the total. Entering 1 common bath and 6 ensuites
+                // is a 7-bath house, and the floor plan says so.
+                const common = Number(d.target_bathrooms) || 0;
+                const ens = Number(d.target_ensuites) || 0;
+                if (!common && !ens) return "?";
+                return ens && ens <= common ? common : common + ens;
+              })()}
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Configuration & pricing">
+        <Input label="Marketed baths" type="number" step={0.5} value={d.bathrooms} onChange={set("bathrooms")} hint="total, including ensuites" />
+        <Input label="Purchase price" type="number" prefix="$" value={d.purchase_price} onChange={set("purchase_price")} />
+        <Input label="Rehab budget" type="number" prefix="$" value={d.rehab_budget} onChange={set("rehab_budget")} />
+        <Input label="Furniture budget" type="number" prefix="$" value={d.furniture_budget} onChange={set("furniture_budget")} />
+        <Input label="Turnkey list price" type="number" prefix="$" value={d.list_price} onChange={set("list_price")} />
+        <Input label="Acquisition COE" type="date" value={d.close_of_escrow} onChange={set("close_of_escrow")} />
+        <Input label="Delivery to buyer" type="date" value={d.disposition_coe} onChange={set("disposition_coe")} hint="Date quoted in the email" />
+        <Input label="Last tax bill" type="number" prefix="$" value={d.assessed_tax_amount} onChange={set("assessed_tax_amount")} hint="Reclassed automatically" />
+        <label className="block">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-500">
+            Status
+          </span>
+          <select
+            value={d.status}
+            onChange={(e) => set("status")(e.target.value)}
+            className="mt-1 w-full rounded border border-neutral-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-neutral-900"
+          >
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+        </label>
+      </Section>
+
+      <Section title={`PadSplit market — ${mk.zip || "ZIP"}`} source="padsplit.com market insights">
+        <Input label="Active units" type="number" value={mk.active_units} onChange={setM("active_units")} />
+        <Input label="Upcoming units" type="number" value={mk.upcoming_units} onChange={setM("upcoming_units")} />
+        <Input label="Shared room" type="number" prefix="$" suffix="/wk" value={mk.shared_weekly} onChange={setM("shared_weekly")} />
+        <Input label="Private bath" type="number" prefix="$" suffix="/wk" value={mk.private_weekly} onChange={setM("private_weekly")} />
+        <Input label="Avg occupancy" type="number" suffix="%" value={mk.avg_occupancy} onChange={setM("avg_occupancy")} hint="Enter 74 or 0.74" />
+        <Input label="Days to 1st booking" type="number" value={mk.days_to_first_booking} onChange={setM("days_to_first_booking")} />
+        <Input label="Days to 80% booked" type="number" value={mk.days_to_80_percent} onChange={setM("days_to_80_percent")} />
+      </Section>
+
+      {d.id && <MediaUploader deal={d} onSaved={(saved) => setD((p) => ({ ...p, ...saved }))} />}
+
+      <Section title="Room rates" source="what this house rents for">
+        <div className="col-span-2 mb-1 sm:col-span-4">
+          <p className="text-[11px] leading-snug text-neutral-500">
+            The rates this deal is underwritten at. Blank uses the PadSplit
+            market rate for the ZIP. A rate set on an individual room in the
+            sketch still beats both.
+          </p>
+        </div>
+        <Input
+          label="Shared room / wk"
+          type="number"
+          step="any"
+          prefix="$"
+          value={d.shared_weekly_rate ?? ""}
+          onChange={set("shared_weekly_rate")}
+          hint="blank = market rate"
+        />
+        <Input
+          label="Ensuite room / wk"
+          type="number"
+          step="any"
+          prefix="$"
+          value={d.ensuite_weekly_rate ?? ""}
+          onChange={set("ensuite_weekly_rate")}
+          hint="blank = market rate"
+        />
+      </Section>
+
+      <Section title="Renovation" source="what a buyer is told">
+        <Input
+          label="Finished sq ft"
+          type="number"
+          value={d.finished_sqft ?? ""}
+          onChange={set("finished_sqft")}
+          hint="measured on completion"
+        />
+        <Input
+          label="Anticipated completion"
+          type="date"
+          value={d.reno_complete_estimate ?? ""}
+          onChange={set("reno_complete_estimate")}
+          hint="shown as the ready date"
+        />
+        <Input
+          label="Actual completion"
+          type="date"
+          value={d.reno_complete_actual ?? ""}
+          onChange={set("reno_complete_actual")}
+          hint="supersedes the estimate"
+        />
+        <Input
+          label="Status note"
+          value={d.reno_status ?? ""}
+          onChange={set("reno_status")}
+          hint="e.g. punch list only"
+        />
+      </Section>
+
+      {/* Per-deal overrides. Every figure the pro forma uses, settable
+          here from what this house actually costs. Blank falls back to
+          the org standard, so an empty field is not zero. */}
+      <Section title="Readiness" source="shown on the buyer sheet">
+        <Input
+          label="Anticipated completion"
+          type="date"
+          value={d.reno_complete_date || ""}
+          onChange={set("reno_complete_date")}
+          hint="renovation finished and ready to operate"
+        />
+        <label className="col-span-2 flex items-end gap-2 pb-2 text-[12px] text-neutral-700 sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={d.reno_complete_estimated !== false}
+            onChange={(e) =>
+              setD((p) => ({ ...p, reno_complete_estimated: e.target.checked }))
+            }
+          />
+          Estimated — uncheck once the date is firm
+        </label>
+      </Section>
+
+      <Section title="Underwriting overrides" source="blank uses the org standard">
+        <div className="col-span-2 mb-1 sm:col-span-4">
+          <p className="text-[11px] leading-snug text-neutral-500">
+            Anything set here overrides the standard for this property only,
+            and flows to the pro forma, the flyer, the buyer sheet and every
+            share link. Leave a field blank to keep using the standard.
+          </p>
+        </div>
+
+        {[
+          ["property_taxes_annual", "Property taxes / yr", "$", "from the assessed bill x reclass"],
+          ["insurance_annual", "Insurance / yr", "$", "org: insurance_annual"],
+          ["opex_per_room", "Opex per room / mo", "$", "org: opex_per_room"],
+          ["utilities_annual", "Utilities / yr", "$", "overrides opex split"],
+          ["repairs_annual", "Repairs & maintenance / yr", "$", "no org default"],
+          ["turnover_annual", "Turnover / make-ready / yr", "$", "no org default"],
+          ["vacancy_rate", "Vacancy rate", "", "0.05 = 5%"],
+          ["maintenance_rate", "Capital reserve rate", "", "0.02 = 2% of net"],
+          ["interest_rate", "Interest rate", "", "0.065 = 6.5%"],
+          ["ltv", "Loan to value", "", "0.75 = 75%"],
+          ["origination_points", "Origination", "", "0.015 = 1.5%"],
+          ["closing_costs", "Closing costs", "$", "org: closing_costs"],
+        ].map(([key, label, prefix, hint]) => (
+          <Input
+            key={key}
+            label={label}
+            type="number"
+            step="any"
+            prefix={prefix || undefined}
+            value={d.assumption_overrides?.[key] ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              setD((p) => {
+                const next = { ...(p.assumption_overrides || {}) };
+                if (v === "") delete next[key];
+                else next[key] = Number(v);
+                return { ...p, assumption_overrides: next };
+              });
+            }}
+            hint={hint}
+          />
+        ))}
+      </Section>
+
+      <Section title="Comps" source="flexmls summary">
+        <div className="col-span-2 sm:col-span-4">
+          <textarea
+            value={compsText}
+            onChange={(e) => setCompsText(e.target.value)}
+            rows={5}
+            placeholder={"Paste MLS rows, one per line. Example:\n1644 W Friess Dr  $599,995  2,139  $282.84  $605,000"}
+            className="w-full rounded border border-neutral-300 px-2 py-2 font-mono text-[11px] outline-none focus:border-neutral-900"
+          />
+          <p className="mt-1 text-[10px] text-neutral-400">
+            Parsed on save. Review them on the deal page — the parser guesses status from
+            the row text.
+          </p>
+        </div>
+      </Section>
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving || !d.address_line}
+          className="rounded px-5 py-2 text-[12px] font-bold uppercase tracking-wider text-white disabled:opacity-40"
+          style={{ backgroundColor: GREEN }}
+        >
+          {saving ? "Saving…" : "Save deal"}
+        </button>
+        {msg && (
+          <span className={`text-[12px] ${msg.ok ? "text-neutral-600" : "text-red-700"}`}>
+            {msg.text}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}

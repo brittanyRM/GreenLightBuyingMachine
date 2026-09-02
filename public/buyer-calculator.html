@@ -27,41 +27,38 @@
 <style>
   .glb *{box-sizing:border-box;}
   .glb{
-    --ink:#0B0F14; --ink-2:#1E293B; --muted:#64748B; --line:#E2E8F0; --line-2:#F1F5F9;
-    --bg:#F6F7F9; --card:#FFFFFF;
-    --green:#1DB954; --green-deep:#128C3E; --green-soft:#E6F9ED;
+    --ink:#0A0A0A; --ink-2:#262626; --muted:#737373; --line:#E5E5E5; --line-2:#F0F0F0;
+    --bg:#F5F5F5; --card:#FFFFFF;
+    --green:#00A651; --green-deep:#00813F; --green-soft:#EAF7EF;
     --red:#DC2626; --red-soft:#FEE2E2; --amber:#B45309; --amber-soft:#FEF3C7;
     --fd:"Sora",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     --fb:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     --fm:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
     font-family:var(--fb); color:var(--ink); background:var(--bg);
-    line-height:1.5; padding:0 0 26px; border-radius:14px; overflow:hidden;
+    line-height:1.45; padding:0 0 26px; border-radius:14px; overflow:hidden;
   }
   .glb h1,.glb h2,.glb h3{font-family:var(--fd);margin:0;letter-spacing:-.02em;line-height:1.15;}
   .glb p{margin:0;}
 
-  .glb .masthead{background:linear-gradient(135deg,#0B0F14 0%,#14202B 100%);color:#fff;padding:28px 26px 26px;position:relative;overflow:hidden;}
-  .glb .masthead:after{content:"";position:absolute;top:-140px;right:-80px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(29,185,84,.22),transparent 66%);pointer-events:none;}
-  .glb .masthead > *{position:relative;z-index:1;}
+  .glb .masthead{background:#0A0A0A;color:#fff;padding:24px 26px 22px;}
   .glb .logos{display:flex;align-items:center;gap:16px;margin-bottom:14px;min-height:34px;}
   .glb .logos img{max-height:34px;width:auto;object-fit:contain;}
   .glb #m-glbm{filter:brightness(0) invert(1);}
   .glb .logodiv{width:1px;height:26px;background:rgba(255,255,255,.22);}
-  .glb .brand{font-family:var(--fd);font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--green);margin-bottom:14px;}
+  .glb .brand{font-size:10px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:var(--green);margin-bottom:10px;}
   .glb .mast-row{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;}
-  .glb .masthead h1{font-size:30px;font-weight:800;color:#fff;}
+  .glb .masthead h1{font-family:var(--fb);font-size:28px;font-weight:700;color:#fff;letter-spacing:-.01em;}
   .glb .masthead .sub{color:rgba(255,255,255,.6);font-size:14px;margin-top:6px;}
   .glb .mast-price{text-align:right;}
-  .glb .mast-price .k{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.55);font-weight:600;}
-  .glb .mast-price .v{font-family:var(--fd);font-size:34px;font-weight:800;color:#fff;letter-spacing:-.02em;}
+  .glb .mast-price .k{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:#737373;font-weight:600;}
+  .glb .mast-price .v{font-family:var(--fb);font-size:30px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;}
 
   .glb .body{padding:22px 26px 0;}
   .glb .layout{display:grid;grid-template-columns:352px 1fr;gap:22px;align-items:start;}
 
-  .glb .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px -16px rgba(15,23,42,.18);}
-  .glb .panel + .panel{margin-top:16px;}
-  .glb .panel h3{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;padding-bottom:11px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:8px;}
-  .glb .panel h3:before{content:"";width:3px;height:12px;border-radius:2px;background:var(--green);}
+  .glb .panel{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:20px 22px;}
+  .glb .panel + .panel{margin-top:12px;}
+  .glb .panel h3{font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ink);margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--ink);}
 
   .glb .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
   .glb .row:last-child{margin-bottom:0;}
@@ -69,10 +66,10 @@
   .glb .row label small{display:block;color:var(--muted);font-size:11.5px;}
   .glb .ctrl{position:relative;flex:0 0 118px;}
   .glb .ctrl.wide{flex:0 0 160px;}
-  .glb .ctrl input,.glb .ctrl select{width:100%;font-family:var(--fm);font-size:13.5px;text-align:right;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);transition:border-color .15s,box-shadow .15s;}
+  .glb .ctrl input,.glb .ctrl select{width:100%;font-family:var(--fm);font-size:13.5px;text-align:right;padding:9px 11px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink);transition:border-color .15s,box-shadow .15s;}
   .glb .ctrl input:hover,.glb .ctrl select:hover{border-color:#CBD5E1;}
   .glb .ctrl select,.glb .ctrl input.txt{text-align:left;font-family:var(--fb);}
-  .glb .ctrl input:focus,.glb .ctrl select:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-soft);}
+  .glb .ctrl input:focus,.glb .ctrl select:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 2px var(--green-soft);}
   .glb .ctrl.pre input{padding-left:20px;}
   .glb .ctrl .sym{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12.5px;font-family:var(--fm);}
   .glb .ctrl.suf input{padding-right:24px;}
@@ -81,22 +78,21 @@
   .glb .pair .ctrl{flex:1;}
 
   .glb .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
-  .glb .kpi{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--green);border-radius:12px;padding:17px 18px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 10px 26px -18px rgba(15,23,42,.22);transition:transform .18s ease,box-shadow .18s ease;}
-  .glb .kpi:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(15,23,42,.05),0 16px 34px -18px rgba(15,23,42,.3);}
-  .glb .kpi .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;}
-  .glb .kpi .v{font-family:var(--fd);font-size:25px;font-weight:800;margin-top:6px;letter-spacing:-.02em;}
+  .glb .kpi{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--green);border-radius:4px;padding:14px 16px;}
+  .glb .kpi .k{font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+  .glb .kpi .v{font-family:var(--fb);font-size:24px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;}
   .glb .kpi .n{font-size:11.5px;color:var(--muted);margin-top:3px;}
-  .glb .kpi.bad{border-top-color:var(--red);}
+  .glb .kpi.bad{border-left-color:var(--red);}
   .glb .kpi.bad .v{color:var(--red);}
 
   .glb table{width:100%;border-collapse:collapse;font-size:13.5px;}
-  .glb th{text-align:left;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:0 0 9px;border-bottom:1px solid var(--line);}
+  .glb th{text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:0 0 5px;border-bottom:1px solid var(--ink);}
   .glb th.r,.glb td.r{text-align:right;}
-  .glb td{padding:8px 0;border-bottom:1px solid var(--line-2);font-variant-numeric:tabular-nums;}
+  .glb td{padding:6px 0;border-bottom:1px solid var(--line-2);font-variant-numeric:tabular-nums;font-size:13px;}
   .glb td small{color:var(--muted);font-size:11.5px;}
   .glb td.num{font-family:var(--fm);}
-  .glb tr.sum td{font-weight:700;border-top:1px solid var(--line);border-bottom:2px solid var(--ink);}
-  .glb tr.big td{font-family:var(--fd);font-weight:800;font-size:16px;padding-top:12px;border-bottom:none;}
+  .glb tr.sum td{font-weight:700;border-top:1px solid var(--line);border-bottom:2px solid var(--ink);padding-top:7px;}
+  .glb tr.big td{font-weight:700;font-size:15px;padding-top:10px;border-bottom:none;}
   .glb .neg{color:var(--red);}
   .glb .pos{color:var(--green-deep);}
   .glb .hint{font-size:11.5px;color:var(--muted);margin-top:11px;line-height:1.5;}
@@ -121,7 +117,7 @@
   .glb .portfolio .pos{color:var(--green);}
 
   .glb .actions{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap;}
-  .glb button{font-family:var(--fb);font-size:13px;font-weight:600;padding:10px 16px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink-2);cursor:pointer;}
+  .glb button{font-family:var(--fb);font-size:12px;font-weight:600;padding:9px 16px;border-radius:4px;letter-spacing:.04em;border:1px solid var(--line);background:#fff;color:var(--ink-2);cursor:pointer;}
   .glb button:hover{border-color:var(--green);color:var(--green-deep);}
   .glb button.primary{background:var(--green);border-color:var(--green);color:#fff;}
   .glb button.primary:hover{background:var(--green-deep);color:#fff;}
@@ -130,19 +126,35 @@
   .glb .caveat{margin-top:14px;border:1px solid #FCD34D;background:#FFFBEB;border-radius:10px;padding:13px 15px;font-size:12px;line-height:1.6;color:#78350F;}
   .glb .caveat b{display:block;margin-bottom:3px;color:#78350F;}
 
+  .glb .housepick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .glb .hstep{width:38px;height:38px;padding:0;font-size:19px;font-weight:700;line-height:1;border:1px solid var(--line);background:#fff;border-radius:4px;cursor:pointer;color:var(--ink);}
+  .glb .hstep:hover{border-color:var(--green);color:var(--green-deep);background:var(--green-soft);}
+  .glb .hcount{display:flex;align-items:baseline;gap:7px;min-width:112px;}
+  .glb .hcount span{font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;}
+  .glb .hcount small{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+  .glb .hauto{margin-left:4px;}
+  .glb .houserow{display:flex;flex-wrap:wrap;gap:3px;font-size:23px;line-height:1.25;margin-bottom:14px;min-height:29px;}
+  .glb .houserow .more{font-size:12px;color:var(--muted);align-self:center;margin-left:6px;font-family:var(--fm);}
+  .glb .housestats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .glb .hstat{border:1px solid var(--line);border-left:3px solid var(--green);border-radius:4px;padding:12px 14px;}
+  .glb .hstat .k{font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+  .glb .hstat .v{font-size:20px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums;}
+  .glb .hstat.short{border-left-color:var(--red);}
+  .glb .hstat.short .v{color:var(--red);}
+
   .glb .capchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-  .glb .capchip{font-family:var(--fm);font-size:11.5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-2);cursor:pointer;transition:.15s;}
+  .glb .capchip{font-family:var(--fm);font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid var(--line);background:#fff;color:var(--ink-2);cursor:pointer;transition:.15s;}
   .glb .capchip:hover{border-color:var(--green);background:var(--green-soft);color:var(--green-deep);}
   .glb .capchip.on{background:var(--green);border-color:var(--green);color:#fff;}
 
   .glb .bigkpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
-  .glb .bigkpi{border:1px solid var(--line);border-radius:12px;padding:14px 15px;background:linear-gradient(180deg,#fff,#FAFCFB);}
+  .glb .bigkpi{border:1px solid var(--line);border-left:3px solid var(--green);border-radius:4px;padding:13px 15px;background:#fff;}
   .glb .bigkpi .k{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:700;}
-  .glb .bigkpi .v{font-family:var(--fd);font-size:23px;font-weight:800;margin-top:6px;letter-spacing:-.02em;color:var(--ink);}
+  .glb .bigkpi .v{font-size:22px;font-weight:700;margin-top:5px;color:var(--ink);font-variant-numeric:tabular-nums;}
   .glb .bigkpi .n{font-size:11px;color:var(--muted);margin-top:3px;}
   .glb .bigkpi.hi .v{color:var(--green-deep);}
 
-  .glb .chartwrap{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;}
+  .glb .chartwrap{border:1px solid var(--line);border-radius:4px;padding:10px;background:#fff;}
   .glb #eqchart{width:100%;height:210px;display:block;}
   .glb .chartkey{display:flex;gap:16px;flex-wrap:wrap;margin-top:9px;font-size:11.5px;color:var(--muted);}
   .glb .chartkey .sw{display:inline-flex;align-items:center;gap:6px;}
@@ -151,7 +163,7 @@
   .glb #yeartable tr.buy td{background:#F2FBF5;}
 
   .glb .zipsuggest{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-  .glb .zipchip{font-family:var(--fm);font-size:11.5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-2);cursor:pointer;transition:border-color .15s,background .15s;}
+  .glb .zipchip{font-family:var(--fm);font-size:11px;padding:5px 10px;border-radius:3px;border:1px solid var(--line);background:#fff;color:var(--ink-2);cursor:pointer;transition:border-color .15s,background .15s;}
   .glb .zipchip:hover{border-color:var(--green);background:var(--green-soft);color:var(--green-deep);}
   .glb .zipchip b{font-weight:700;}
   .glb .matched{color:var(--green-deep);font-weight:600;}
@@ -163,6 +175,7 @@
 
   @media (max-width:900px){
     .glb .bigkpis{grid-template-columns:1fr 1fr;}
+    .glb .housestats{grid-template-columns:1fr 1fr;}
     .glb .layout{grid-template-columns:1fr;}
     .glb .kpis{grid-template-columns:1fr 1fr;}
     .glb .split2{grid-template-columns:1fr;}
@@ -374,6 +387,19 @@
     <div class="portfolio">
       <h3>Portfolio &mdash; <span id="p-name">this buyer</span></h3>
       <table><tbody id="t-port"></tbody></table>
+    </div>
+
+    <div class="panel" style="margin-top:14px;">
+      <h3>How many houses</h3>
+      <div class="housepick">
+        <button type="button" class="hstep" id="h-minus" aria-label="One fewer house">&minus;</button>
+        <div class="hcount"><span id="h-num">0</span><small id="h-word">houses</small></div>
+        <button type="button" class="hstep" id="h-plus" aria-label="One more house">+</button>
+        <button type="button" class="hauto" id="h-auto">Max my capital</button>
+      </div>
+      <div class="houserow" id="houserow"></div>
+      <div class="housestats" id="housestats"></div>
+      <p class="hint" id="housenote"></p>
     </div>
 
     <div class="panel" style="margin-top:14px;">
@@ -592,7 +618,7 @@
       var cashH = (Math.max(0, r.cumCash) / max) * (H - 26);
       out += "<rect x='" + x.toFixed(1) + "' y='" + (H - 18 - eqH).toFixed(1) +
              "' width='" + bw.toFixed(1) + "' height='" + eqH.toFixed(1) +
-             "' rx='2' fill='#1DB954' opacity='.9'></rect>";
+             "' rx='2' fill='#00A651' opacity='.9'></rect>";
       out += "<rect x='" + x.toFixed(1) + "' y='" + (H - 18 - eqH - cashH).toFixed(1) +
              "' width='" + bw.toFixed(1) + "' height='" + cashH.toFixed(1) +
              "' rx='2' fill='#0B0F14' opacity='.72'></rect>";
@@ -603,7 +629,7 @@
     });
     svg.innerHTML = out;
     $("chartkey").innerHTML =
-      "<span class='sw'><span class='box' style='background:#1DB954'></span>Equity</span>" +
+      "<span class='sw'><span class='box' style='background:#00A651'></span>Equity</span>" +
       "<span class='sw'><span class='box' style='background:#0B0F14;opacity:.72'></span>" +
       (pr.reinvest ? "Uninvested cash" : "Cumulative cash flow") + "</span>" +
       "<span class='sw'>Year " + pr.years + " scale: " + money(Math.max.apply(null,
@@ -617,7 +643,7 @@
       $("t-years").innerHTML = "";
       $("yearnote").textContent = "Enter capital that covers at least one house to see the projection.";
       $("eqchart").innerHTML = ""; $("chartkey").innerHTML = "";
-      return;
+      return null;
     }
 
     $("bigkpis").innerHTML =
@@ -646,6 +672,58 @@
       : "Cash flow is taken out each year rather than reinvested. Houses stay at " + m.houses + ".";
 
     drawEquityChart(pr);
+    return pr.endEquity;
+  }
+
+
+  /* ================= How many houses =================
+     The other direction round. Everywhere else on this page capital
+     decides the house count; here the house count decides the capital,
+     because "I want six" is how a buyer actually thinks about it.
+
+     One emoji per house up to 30, then a count — thirty is already
+     more than anyone reads, and a hundred is a wall of noise. */
+  function renderHouses(i, m, houses, maxHouses, projEquity, years) {
+    $("h-num").textContent = houses;
+    $("h-word").textContent = houses === 1 ? "house" : "houses";
+
+    var SHOWN = 30;
+    var row = "";
+    for (var k = 0; k < Math.min(houses, SHOWN); k++) { row += "\u{1F3E0}"; }
+    if (houses > SHOWN) { row += "<span class='more'>+" + (houses - SHOWN) + " more</span>"; }
+    $("houserow").innerHTML = row || "<span class='more'>None yet — add one, or raise the capital.</span>";
+
+    var need = houses * m.cash;
+    var short = need - i.capital;
+
+    $("housestats").innerHTML =
+      "<div class='hstat" + (short > 0 ? " short" : "") + "'><div class='k'>" +
+        (short > 0 ? "Still need" : "Capital needed") + "</div><div class='v'>" +
+        money(short > 0 ? short : need) + "</div></div>" +
+      "<div class='hstat'><div class='k'>Cash flow / month</div><div class='v'>" +
+        money(houses * m.cf / 12) + "</div></div>" +
+      "<div class='hstat'><div class='k'>Cash flow / year</div><div class='v'>" +
+        money(houses * m.cf) + "</div></div>" +
+      "<div class='hstat'><div class='k'>Equity by year " + years + "</div><div class='v'>" +
+        (projEquity != null ? money(projEquity) : "\u2014") + "</div></div>";
+
+    $("housenote").textContent = short > 0
+      ? money(i.capital) + " funds " + maxHouses + ". " + houses + " needs " +
+        money(short) + " more — or a smaller down payment."
+      : houses + (houses === 1 ? " house" : " houses") + " at " + money(m.cash) +
+        " cash to close each. " + money(i.capital - need) + " of your capital left over.";
+  }
+
+  function stepHouses(by) {
+    var cur = parseInt($("i-houses").value, 10);
+    if (!isFinite(cur)) {
+      /* blank means auto — start from whatever the capital currently buys */
+      var i = read(), m = model(i, i.down, i.rate);
+      cur = m.cash > 0 ? Math.floor(i.capital / m.cash) : 0;
+    }
+    var next = Math.max(0, cur + by);
+    $("i-houses").value = next;
+    render(); save();
   }
 
   function render() {
@@ -771,10 +849,12 @@
       warn.className = "flag warn on";
     }
 
-    renderProjection(i, {
+    var pmodel = {
       houses: houses, cash: m.cash, leftover: left, gsr: m.gsr, opex: m.opex,
-      loan: m.loan, ds: m.ds, ffcash: m.cf,
-    });
+      loan: m.loan, ds: m.ds, cf: m.cf,
+    };
+    var endEquity = renderProjection(i, pmodel);
+    renderHouses(i, pmodel, houses, maxH, endEquity, Math.max(1, Math.round(i.years || 10)));
 
     $("disc").textContent = "Projections are estimates based on PadSplit market data and Green Light Buying Machine underwriting. " +
       "Occupancy is modeled at " + pct(i.occ, 0) + ", the average across established Green Light Buying Machine PadSplit properties after stabilisation; " +
@@ -1078,6 +1158,13 @@
       })
       .catch(function () { /* offline or opened as a file — panels stay hidden */ });
   })();
+
+  $("h-plus").addEventListener("click", function () { stepHouses(1); });
+  $("h-minus").addEventListener("click", function () { stepHouses(-1); });
+  $("h-auto").addEventListener("click", function () {
+    $("i-houses").value = "";      /* blank = as many as the capital allows */
+    render(); save();
+  });
 
   (function capChips() {
     var vals = [250000, 500000, 1000000, 2500000, 5000000, 10000000];

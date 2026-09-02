@@ -1,0 +1,28 @@
+THREE FILES. Everything else in your repo is already correct.
+
+Extract this zip, then drag these three folders into GitHub's
+"Add file → Upload files" screen:
+
+    components/
+    app/
+
+GitHub matches them to the existing paths and replaces:
+
+    components/ClubProForma.jsx
+    app/admin/buyers/page.jsx
+    app/api/buyer/admin/orgs/route.js
+
+WHAT THIS CHANGE DOES
+  Makes the pro forma the permanent base of the buyer sheet instead
+  of a tile that can be switched off. Income, costs, financing and
+  capital now always render. The remaining eight are optional tiles
+  on top of it: Summary, Flyer, Comps, PadSplit market, Map,
+  Market research, Syndication, Diligence.
+
+  All three files change together because the tile list is mirrored
+  in each one. Upload one without the others and the sheet breaks.
+
+AFTER COMMITTING
+  Vercel → your project → Deployments. A new build should start.
+  If none appears, GitHub and Vercel are not connected and that is
+  why nothing has been changing.

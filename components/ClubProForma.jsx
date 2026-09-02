@@ -94,10 +94,15 @@ const SECTIONS = [
   { id: "diligence", label: "Diligence", hint: "documents and assumptions" },
 ];
 
-// Lit on arrival. The four a buyer opens the link for; the rest are
-// one click away. Syndication is never a default — it is entitlement
-// gated per firm.
-const DEFAULT_VIEWS = ["summary", "flyer", "comps"];
+// Lit on arrival: the deal itself. The pro forma always renders, and
+// these two carry the property — what it is and what it looks like.
+//
+// Comps, the map and the market research are deliberately NOT lit. A
+// buyer opens the link to see the deal; the supporting evidence is
+// there to be asked for, one click each, rather than arriving as a
+// wall of everything at once. Syndication is entitlement gated on
+// top of that and is never a default.
+const DEFAULT_VIEWS = ["summary", "flyer"];
 
 
 const SCENARIOS = [

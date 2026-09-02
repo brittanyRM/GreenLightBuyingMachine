@@ -65,6 +65,11 @@ const GREEN = "#00A651";
 
 // The tiles a buyer picks from, in reading order.
 //
+// The pro forma itself is NOT in this list. Income, costs, financing
+// and capital are the sheet — the thing a buyer opened the link for —
+// and a document whose numbers can be switched off isn't a pro forma,
+// it's a brochure. Everything here is an addition to that base.
+//
 // "Comps & market" used to be one tile carrying two unrelated things:
 // houses that sold nearby, and PadSplit's figures for the ZIP. A buyer
 // checking what the neighbours went for and a buyer checking room
@@ -74,7 +79,6 @@ const GREEN = "#00A651";
 const SECTIONS = [
   { id: "summary", label: "Summary", hint: "the deal in one screen" },
   { id: "flyer", label: "Flyer", hint: "photos, specs, floor plan, finishes" },
-  { id: "numbers", label: "Pro forma", hint: "income, costs, financing" },
   { id: "comps", label: "Comps", hint: "recent sales near this house" },
   { id: "padsplit", label: "PadSplit market", hint: "ZIP room rates and occupancy" },
   // Split out of the two tiles that used to carry them. The map was
@@ -92,7 +96,7 @@ const SECTIONS = [
 // Lit on arrival. The four a buyer opens the link for; the rest are
 // one click away. Syndication is never a default — it is entitlement
 // gated per firm.
-const DEFAULT_VIEWS = ["summary", "flyer", "numbers", "comps"];
+const DEFAULT_VIEWS = ["summary", "flyer", "comps"];
 
 
 const SCENARIOS = [
@@ -696,17 +700,17 @@ export default function ClubProForma({
         )}
 
         {isBuyer && core && show("summary") && <RoomRevenueStack p={core} market={market} />}
-        {isBuyer && core && show("numbers") && <IncomeAndExpenses p={core} />}
-        {isBuyer && core && show("numbers") && <NetPerformance p={core} />}
-        {isBuyer && core && show("numbers") && <CapitalRequired p={core} />}
-        {isBuyer && core && show("numbers") && (
+        {isBuyer && core && <IncomeAndExpenses p={core} />}
+        {isBuyer && core && <NetPerformance p={core} />}
+        {isBuyer && core && <CapitalRequired p={core} />}
+        {isBuyer && core && (
           <VettingBlock
             p={core}
             occupancy={modelInputs.scenarios[activeScenario].income.occupancyPct}
           />
         )}
 
-        {isBuyer && show("numbers") && (
+        {isBuyer && (
           <DownPaymentOptions
             noi={y1.noi}
             options={downPaymentOptions({
@@ -1139,7 +1143,7 @@ export default function ClubProForma({
             </p>
           </div>
 
-          {show("numbers") && (
+          {(
           <div className="print-section mb-7 grid gap-6 md:grid-cols-2">
             <div>
               <SectionTitle kicker="Year 1">Income</SectionTitle>

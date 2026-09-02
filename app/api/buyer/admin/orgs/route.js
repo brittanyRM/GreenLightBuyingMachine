@@ -10,7 +10,6 @@ export const dynamic = "force-dynamic";
 const BUYER_VIEW_IDS = [
   "summary",
   "flyer",
-  "numbers",
   "comps",
   "padsplit",
   "map",

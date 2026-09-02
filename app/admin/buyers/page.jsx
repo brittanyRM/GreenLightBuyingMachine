@@ -44,7 +44,6 @@ const GREEN = "#00A651";
 const BUYER_VIEWS = [
   ["summary", "Summary"],
   ["flyer", "Flyer"],
-  ["numbers", "Pro forma"],
   ["comps", "Comps"],
   ["padsplit", "PadSplit market"],
   ["map", "Map"],
@@ -52,7 +51,7 @@ const BUYER_VIEWS = [
   ["syndication", "Syndication"],
   ["diligence", "Diligence"],
 ];
-const DEFAULT_BUYER_VIEWS = ["summary", "flyer", "numbers", "comps", "padsplit", "map", "research", "diligence"];
+const DEFAULT_BUYER_VIEWS = ["summary", "flyer", "comps", "padsplit", "map", "research", "diligence"];
 
 function Field({ label, ...props }) {
   return (

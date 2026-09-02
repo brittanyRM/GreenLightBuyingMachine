@@ -79,3 +79,51 @@ TO APPLY - Codespace terminal, ONE LINE AT A TIME
    git add -A
    git commit -m "Calculator polish, market research and ZIP rate map"
    git push
+
+
+BUYER SEES THE DEAL, THEN SELECTS THE EVIDENCE
+==============================================
+
+On arrival a buyer gets the deal and nothing else:
+
+    the pro forma          always renders, not switchable
+    Summary                the deal in one screen
+    Flyer                  photos, specs, floor plan, finishes
+
+Everything else is a tile they turn on, one click each:
+
+    Comps                  recent sales near this house
+    Map                    the house and the PadSplit ZIPs around it
+    Market research        city demographics, jobs, incomes
+    PadSplit market        ZIP room rates and occupancy
+    Diligence              documents and assumptions
+    Syndication            entitlement gated per firm
+
+Comps used to be lit on arrival. It is not any more — a buyer opens
+the link to see the deal, and the supporting evidence is there to be
+asked for rather than arriving as a wall of everything at once.
+
+Selections live in the URL, so a buyer who forwards the link to a
+partner or a lender sends the view they were looking at.
+
+  Where a buyer sees this:  /buyers/<slug>   (logged-in buyer portal)
+                            /s/<token>       (share link)
+
+MIGRATION — RUN THIS
+====================
+
+  supabase/migrations/040_map_and_research_sections.sql
+
+Existing buyer firms have their allowed sections stored on
+buyer_orgs.enabled_views. Without this migration the two new tiles are
+filtered out server-side and render for nobody, which looks exactly
+like the feature not working.
+
+The migration is additive: a firm that had 'comps' was already being
+shown the map, so it gets 'map'; a firm that had 'padsplit' was
+already being shown the research, so it gets 'research'. Nobody loses
+a section. It also drops 'numbers', since the pro forma always renders
+now and an entitlement for it means nothing.
+
+Run it in the Supabase SQL editor. Check and rollback statements are
+in the comments at the bottom of the file.

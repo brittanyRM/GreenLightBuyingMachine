@@ -87,7 +87,7 @@ export async function POST(req) {
           deal.list_price ? `List: $${Number(deal.list_price).toLocaleString()}` : "",
           body.note ? `\nNote:\n${body.note}` : "",
           "",
-          `${process.env.NEXT_PUBLIC_SITE_URL || ""}/proforma-club/${deal.slug}`,
+          `${process.env.NEXT_PUBLIC_SITE_URL || ""}/buyer-sheets/${deal.slug}`,
         ]
           .filter(Boolean)
           .join("\n"),

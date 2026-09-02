@@ -1163,7 +1163,7 @@ export default function BuyerAdmin() {
 
               <div className="mt-1 text-[13px] text-neutral-700">
                 <a
-                  href={`/proforma-club/${i.deals?.slug}`}
+                  href={`/buyer-sheets/${i.deals?.slug}`}
                   className="font-semibold underline underline-offset-2"
                 >
                   {i.deals?.address_line}

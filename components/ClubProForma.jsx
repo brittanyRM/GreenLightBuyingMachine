@@ -4,7 +4,7 @@
 // Club-format pro forma — screen and printed sheet.
 //
 // Takes a fully built inputs object. The demo route seeds it from
-// presets; /proforma-club/[slug] seeds it from the deals table.
+// presets; /buyer-sheets/[slug] seeds it from the deals table.
 //
 // Laid out as a document rather than a dashboard, so Print produces
 // the thing on screen instead of a reflowed approximation. It borrows

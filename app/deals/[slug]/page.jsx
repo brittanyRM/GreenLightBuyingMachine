@@ -38,7 +38,7 @@ const TABS = [
 // against and it meant nothing to anyone else. It is the sheet a buyer
 // is sent, so that is what it is called.
 const LINK_TABS = [
-  { id: "buyer-sheet", label: "Buyer sheet", href: (slug) => `/proforma-club/${slug}` },
+  { id: "buyer-sheet", label: "Buyer sheet", href: (slug) => `/buyer-sheets/${slug}` },
   { id: "financing", label: "Financing", href: (slug) => `/financing/${slug}` },
 ];
 

@@ -74,3 +74,33 @@ script — one line to update when pricing moves.
     /proforma-club/<slug>   → Preview, then Map and Market research tiles
     /admin/buyers           → both as per-firm checkboxes
     /buyer-calculator.html  → the standalone
+
+## "Club" renamed to "Buyer sheets"
+
+`/proforma-club` → `/buyer-sheets`
+
+"Club" was the internal name for the sheet format and meant nothing to
+anyone outside the team. The visible labels had already been changed —
+the nav said "Pro forma", the deal tab said "Buyer sheet" — so the only
+place it still leaked was the URL, plus a stray "Club format" badge and
+heading on the index page. All three now read "Buyer sheets".
+
+Old links still work. `next.config.js` carries permanent redirects for
+`/proforma-club` and `/proforma-club/:slug`, so anything already
+bookmarked or sitting in a sent email lands in the right place.
+
+### What was deliberately NOT renamed
+
+The word appears 141 times across 30 files. Most of it is internal and
+carries real risk to touch, for no visible gain:
+
+- **`club_proformas` and `club_share_links` tables.** Renaming these
+  means a migration plus rewriting every RLS policy that references
+  them. A buyer never sees a table name.
+- **`/api/club-share` and `/s/[token]`.** Live share links point at
+  these. Renaming breaks every sheet already sent to a buyer.
+- **Component and lib filenames** — `ClubProForma.jsx`, `ClubCore.jsx`,
+  `proformaClub.js`. Internal identifiers only.
+
+If the internal rename is wanted later it should be its own change,
+done on its own, so a rename never gets tangled up with a feature.

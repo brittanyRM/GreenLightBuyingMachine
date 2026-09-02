@@ -1,0 +1,40 @@
+BEFORE YOU UPLOAD — FOUR THINGS TO DELETE
+==========================================
+
+Uploading files does NOT remove files that are already in the repo.
+These five are in your repo now and have to be deleted by hand in
+GitHub, or they stay there forever.
+
+DELETE THESE FOUR FILES FROM THE REPO ROOT
+  ClubProForma.jsx
+  admin-buyers-page.jsx
+  orgs-route.js
+  README-INSTALL.txt
+
+  They were the loose copies from an earlier download and got dropped
+  at the top level instead of into their folders. The real versions
+  already exist at components/ClubProForma.jsx, app/admin/buyers/
+  page.jsx and app/api/buyer/admin/orgs/route.js — those are correct.
+  Next.js ignores stray files at the root, so nothing is broken, but
+  leaving them means the next person edits the wrong file.
+
+DELETE THIS FOLDER
+  app/proforma-club/
+
+  The page moved to app/buyer-sheets/. The old folder is still there
+  holding a stale copy from before the rename. next.config.js already
+  redirects /proforma-club to /buyer-sheets, so no link breaks when it
+  goes.
+
+  To delete a folder in GitHub you delete the files inside it —
+  GitHub removes the folder once it is empty:
+      app/proforma-club/page.jsx
+      app/proforma-club/[slug]/page.jsx
+
+HOW TO DELETE IN GITHUB
+  Open the file → the three-dot menu at the top right of the file
+  view → Delete file → Commit changes.
+
+THEN UPLOAD
+  Extract this zip and upload its contents over the repo. Everything
+  else is already correct and will simply be replaced.

@@ -47,10 +47,12 @@ const BUYER_VIEWS = [
   ["numbers", "Pro forma"],
   ["comps", "Comps"],
   ["padsplit", "PadSplit market"],
+  ["map", "Map"],
+  ["research", "Market research"],
   ["syndication", "Syndication"],
   ["diligence", "Diligence"],
 ];
-const DEFAULT_BUYER_VIEWS = ["summary", "flyer", "numbers", "comps", "padsplit", "diligence"];
+const DEFAULT_BUYER_VIEWS = ["summary", "flyer", "numbers", "comps", "padsplit", "map", "research", "diligence"];
 
 function Field({ label, ...props }) {
   return (

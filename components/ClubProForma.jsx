@@ -77,6 +77,14 @@ const SECTIONS = [
   { id: "numbers", label: "Pro forma", hint: "income, costs, financing" },
   { id: "comps", label: "Comps", hint: "recent sales near this house" },
   { id: "padsplit", label: "PadSplit market", hint: "ZIP room rates and occupancy" },
+  // Split out of the two tiles that used to carry them. The map was
+  // filed under comps because it plots comparable sales, but a buyer
+  // asking "where is this" and a buyer asking "what did the
+  // neighbours get" are two questions. Market research sat under
+  // PadSplit market for the same reason — one is PadSplit's data for
+  // the ZIP, the other is city demographics from elsewhere.
+  { id: "map", label: "Map", hint: "the house and the PadSplit ZIPs around it" },
+  { id: "research", label: "Market research", hint: "city demographics, jobs, incomes" },
   { id: "syndication", label: "Syndication", hint: "raise, waterfall, break-even" },
   { id: "diligence", label: "Diligence", hint: "documents and assumptions" },
 ];
@@ -1068,10 +1076,11 @@ export default function ClubProForma({
               reading the specifications is asking what and where this
               is; the map answers the second half.
 
-              Filed under comps rather than the flyer: what it plots is
-              the comparable sales around the subject, so it belongs
-              with the table it illustrates. */}
-          {isBuyer && show("comps") && (
+              Its own tile. It plots the comparable sales, but it also
+              answers "where is this" — which is a different question
+              from what the comps table answers, and a buyer often
+              wants one without the other. */}
+          {isBuyer && show("map") && (
             <BuyerMap deal={deal} markets={nearbyMarkets} comps={comps} subjectMarket={market} />
           )}
 
@@ -1459,7 +1468,7 @@ export default function ClubProForma({
         {isBuyer && show("diligence") && <SupportingDocuments documents={documents} />}
 
         {isBuyer && core && show("padsplit") && <MarketPanel market={market} deal={deal} />}
-        {isBuyer && show("padsplit") && marketReport && (
+        {isBuyer && show("research") && marketReport && (
           <MarketReport report={marketReport} city={deal?.city} state={deal?.state} />
         )}
 

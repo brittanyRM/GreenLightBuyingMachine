@@ -23,6 +23,7 @@ const TABS = [
   { id: "proforma", label: "Pro forma" },
   { id: "flyer", label: "Flyer" },
   { id: "map", label: "Map" },
+  { id: "research", label: "Research" },
   { id: "email", label: "Email" },
   { id: "record", label: "Record" },
 ];
@@ -312,6 +313,32 @@ export default function DealPage({ params }) {
           </div>
         )}
 
+        {/* City-level demographics. Keyed by city, not by deal — research
+            run from one house covers every deal in that city, and the
+            panel says so rather than making the work look undone.
+
+            Its own tab because it is a step someone performs, not part
+            of the record they fill in. Once saved it feeds the Market
+            research tile on the buyer sheet. */}
+        {tab === "research" && (
+          <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
+            <p className="text-[12px] text-neutral-600">
+              Population, incomes, jobs and rents for {deal?.city || "this city"}
+              {deal?.state ? `, ${deal.state}` : ""}. Run once per city — every
+              deal here picks it up. Saved reports appear on the buyer sheet
+              under the <span className="font-semibold">Market research</span> tile.
+            </p>
+            <ErrorBoundary label="Market research">
+              <MarketResearch
+                city={deal?.city}
+                state={deal?.state}
+                zip={deal?.zip}
+                onSaved={load}
+              />
+            </ErrorBoundary>
+          </div>
+        )}
+
         {tab === "record" && (
           <>
             <DealForm initial={deal} initialMarket={market} onSaved={load} />
@@ -321,16 +348,6 @@ export default function DealPage({ params }) {
                 summary report. */}
             <div className="mx-auto max-w-4xl space-y-4 px-5 pb-10">
               <CompImport slug={params.slug} onImported={load} />
-              {/* City-level demographics. The table and the panel that
-                  renders it have existed since migration 032, but
-                  nothing ever wrote to it, so the section never
-                  appeared on a buyer sheet. */}
-              <MarketResearch
-                city={deal?.city}
-                state={deal?.state}
-                zip={deal?.zip}
-                onSaved={load}
-              />
             </div>
           </>
         )}

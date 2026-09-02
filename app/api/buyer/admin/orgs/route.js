@@ -13,6 +13,8 @@ const BUYER_VIEW_IDS = [
   "numbers",
   "comps",
   "padsplit",
+  "map",
+  "research",
   "syndication",
   "diligence",
 ];

@@ -23,6 +23,11 @@ export default function ClubProFormaDeal({ params }) {
   const [bundle, setBundle] = useState(null);
   const [error, setError] = useState(null);
   const [preview, setPreview] = useState(false);
+  // The city research report and the surrounding PadSplit ZIPs, for the
+  // Market research and Map tiles. Both are optional — the tiles simply
+  // don't render without them, so a failure here can't break the sheet.
+  const [marketReport, setMarketReport] = useState(null);
+  const [nearbyMarkets, setNearbyMarkets] = useState([]);
 
   // The live model, reported up from the sheet. Held in a ref as well
   // so the share handler reads the latest without re-creating itself.
@@ -94,6 +99,34 @@ export default function ClubProFormaDeal({ params }) {
       .then(async (b) => {
         if (cancelled) return;
         setBundle(b);
+
+        // City research report and the PadSplit ZIPs around the subject.
+        // Both feed tiles that are off by default, so neither is worth
+        // gating the sheet on — failures are swallowed on purpose.
+        try {
+          const [{ data: mr }, { data: mk }] = await Promise.all([
+            // Same query the buyer routes use, so the preview shows
+            // exactly what a buyer would be sent.
+            supabase
+              .from("market_reports")
+              .select("*")
+              .eq("active", true)
+              .ilike("city", b.deal?.city || "")
+              .ilike("state", b.deal?.state || "")
+              .order("zip", { nullsFirst: true })
+              .limit(1)
+              .maybeSingle(),
+            supabase
+              .from("padsplit_market")
+              .select("zip, active_units, upcoming_units, shared_weekly, private_weekly, avg_occupancy, days_to_first_booking, latitude, longitude")
+              .not("latitude", "is", null)
+              .limit(60),
+          ]);
+          if (!cancelled) {
+            setMarketReport(mr || null);
+            setNearbyMarkets(mk || []);
+          }
+        } catch {}
         // Saved assumptions for this deal, if any.
         const { data } = await supabase
           .from("deal_proforma_inputs")
@@ -584,6 +617,8 @@ export default function ClubProFormaDeal({ params }) {
         market={market}
         rooms={bundle.rooms}
         orgRows={bundle.orgRows}
+        marketReport={preview ? marketReport : null}
+        nearbyMarkets={preview ? nearbyMarkets : []}
         defaults={preview ? defaults : null}
         onModelChange={onModelChange}
       />

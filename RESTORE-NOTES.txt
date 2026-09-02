@@ -1,41 +1,81 @@
-WHAT WAS MISSING AND IS NOW BACK
-=================================
+WHAT WAS WRONG
+==============
 
-Comparing your original repo against what is live, three things you
-had were gone. All three are restored.
+Two separate problems.
 
-1. app/proforma-club/[slug]/page.jsx
-   DELETED. This is the page that renders a buyer sheet for a deal.
-   The index at app/proforma-club/page.jsx survived, but the per-deal
-   page did not — so /proforma-club/<slug> was a 404.
+1. MISSING FILES
+   Comparing your original repo to what is live, three things you had
+   were gone:
 
-2. "Pro forma" in the top nav
-   I removed it when I renamed the route. Restored, pointing at
-   /proforma-club as it originally did.
+     app/proforma-club/[slug]/page.jsx   deleted — this renders the
+                                          buyer sheet for a deal, so
+                                          /proforma-club/<slug> 404'd
+     "Pro forma" in the top nav          removed by me
+     "Buyer sheet" tab on the deal page  removed by me
 
-3. "Buyer sheet" tab on the deal page
-   I removed it. Restored.
+   All three are restored, pointing at /proforma-club as they did
+   originally.
 
-Also cleaned out the nested folders that were breaking the build:
-app/app, app/components, app/lib, components/components,
-components/app, and the loose files at the repo root.
+2. THE UNSTYLED PAGE
+   Not a code problem. Tailwind builds correctly — verified, 33K of
+   CSS emitted. The recent builds were FAILING because of the nested
+   app/app and components/components folders, so Vercel kept serving
+   an older deployment that had been built from a broken state with
+   no CSS. Once a build succeeds, the styling returns.
 
-WHAT IS STILL DIFFERENT FROM YOUR ORIGINAL — on purpose
-  • "Research" tab on the deal page (new)
-  • "Map" and "Market research" tiles on the buyer sheet (new)
-  • The pro forma always renders instead of being a switchable tile
-  • public/buyer-calculator.html (new, standalone)
+   The nested folders and the loose root files are removed here.
 
-Everything else — nav, tabs, layout, ordering — matches your
-original exactly. Verified by diff.
+STILL DIFFERENT FROM YOUR ORIGINAL, deliberately
+   • "Research" tab on the deal page
+   • "Map" and "Market research" tiles on the buyer sheet
+   • The pro forma always renders instead of being a switchable tile
+   • public/buyer-calculator.html — standalone calculator
 
-VERIFIED: next build compiles successfully, /proforma-club and
+Everything else matches your original. Nav and deal tabs verified
+identical by diff.
+
+VERIFIED HERE: next build compiles, CSS emitted, /proforma-club and
 /proforma-club/[slug] both present.
 
-HOW TO APPLY (Codespace terminal, ONE LINE AT A TIME)
+TO APPLY — Codespace terminal, ONE LINE AT A TIME
 
-  Drag this folder's contents in, or unzip it, then:
+   git add -A
+   git commit -m "Restore proforma-club page, nav, buyer sheet tab"
+   git push
 
-     git add -A
-     git commit -m "Restore proforma-club page, nav and buyer sheet tab"
-     git push
+Then watch Vercel. The build must go GREEN. If it errors, send me the
+lines after "Failed to compile" — the styling will not come back
+until a build succeeds.
+
+
+ADDED AFTER THE RESTORE
+=======================
+
+app/api/public/market/route.js  (NEW)
+  Read-only, no authentication. Returns PadSplit ZIP rates and city
+  research so the standalone calculator can show real numbers to
+  someone who is not a user of the system. Fields are listed
+  explicitly rather than "*", so a column added to either table later
+  cannot leak through by accident. Nothing deal-specific: no prices,
+  addresses, contacts or assignments.
+
+public/buyer-calculator.html  (UPDATED)
+  - Proper HTML document. It had no DOCTYPE, no <head> and no charset,
+    so served as a page the em dashes rendered as "a EUR".
+  - Market panel: pick a city to load its research, pick a ZIP to
+    apply that area's shared and private weekly rates and occupancy.
+  - Market research panel: population, growth, households, median
+    income, median age, renter share, with the recorded date.
+  - PadSplit rates by ZIP map: circle size is active units, colour is
+    the shared weekly rate. Click a circle to load that ZIP.
+  - Visual pass: shadowed cards, accent rules on headings, KPI tiles
+    lift on hover, gradient masthead.
+
+  All three panels are optional. If /api/public/market is unreachable
+  or Leaflet fails to load, they stay hidden and the calculator works
+  exactly as before on its defaults.
+
+TO APPLY - Codespace terminal, ONE LINE AT A TIME
+   git add -A
+   git commit -m "Calculator polish, market research and ZIP rate map"
+   git push

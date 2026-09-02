@@ -5,10 +5,24 @@
   reconciles to that sheet to the dollar at the default inputs.
 
   Portal: paste into a Custom Code / HTML block.
-  Self-contained — no libraries, no build step, no external calls.
-  All styles scoped under .glb.
+  Standalone page at /buyer-calculator.html. No login, no build step.
+  Loads Leaflet from a CDN for the ZIP rate map, and reads real market
+  data from /api/public/market. Both are optional — if either is
+  unreachable the calculator still works on its defaults.
   ================================================================
 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Buyer Projection — Green Light Buying Machine</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>html,body{margin:0;padding:0;background:#F6F7F9;}</style>
+</head>
+<body>
+
 <div class="glb">
 <style>
   .glb *{box-sizing:border-box;}
@@ -26,7 +40,9 @@
   .glb h1,.glb h2,.glb h3{font-family:var(--fd);margin:0;letter-spacing:-.02em;line-height:1.15;}
   .glb p{margin:0;}
 
-  .glb .masthead{background:var(--ink);color:#fff;padding:26px 26px 24px;}
+  .glb .masthead{background:linear-gradient(135deg,#0B0F14 0%,#14202B 100%);color:#fff;padding:28px 26px 26px;position:relative;overflow:hidden;}
+  .glb .masthead:after{content:"";position:absolute;top:-140px;right:-80px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(29,185,84,.22),transparent 66%);pointer-events:none;}
+  .glb .masthead > *{position:relative;z-index:1;}
   .glb .logos{display:flex;align-items:center;gap:16px;margin-bottom:14px;min-height:34px;}
   .glb .logos img{max-height:34px;width:auto;object-fit:contain;}
   .glb #m-glbm{filter:brightness(0) invert(1);}
@@ -42,9 +58,10 @@
   .glb .body{padding:22px 26px 0;}
   .glb .layout{display:grid;grid-template-columns:352px 1fr;gap:22px;align-items:start;}
 
-  .glb .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;}
-  .glb .panel + .panel{margin-top:14px;}
-  .glb .panel h3{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line-2);}
+  .glb .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px -16px rgba(15,23,42,.18);}
+  .glb .panel + .panel{margin-top:16px;}
+  .glb .panel h3{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;padding-bottom:11px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:8px;}
+  .glb .panel h3:before{content:"";width:3px;height:12px;border-radius:2px;background:var(--green);}
 
   .glb .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
   .glb .row:last-child{margin-bottom:0;}
@@ -52,7 +69,8 @@
   .glb .row label small{display:block;color:var(--muted);font-size:11.5px;}
   .glb .ctrl{position:relative;flex:0 0 118px;}
   .glb .ctrl.wide{flex:0 0 160px;}
-  .glb .ctrl input,.glb .ctrl select{width:100%;font-family:var(--fm);font-size:13.5px;text-align:right;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);}
+  .glb .ctrl input,.glb .ctrl select{width:100%;font-family:var(--fm);font-size:13.5px;text-align:right;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);transition:border-color .15s,box-shadow .15s;}
+  .glb .ctrl input:hover,.glb .ctrl select:hover{border-color:#CBD5E1;}
   .glb .ctrl select,.glb .ctrl input.txt{text-align:left;font-family:var(--fb);}
   .glb .ctrl input:focus,.glb .ctrl select:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-soft);}
   .glb .ctrl.pre input{padding-left:20px;}
@@ -63,11 +81,12 @@
   .glb .pair .ctrl{flex:1;}
 
   .glb .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
-  .glb .kpi{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--green);border-radius:10px;padding:15px 16px;}
+  .glb .kpi{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--green);border-radius:12px;padding:17px 18px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 10px 26px -18px rgba(15,23,42,.22);transition:transform .18s ease,box-shadow .18s ease;}
+  .glb .kpi:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(15,23,42,.05),0 16px 34px -18px rgba(15,23,42,.3);}
   .glb .kpi .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;}
   .glb .kpi .v{font-family:var(--fd);font-size:25px;font-weight:800;margin-top:6px;letter-spacing:-.02em;}
   .glb .kpi .n{font-size:11.5px;color:var(--muted);margin-top:3px;}
-  .glb .kpi.bad{border-left-color:var(--red);}
+  .glb .kpi.bad{border-top-color:var(--red);}
   .glb .kpi.bad .v{color:var(--red);}
 
   .glb table{width:100%;border-collapse:collapse;font-size:13.5px;}
@@ -107,6 +126,11 @@
   .glb button.primary{background:var(--green);border-color:var(--green);color:#fff;}
   .glb button.primary:hover{background:var(--green-deep);color:#fff;}
   .glb .disc{font-size:11px;color:var(--muted);line-height:1.55;margin-top:16px;padding:0 26px;}
+
+  .glb .maplegend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--muted);}
+  .glb .maplegend .sw{display:inline-flex;align-items:center;gap:6px;}
+  .glb .maplegend .dot{width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.15);}
+  .glb .leaflet-container{font-family:var(--fb);}
 
   @media (max-width:900px){
     .glb .layout{grid-template-columns:1fr;}
@@ -161,6 +185,15 @@
         <div class="ctrl pre"><span class="sym">$</span><input id="i-capital" inputmode="numeric"></div></div>
       <div class="row"><label>Houses <small>Blank = max capital allows</small></label>
         <div class="ctrl"><input id="i-houses" inputmode="numeric" placeholder="auto"></div></div>
+    </div>
+
+    <div class="panel" id="mkt-panel" hidden>
+      <h3>Market</h3>
+      <div class="row"><label>City <small>Loads the research below</small></label>
+        <div class="ctrl wide"><select id="i-city"><option value="">Choose a city…</option></select></div></div>
+      <div class="row"><label>ZIP <small>Applies PadSplit rates</small></label>
+        <div class="ctrl wide"><select id="i-zip"><option value="">Choose a ZIP…</option></select></div></div>
+      <p class="hint" id="mkt-note">Pick a ZIP to fill the room rates and occupancy from PadSplit data for that area.</p>
     </div>
 
     <div class="panel">
@@ -251,6 +284,19 @@
       <div class="stackline"><span class="stack" id="s-e"></span><span id="s-etext"></span></div>
       <div class="stackline"><span class="stack" id="s-s"></span><span id="s-stext"></span></div>
       <p class="hint" id="s-total"></p>
+    </div>
+
+    <div class="panel" id="research-panel" style="margin-top:14px;" hidden>
+      <h3>Market research &mdash; <span id="research-city"></span></h3>
+      <table><tbody id="t-research"></tbody></table>
+      <p class="hint" id="research-asof"></p>
+    </div>
+
+    <div class="panel" id="map-panel" style="margin-top:14px;" hidden>
+      <h3>PadSplit rates by ZIP</h3>
+      <div id="ratemap" style="height:340px;border-radius:10px;overflow:hidden;border:1px solid var(--line);"></div>
+      <div class="maplegend" id="maplegend"></div>
+      <p class="hint">Circle size is active units. Colour is the shared-room weekly rate &mdash; darker is higher. Click a circle to load that ZIP into the calculator.</p>
     </div>
 
     <div class="panel" style="margin-top:14px;">
@@ -555,6 +601,162 @@
     } catch (e) {}
   }
 
+
+  /* ================= Market data =================
+     Pulled from /api/public/market — real PadSplit rates and city
+     research. If the endpoint isn't reachable (opened as a local file,
+     or the app isn't deployed) the three panels stay hidden and the
+     calculator works exactly as before on its defaults. */
+  var MK = { markets: [], reports: [] };
+
+  function num2(v) { var n = Number(v); return isFinite(n) ? n : null; }
+
+  function fillCities() {
+    var sel = $("i-city");
+    MK.reports.forEach(function (r) {
+      var o = document.createElement("option");
+      o.value = r.city + "|" + r.state;
+      o.textContent = r.city + ", " + r.state;
+      sel.appendChild(o);
+    });
+  }
+
+  function fillZips() {
+    var sel = $("i-zip");
+    MK.markets.forEach(function (m) {
+      var o = document.createElement("option");
+      o.value = m.zip;
+      var bits = [m.zip];
+      if (m.metro) { bits.push(m.metro); }
+      if (num2(m.shared_weekly)) { bits.push(money(m.shared_weekly) + "/wk shared"); }
+      o.textContent = bits.join(" · ");
+      sel.appendChild(o);
+    });
+  }
+
+  function applyZip(zip) {
+    var m = MK.markets.filter(function (x) { return String(x.zip) === String(zip); })[0];
+    if (!m) { return; }
+    if (num2(m.shared_weekly))  { $("i-srate").value = Math.round(m.shared_weekly); }
+    if (num2(m.private_weekly)) { $("i-erate").value = Math.round(m.private_weekly); }
+    if (num2(m.avg_occupancy) != null) {
+      var o = Number(m.avg_occupancy);
+      $("i-occ").value = (o <= 1 ? o * 100 : o).toFixed(0);
+    }
+    $("i-zip").value = zip;
+    var parts = [];
+    if (num2(m.active_units) != null) { parts.push(m.active_units + " active units"); }
+    if (num2(m.days_to_first_booking) != null) { parts.push(m.days_to_first_booking + " days to first booking"); }
+    $("mkt-note").textContent = parts.length
+      ? "ZIP " + zip + " — " + parts.join(" · ") + ". Rates and occupancy applied."
+      : "ZIP " + zip + " applied.";
+    render(); save();
+  }
+
+  function showResearch(key) {
+    var panel = $("research-panel");
+    if (!key) { panel.hidden = true; return; }
+    var bits = key.split("|");
+    var r = MK.reports.filter(function (x) { return x.city === bits[0] && x.state === bits[1]; })[0];
+    if (!r) { panel.hidden = true; return; }
+
+    $("research-city").textContent = r.city + ", " + r.state;
+    var rows = "";
+    function line(label, v) { if (v !== null && v !== undefined && v !== "") { rows += r2(label, v); } }
+    line("Population", num2(r.population) != null ? Number(r.population).toLocaleString() : null);
+    if (num2(r.population) != null && num2(r.population_prior) != null && r.population_prior) {
+      var g = (r.population / r.population_prior - 1) * 100;
+      line("Growth" + (r.population_year ? " <small>since " + r.population_year + "</small>" : ""), pct(g));
+    }
+    line("Households", num2(r.households) != null ? Number(r.households).toLocaleString() : null);
+    line("Median household income", num2(r.median_household_income) != null ? money(r.median_household_income) : null);
+    line("Median age", num2(r.median_age) != null ? Number(r.median_age).toFixed(1) : null);
+    if (num2(r.renter_share) != null) {
+      var rs = Number(r.renter_share);
+      line("Renter share", pct(rs <= 1 ? rs * 100 : rs));
+    }
+    $("t-research").innerHTML = rows || r2("No figures recorded yet", "—");
+    $("research-asof").textContent = r.as_of ? "Recorded " + String(r.as_of).slice(0, 10) + "." : "";
+    panel.hidden = false;
+  }
+
+  /* ---- rate map ---- */
+  var _map = null;
+  function drawMap() {
+    var withGeo = MK.markets.filter(function (m) {
+      return num2(m.latitude) != null && num2(m.longitude) != null;
+    });
+    if (!withGeo.length || typeof L === "undefined") { return; }
+    $("map-panel").hidden = false;
+
+    var rates = withGeo.map(function (m) { return num2(m.shared_weekly) || 0; }).filter(Boolean);
+    var lo = Math.min.apply(null, rates), hi = Math.max.apply(null, rates);
+    function shade(v) {
+      if (!v || hi === lo) { return "#9CA3AF"; }
+      var t = (v - lo) / (hi - lo);                 /* 0 low → 1 high */
+      var light = 78 - t * 40;                      /* lighter to darker green */
+      return "hsl(145," + Math.round(40 + t * 30) + "%," + Math.round(light) + "%)";
+    }
+
+    _map = L.map("ratemap", { scrollWheelZoom: false });
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      attribution: "&copy; OpenStreetMap &copy; CARTO", maxZoom: 18,
+    }).addTo(_map);
+
+    var pts = [];
+    withGeo.forEach(function (m) {
+      var units = num2(m.active_units) || 0;
+      var c = L.circleMarker([m.latitude, m.longitude], {
+        radius: Math.max(7, Math.min(26, 7 + Math.sqrt(units) * 2.2)),
+        fillColor: shade(num2(m.shared_weekly)),
+        color: "#0B0F14", weight: 1, opacity: 0.5, fillOpacity: 0.82,
+      }).addTo(_map);
+      var occ = num2(m.avg_occupancy);
+      c.bindPopup(
+        "<b>" + m.zip + "</b>" + (m.metro ? " · " + m.metro : "") + "<br>" +
+        (num2(m.shared_weekly) ? "Shared " + money(m.shared_weekly) + "/wk<br>" : "") +
+        (num2(m.private_weekly) ? "Private " + money(m.private_weekly) + "/wk<br>" : "") +
+        (units ? units + " active units<br>" : "") +
+        (occ != null ? pct(occ <= 1 ? occ * 100 : occ) + " occupancy<br>" : "") +
+        "<a href='#' data-zip='" + m.zip + "' class='zippick'>Use this ZIP</a>"
+      );
+      pts.push([m.latitude, m.longitude]);
+    });
+    _map.fitBounds(pts, { padding: [24, 24] });
+
+    $("maplegend").innerHTML =
+      "<span class='sw'><span class='dot' style='background:" + shade(lo) + "'></span>" + money(lo) + "/wk</span>" +
+      "<span class='sw'><span class='dot' style='background:" + shade(hi) + "'></span>" + money(hi) + "/wk</span>" +
+      "<span class='sw'>" + withGeo.length + " ZIPs mapped</span>";
+
+    document.addEventListener("click", function (e) {
+      if (e.target && e.target.classList && e.target.classList.contains("zippick")) {
+        e.preventDefault();
+        applyZip(e.target.getAttribute("data-zip"));
+        if (_map) { _map.closePopup(); }
+      }
+    });
+    setTimeout(function () { if (_map) { _map.invalidateSize(); } }, 60);
+  }
+
+  (function loadMarket() {
+    fetch("/api/public/market")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j) { return; }
+        MK.markets = (j.markets || []).filter(function (m) { return m.zip; });
+        MK.reports = j.reports || [];
+        if (MK.markets.length || MK.reports.length) {
+          $("mkt-panel").hidden = false;
+          fillCities(); fillZips();
+          $("i-zip").addEventListener("change", function () { applyZip(this.value); });
+          $("i-city").addEventListener("change", function () { showResearch(this.value); });
+          drawMap();
+        }
+      })
+      .catch(function () { /* offline or opened as a file — panels stay hidden */ });
+  })();
+
   function reset() { KEYS.forEach(function (k) { var el = $("i-" + k); if (el) { el.value = D[k]; } }); paintLogo(""); try { localStorage.removeItem("glbm_calc"); } catch (e) {} render(); }
   root.addEventListener("input", function () { render(); save(); });
   root.addEventListener("change", function () { paintLogo($("i-logo").value); render(); save(); });
@@ -576,3 +778,6 @@
   })();
 })();
 </script>
+
+</body>
+</html>

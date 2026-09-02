@@ -126,6 +126,29 @@
   .glb .caveat{margin-top:14px;border:1px solid #FCD34D;background:#FFFBEB;border-radius:10px;padding:13px 15px;font-size:12px;line-height:1.6;color:#78350F;}
   .glb .caveat b{display:block;margin-bottom:3px;color:#78350F;}
 
+  .glb .occpanel{margin-bottom:16px;}
+  .glb .occtop{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:12px;}
+  .glb .occbig{display:flex;align-items:baseline;gap:3px;}
+  .glb .occbig span{font-size:38px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;}
+  .glb .occbig small{font-size:17px;font-weight:600;color:var(--muted);}
+  .glb .occmeta{display:flex;gap:22px;flex-wrap:wrap;}
+  .glb .occmeta div{text-align:right;}
+  .glb .occmeta .k{font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+  .glb .occmeta .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;}
+  .glb .occmeta .v.neg{color:var(--red);}
+  .glb .occmeta .v.pos{color:var(--green-deep);}
+
+  .glb .occwrap{position:relative;padding-bottom:20px;}
+  .glb #occ-range{-webkit-appearance:none;appearance:none;width:100%;height:8px;border-radius:4px;outline:none;margin:0;}
+  .glb #occ-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--ink);cursor:grab;margin-top:-1px;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .glb #occ-range::-webkit-slider-thumb:active{cursor:grabbing;}
+  .glb #occ-range::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--ink);cursor:grab;}
+  .glb .occticks{position:absolute;left:0;right:0;top:16px;height:18px;pointer-events:none;}
+  .glb .occticks i{position:absolute;transform:translateX(-50%);font-style:normal;font-size:10px;color:var(--muted);white-space:nowrap;}
+  .glb .occticks i:before{content:"";position:absolute;left:50%;top:-6px;width:1px;height:5px;background:currentColor;}
+  .glb .occticks i.be{color:var(--red);font-weight:600;}
+  .glb .occticks i.dscr{color:var(--amber);font-weight:600;}
+
   .glb .housepick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
   .glb .hstep{width:38px;height:38px;padding:0;font-size:19px;font-weight:700;line-height:1;border:1px solid var(--line);background:#fff;border-radius:4px;cursor:pointer;color:var(--ink);}
   .glb .hstep:hover{border-color:var(--green);color:var(--green-deep);background:var(--green-soft);}
@@ -336,6 +359,19 @@
       <div class="kpi" id="k-coc"><div class="k">Cash on cash</div><div class="v" id="v-coc">—</div><div class="n" id="n-coc">&nbsp;</div></div>
       <div class="kpi" id="k-cap"><div class="k">Cap rate</div><div class="v" id="v-cap">—</div><div class="n" id="n-cap">&nbsp;</div></div>
       <div class="kpi" id="k-dscr"><div class="k">DSCR</div><div class="v" id="v-dscr">—</div><div class="n" id="n-dscr">&nbsp;</div></div>
+    </div>
+
+    <div class="panel occpanel">
+      <h3>Occupancy</h3>
+      <div class="occtop">
+        <div class="occbig"><span id="occ-val">95</span><small>%</small></div>
+        <div class="occmeta" id="occ-meta"></div>
+      </div>
+      <div class="occwrap">
+        <input type="range" id="occ-range" min="40" max="100" step="1" value="95">
+        <div class="occticks" id="occ-ticks"></div>
+      </div>
+      <p class="hint" id="occ-note"></p>
     </div>
 
     <div class="flag err" id="f-err"></div>
@@ -683,6 +719,77 @@
 
      One emoji per house up to 30, then a count — thirty is already
      more than anyone reads, and a hundred is a wall of noise. */
+
+  /* ================= Occupancy, dragged =================
+     The most sensitive input on the sheet, so it gets a handle rather
+     than a number field. Two thresholds are marked on the track:
+
+       break-even   cash flow crosses zero
+       DSCR 1.25    the level most lenders want to see
+
+     Both are solved, not guessed. Collected rent scales with occupancy
+     and three of the five operating costs scale with collected rent,
+     so the ones that do not — utilities, taxes and insurance — are what
+     make the break-even sit where it does. */
+  function occThresholds(i, m) {
+    var varRate = (i.psf + i.pm + i.mnt) / 100;      /* costs that move with rent */
+    var fixed = m.e.util + m.e.ti;                    /* costs that do not */
+    var denom = m.gsr * (1 - varRate);
+    if (denom <= 0) { return { be: null, dscr: null }; }
+    return {
+      be:   (fixed + m.ds) * 100 / denom,
+      dscr: (fixed + m.ds * 1.25) * 100 / denom,
+    };
+  }
+
+  function paintOccupancy(i, m) {
+    var r = $("occ-range");
+    if (document.activeElement !== r) { r.value = Math.round(i.occ); }
+    $("occ-val").textContent = Math.round(i.occ);
+
+    var t = occThresholds(i, m);
+    var lo = 40, hi = 100, span = hi - lo;
+    function pos(v) { return Math.max(0, Math.min(100, (v - lo) / span * 100)); }
+
+    /* Track shaded red below break-even, amber to the lender minimum,
+       green above it. The cushion is the thing being shown. */
+    var stops;
+    if (t.be == null) {
+      stops = "var(--line)";
+    } else {
+      var b = pos(t.be), d = pos(Math.max(t.dscr, t.be));
+      stops = "linear-gradient(90deg," +
+        "#FCA5A5 0%,#FCA5A5 " + b.toFixed(1) + "%," +
+        "#FDE68A " + b.toFixed(1) + "%,#FDE68A " + d.toFixed(1) + "%," +
+        "#A7F3C0 " + d.toFixed(1) + "%,#A7F3C0 100%)";
+    }
+    r.style.background = stops;
+
+    var ticks = "";
+    if (t.be != null && t.be >= lo && t.be <= hi) {
+      ticks += "<i class='be' style='left:" + pos(t.be) + "%'>break-even " + t.be.toFixed(0) + "%</i>";
+    }
+    if (t.dscr != null && t.dscr >= lo && t.dscr <= hi && Math.abs(t.dscr - t.be) > 3) {
+      ticks += "<i class='dscr' style='left:" + pos(t.dscr) + "%'>DSCR 1.25 at " + t.dscr.toFixed(0) + "%</i>";
+    }
+    $("occ-ticks").innerHTML = ticks;
+
+    $("occ-meta").innerHTML =
+      "<div><div class='k'>Cash flow / mo</div><div class='v " +
+        (m.cf >= 0 ? "pos" : "neg") + "'>" + money(m.cf / 12) + "</div></div>" +
+      "<div><div class='k'>DSCR</div><div class='v " +
+        (m.dscr >= 1.25 ? "pos" : "neg") + "'>" + m.dscr.toFixed(2) + "</div></div>" +
+      "<div><div class='k'>Cash on cash</div><div class='v'>" + pct(m.coc) + "</div></div>";
+
+    if (t.be == null) { $("occ-note").textContent = ""; return; }
+    var cushion = i.occ - t.be;
+    $("occ-note").textContent = cushion >= 0
+      ? "Rooms could sit " + cushion.toFixed(0) + " points emptier than this before the house stops covering its own debt. Break-even is " +
+        t.be.toFixed(0) + "%."
+      : "Below break-even. Occupancy needs to reach " + t.be.toFixed(0) +
+        "% before the house covers its debt — " + Math.abs(cushion).toFixed(0) + " points above where it is now.";
+  }
+
   function renderHouses(i, m, houses, maxHouses, projEquity, years) {
     $("h-num").textContent = houses;
     $("h-word").textContent = houses === 1 ? "house" : "houses";
@@ -746,6 +853,8 @@
     $("n-dscr").textContent = m.dscr >= 1.25 ? "lender-ready" : "below typical lender minimum";
     $("k-cf").className = "kpi" + (m.cf < 0 ? " bad" : "");
     $("k-dscr").className = "kpi" + (m.dscr < 1.25 ? " bad" : "");
+
+    paintOccupancy(i, m);
 
     /* stack */
     function chips(n, cls) { var s = ""; for (var x = 0; x < Math.min(n, 24); x++) { s += "<span class='chip " + cls + "'></span>"; } return s; }
@@ -1158,6 +1267,11 @@
       })
       .catch(function () { /* offline or opened as a file — panels stay hidden */ });
   })();
+
+  $("occ-range").addEventListener("input", function () {
+    $("i-occ").value = this.value;
+    render(); save();
+  });
 
   $("h-plus").addEventListener("click", function () { stepHouses(1); });
   $("h-minus").addEventListener("click", function () { stepHouses(-1); });

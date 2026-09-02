@@ -206,6 +206,11 @@ export default function ClubProForma({
   orgRows = null,
   marketReport = null,
   nearbyMarkets = [],
+  // Where the research report is for. Falls back to the deal, but can
+  // be passed directly so a market-level sheet — one with no house on
+  // it — still carries the city research.
+  city = null,
+  state = null,
   enabledViews = null,
   // GLBM leads: it's the standard we underwrite to, and it's the case
   // a buyer should see first. Falls back to base where a saved model
@@ -256,8 +261,16 @@ export default function ClubProForma({
     const allowed = enabledViews
       ? new Set(enabledViews)
       : new Set(SECTIONS.filter((s) => s.id !== "syndication").map((s) => s.id));
-    return SECTIONS.filter((s) => allowed.has(s.id));
-  }, [enabledViews]);
+    return SECTIONS.filter((s) => {
+      if (!allowed.has(s.id)) return false;
+      // A tile that can never render is worse than a missing tile: it
+      // reads as broken. Drop the ones with nothing behind them on
+      // this particular sheet.
+      if (s.id === "map" && !deal) return false;
+      if (s.id === "research" && !marketReport) return false;
+      return true;
+    });
+  }, [enabledViews, deal, marketReport]);
 
   const [views, setViews] = useState(() => {
     if (typeof window !== "undefined") {
@@ -1080,7 +1093,10 @@ export default function ClubProForma({
               answers "where is this" — which is a different question
               from what the comps table answers, and a buyer often
               wants one without the other. */}
-          {isBuyer && show("map") && (
+          {/* Guarded on deal for the same reason the flyer is: with no
+              subject there is nothing to centre on and the map renders
+              empty. A market-level sheet has no house, so no map. */}
+          {isBuyer && show("map") && deal && (
             <BuyerMap deal={deal} markets={nearbyMarkets} comps={comps} subjectMarket={market} />
           )}
 
@@ -1469,7 +1485,11 @@ export default function ClubProForma({
 
         {isBuyer && core && show("padsplit") && <MarketPanel market={market} deal={deal} />}
         {isBuyer && show("research") && marketReport && (
-          <MarketReport report={marketReport} city={deal?.city} state={deal?.state} />
+          <MarketReport
+            report={marketReport}
+            city={city || deal?.city || marketReport?.city}
+            state={state || deal?.state || marketReport?.state}
+          />
         )}
 
         {isBuyer && deal && (

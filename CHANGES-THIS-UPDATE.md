@@ -104,3 +104,33 @@ carries real risk to touch, for no visible gain:
 
 If the internal rename is wanted later it should be its own change,
 done on its own, so a rename never gets tangled up with a feature.
+
+## Deal-less sheets
+
+`ClubProForma` already renders with `deal={null}` — the index page does
+it for the demo — and everything property-specific is gated on `deal &&`.
+The economics work without a house attached. The two new tiles had to be
+brought in line with that:
+
+- **Map** is now gated on `deal`, the same way the flyer is. With no
+  subject there is nothing to centre on and it renders an empty frame.
+  A market-level sheet has no house, so it has no map.
+- **Market research** takes optional `city` and `state` props, falling
+  back to the deal and then to the report itself. A sheet with no deal
+  can still carry the city research by passing them directly.
+- **Both tiles disappear from the picker** when there is nothing behind
+  them. A checkbox that toggles nothing reads as broken.
+
+### Still open: researching a market you have no deal in
+
+`GET /api/market-research` builds its city list by looping the `deals`
+table, so a city only appears once a deal exists there. `POST` has no
+such limit — it will research any city and state passed to it.
+
+The effect is that a market cannot be researched before entering it,
+which is backwards for the Charlotte / Durham / Raleigh / Nashville /
+Richmond expansion. The fix is a market-level page — `/settings/market`
+already holds the ZIP data and the coverage panel — promoted out of
+Settings, with an "add a city" input feeding the existing POST.
+
+Not done here. It changes a working API and deserves its own change.

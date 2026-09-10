@@ -93,11 +93,15 @@ export default function DealTabs({ slug, active, onSelect, address, price }) {
           </a>
         ))}
 
+        {/* Inline, not pushed right. ml-auto threw it to the far edge
+            of a wide screen, miles from the tabs it belongs with — the
+            deal page keeps it in the run and these two bars should
+            read the same. */}
         <a
           href="/buyer-calculator.html"
           target="_blank"
           rel="noopener"
-          className="ml-auto px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
+          className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
         >
           Calculator
         </a>

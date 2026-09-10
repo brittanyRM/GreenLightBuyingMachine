@@ -206,7 +206,15 @@
     .glb .masthead{padding:20px 16px;}
     .glb .disc{padding:0 16px;}
   }
-  @media print{ .glb{background:#fff;} .glb .actions{display:none;} }
+  @media print{
+    .glb{background:#fff;}
+    .glb .actions{display:none;}
+    /* Browsers drop background colours when printing unless told not
+       to. The masthead is near-black and the logo is filtered white to
+       sit on it, so without this the bar goes white and takes the logo
+       with it — a blank space where the branding should be. */
+    .glb .masthead{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
 </style>
 
 <div class="masthead">
@@ -976,9 +984,22 @@
 
   /* ---- buyer logo ---- */
   function paintLogo(src) {
-    var img = $("m-buyerlogo"), div = $("m-divider");
-    if (src) { img.src = src; img.hidden = false; div.hidden = false; }
-    else { img.hidden = true; div.hidden = true; }
+    var img = $("m-buyerlogo"), div = $("m-divider"), ours = $("m-glbm");
+    var text = $("m-brandtext");
+    if (src) {
+      // A buyer's own logo replaces ours rather than sitting next to
+      // it. Two logos on a projection reads as a joint venture, which
+      // is not what a branded copy is for.
+      img.src = src;
+      img.hidden = false;
+      div.hidden = true;
+      if (ours) { ours.style.display = "none"; }
+      if (text) { text.style.display = "none"; }
+    } else {
+      img.hidden = true;
+      div.hidden = true;
+      if (ours) { ours.style.display = ""; }
+    }
   }
   $("i-logofile").addEventListener("change", function (e) {
     var f = e.target.files && e.target.files[0];

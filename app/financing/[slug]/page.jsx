@@ -528,13 +528,9 @@ export default function FinancingPage({ params }) {
             {deal.city}, {deal.state} {deal.zip}
           </p>
         </div>
+        {/* The tab bar above carries the back arrow now, so this one
+            went — two ways back to the same place, a few inches apart. */}
         <div className="flex items-center gap-3">
-          <a
-            href={`/deals/${deal.slug}`}
-            className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900"
-          >
-            ← Deal
-          </a>
           <button
             onClick={save}
             disabled={saving}

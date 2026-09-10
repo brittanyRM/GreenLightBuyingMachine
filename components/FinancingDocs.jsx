@@ -8,7 +8,7 @@
 // ============================================================
 
 import { useState } from "react";
-import { payoffSchedule, sourcesAndUses, titleEmail } from "../lib/gapFunding";
+import { payoffSchedule, sourcesAndUses, titleEmail, pointsComparison } from "../lib/gapFunding";
 
 const INK = "#141914";
 const GREEN = "#00A651";
@@ -124,6 +124,69 @@ export function PayoffTable({ deal, form, result }) {
         the stated rate over a 360-day year, which is the convention these
         lenders use. The payoff demand from the lender governs.
       </p>
+
+      <PointsBlock result={result} />
+    </div>
+  );
+}
+
+// ---------- points or no points ----------
+//
+// Sound Capital price this two ways and which is cheaper depends only
+// on how long the house is held. It was being decided from memory,
+// against a crossover that moves with the loan size.
+function PointsBlock({ result }) {
+  const pc = pointsComparison(result);
+  if (!pc.rows.length) return null;
+
+  return (
+    <div className="print-keep mt-8">
+      <div className="border-b-2 border-neutral-900 pb-1 text-[10px] font-bold uppercase tracking-wider">
+        Points or no points
+      </div>
+      <p className="mt-1 text-[11.5px] leading-relaxed text-neutral-600">
+        17% with no points against 12% with two points. Two points on{" "}
+        {usd(result?.firstLoan)} costs {usd(pc.pointsCost)} at the table, so
+        paying it only makes sense if the house is held long enough for the
+        cheaper rate to earn it back — which happens in{" "}
+        <strong>month {pc.breakEvenMonths}</strong>.
+      </p>
+      <table className="mt-2 w-full border-collapse text-[12px]">
+        <thead>
+          <tr className="border-b-2 border-neutral-900 text-[9px] uppercase tracking-wider text-neutral-600">
+            <th className="px-2 py-1 text-left font-bold">Month</th>
+            <th className="px-2 py-1 text-right font-bold">17%, no points</th>
+            <th className="px-2 py-1 text-right font-bold">12% + 2 points</th>
+            <th className="px-2 py-1 text-right font-bold">Difference</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pc.rows.slice(0, 9).map((r) => (
+            <tr
+              key={r.month}
+              className={`print-keep border-b border-neutral-100 ${
+                r.month === pc.breakEvenMonths ? "font-bold" : ""
+              }`}
+            >
+              <td className="px-2 py-1">{r.month}</td>
+              <td className="px-2 py-1 text-right tabular-nums">{usd(r.noPoints)}</td>
+              <td className="px-2 py-1 text-right tabular-nums">{usd(r.withPoints)}</td>
+              <td
+                className="px-2 py-1 text-right tabular-nums"
+                style={{ color: r.saving >= 0 ? GREEN : "#B91C1C" }}
+              >
+                {r.saving >= 0 ? "+" : ""}
+                {usd(r.saving)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-1 text-[10px] text-neutral-500">
+        Green means points are the cheaper of the two by that month. A flip that
+        slips past month {pc.breakEvenMonths} would have been better off with
+        them.
+      </p>
     </div>
   );
 }
@@ -212,17 +275,18 @@ export function SourcesUses({ deal, form, result }) {
 // ---------- the email to title ----------
 
 export function TitleEmail({ deal, form, result, meta = {} }) {
+  // The people Brian names on the call: title leads, and everyone who
+  // has to act is copied so nobody is waiting on a forward.
   const [extra, setExtra] = useState({
-    escrowOfficer: meta.escrowOfficer || "",
-    insuranceAgent: "",
-    insuranceAgency: "",
-    insurancePhone: "",
-    insuranceEmail: "",
+    titleAgent: meta.escrowOfficer || "",
+    firstLenderContact: "",
     secondLender: "",
+    secondLenderContact: "",
+    insuranceAgent: "",
   });
   const [copied, setCopied] = useState(false);
 
-  const { subject, body } = titleEmail({
+  const { subject, body, to, cc } = titleEmail({
     deal,
     form,
     result,
@@ -246,12 +310,11 @@ export function TitleEmail({ deal, form, result, meta = {} }) {
 
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {[
-            ["escrowOfficer", "Escrow officer"],
-            ["secondLender", "Second lender (if any)"],
-            ["insuranceAgent", "Insurance agent"],
-            ["insuranceAgency", "Insurance agency"],
-            ["insurancePhone", "Agent phone"],
-            ["insuranceEmail", "Agent email"],
+            ["titleAgent", "Title agent — the recipient"],
+            ["firstLenderContact", "Hard money contact (cc)"],
+            ["secondLender", "Second lender entity"],
+            ["secondLenderContact", "Second lender contact (cc)"],
+            ["insuranceAgent", "Insurance agent (cc)"],
           ].map(([k, label]) => (
             <label key={k} className="block">
               <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">
@@ -265,6 +328,17 @@ export function TitleEmail({ deal, form, result, meta = {} }) {
             </label>
           ))}
         </div>
+
+        {(subject || body) && (
+          <div className="mt-3 rounded border border-neutral-200 bg-neutral-50 px-3 py-2 text-[11px]">
+            <div>
+              <strong>To:</strong> {(to || []).join(", ") || "the title agent"}
+            </div>
+            <div className="mt-0.5">
+              <strong>Cc:</strong> {(cc || []).join(", ")}
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 flex items-center gap-3">
           <button

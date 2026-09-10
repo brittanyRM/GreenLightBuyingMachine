@@ -734,18 +734,18 @@ export default function ClubProForma({
         {/* ---------- The pro forma. Always renders. ----------
             Revenue stack, income, net performance, capital and the down
             payment options are the document; they are not switchable. */}
-        {isBuyer && core && <RoomRevenueStack p={core} market={market} />}
-        {isBuyer && core && <IncomeAndExpenses p={core} />}
-        {isBuyer && core && <NetPerformance p={core} />}
-        {isBuyer && core && <CapitalRequired p={core} />}
-        {isBuyer && core && (
+        {isBuyer && core && show("summary") && <RoomRevenueStack p={core} market={market} />}
+        {isBuyer && core && show("summary") && <IncomeAndExpenses p={core} />}
+        {isBuyer && core && show("summary") && <NetPerformance p={core} />}
+        {isBuyer && core && show("summary") && <CapitalRequired p={core} />}
+        {isBuyer && core && show("summary") && (
           <VettingBlock
             p={core}
             occupancy={modelInputs.scenarios[activeScenario].income.occupancyPct}
           />
         )}
 
-        {isBuyer && (
+        {isBuyer && show("summary") && (
           <DownPaymentOptions
             noi={y1.noi}
             options={downPaymentOptions({
@@ -1027,6 +1027,7 @@ export default function ClubProForma({
 
         {/* Basis. Prints — a buyer holding the sheet needs to know
             which stack produced the numbers above it. */}
+        {(!isBuyer || show("summary")) && (
         <div className="border-b border-neutral-200 bg-neutral-50 px-6 py-2.5 text-[11px] leading-snug text-neutral-600 sm:px-8">
           <span className="font-semibold uppercase tracking-[0.12em] text-neutral-500">
             Expense basis:{" "}
@@ -1068,9 +1069,12 @@ export default function ClubProForma({
           market rents move; these are projections, not quotes.
         </div>
 
+        )}
+
         {/* Side-by-side. This is the sheet's argument: the same house
             under both conventions, with the gap named rather than
             left for the buyer to discover. */}
+        {(!isBuyer || show("summary")) && (
         <div className="print-section border-b border-neutral-200 px-6 py-4 sm:px-8">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
             Same house · both conventions
@@ -1143,6 +1147,7 @@ export default function ClubProForma({
             actually generates, so it does not need a haircut applied on top.
           </p>
         </div>
+        )}
 
         {/* ---------------- page one ---------------- */}
         <div className="px-6 py-6 sm:px-8">
@@ -1347,7 +1352,7 @@ export default function ClubProForma({
             )}
           </div>
 
-          {isBuyer && (
+          {isBuyer && show("summary") && (
             <div className="no-print mb-6 border-t border-neutral-200 pt-4">
               <button
                 onClick={() => setDetailOpen((v) => !v)}
@@ -1366,7 +1371,7 @@ export default function ClubProForma({
             </div>
           )}
 
-          {showDetail && (
+          {showDetail && (!isBuyer || show("summary")) && (
             <>
           <div className="print-section mb-2">
             <SectionTitle kicker="Year 1 · ranked">Expense stack</SectionTitle>

@@ -7,6 +7,7 @@ import {
   resolveAssumptions,
   estimateTaxes,
   rateForDown,
+  LENDER_QUOTE_2026_09,
   usd,
   pct,
 } from "../lib/proforma";
@@ -196,7 +197,10 @@ export default function ProForma({ deal, rooms = [], market = null, comps = [], 
       year: "numeric",
     });
 
-  const asOfDate = new Date().toLocaleDateString("en-US", {
+  // The date the rates were quoted, not the date the page is opened.
+  // Rendering today's date made a sheet printed in December claim
+  // December pricing while showing September's rates.
+  const asOfDate = new Date(`${LENDER_QUOTE_2026_09.asOf}T12:00:00`).toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",

@@ -131,7 +131,7 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
             fillOpacity: 0.95,
           })
             .bindTooltip(
-              `<span style="background:#fff;border:1px solid ${COMP};color:#1B2A20;border-radius:4px;font:700 10.5px system-ui;padding:2px 5px;white-space:nowrap">${usd0(
+              `<span style="background:#fff;border:1px solid ${COMP};color:#1B2A20;border-radius:4px;font:700 10.5px system-ui;padding:3px 6px;white-space:nowrap;cursor:pointer">${usd0(
                 c.sold_price || c.list_price
               )}</span>`,
               {
@@ -143,9 +143,23 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
                 offset: [0, -6],
                 opacity: 1,
                 className: "",
+                // Clickable. Leaflet tooltips ignore mouse events by
+                // default, and the price label is the thing anyone
+                // actually aims at — the dot underneath it is six
+                // pixels across. Without this the click sails through
+                // to the map and nothing opens.
+                interactive: true,
               }
             )
-            .on("click", () => setSelected({ kind: "comp", data: c }))
+            .on("click", function () {
+              setSelected({ kind: "comp", data: c });
+              // Ring the one being read. With a dozen identical purple
+              // dots, the panel above tells you what you clicked but
+              // not which of them it was.
+              const layer = layersRef.current.comps;
+              if (layer) layer.eachLayer((l) => l.setStyle && l.setStyle({ weight: 2, color: "#fff" }));
+              this.setStyle({ weight: 4, color: "#1B2A20" });
+            })
             .addTo(compLayer);
           bounds.push([Number(c.latitude), Number(c.longitude)]);
           nearBounds.push([Number(c.latitude), Number(c.longitude)]);

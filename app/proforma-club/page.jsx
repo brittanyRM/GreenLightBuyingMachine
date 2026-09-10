@@ -13,7 +13,11 @@ import Link from "next/link";
 import { listDeals, supabase } from "../../lib/queries";
 import { usd } from "../../lib/proformaClub";
 import { totalBaths } from "../../lib/proforma";
-import { pepperPlaceInputs } from "../../lib/proformaClubPresets";
+import {
+  modelDealInputs,
+  MODEL_DEAL_SLUG,
+  MODEL_DEAL_FALLBACK,
+} from "../../lib/proformaClubPresets";
 import ClubProForma from "../../components/ClubProForma";
 
 const GREEN = "#00A651";
@@ -23,6 +27,42 @@ export default function ClubProFormaIndex() {
   const [error, setError] = useState(null);
   const [showDemo, setShowDemo] = useState(null); // null | "seller" | "buyer"
   const [defaults, setDefaults] = useState(null);
+  // The model deal, loaded from the record rather than hardcoded. The
+  // worked example is the house we actually sell, so it has to say
+  // what the record says — a demo that drifts from the deal it names
+  // is worse than no demo. Falls back to the figures in the preset if
+  // the record can't be read.
+  const [modelDeal, setModelDeal] = useState(null);
+
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      const { data: deal } = await supabase
+        .from("deals")
+        .select("*")
+        .eq("slug", MODEL_DEAL_SLUG)
+        .maybeSingle();
+      if (dead || !deal) return;
+      const [{ data: rooms }, { data: market }] = await Promise.all([
+        supabase.from("deal_rooms").select("*").eq("deal_id", deal.id).order("room_number"),
+        supabase.from("padsplit_market").select("*").eq("zip", deal.zip).maybeSingle(),
+      ]);
+      const { data: comps } = await supabase
+        .from("deal_comps")
+        .select("*")
+        .eq("deal_id", deal.id)
+        .order("sold_date", { ascending: false, nullsFirst: false });
+      setModelDeal({
+        deal,
+        rooms: rooms || [],
+        market: market || MODEL_DEAL_FALLBACK.market,
+        comps: comps || [],
+      });
+    })();
+    return () => {
+      dead = true;
+    };
+  }, []);
 
   useEffect(() => {
     // Brand defaults, so the demo shows the standard hero and gallery
@@ -45,29 +85,13 @@ export default function ClubProFormaIndex() {
     const isBuyer = showDemo === "buyer";
     // Stand-in photography so the buyer layout can be judged before a
     // real deal has any uploaded.
-    const demoDeal = {
-      address_line: "1541 W Pepper Pl",
-      city: "Mesa",
-      state: "AZ",
-      zip: "85201",
-      county: "Maricopa",
-      bedrooms: 9,
-      bathrooms: 4,
-      post_reno_sqft: 2450,
-      lot_sqft: 9488,
-      year_built: 1953,
-      zoning: "RS-6",
-      school_district: "Mesa Unified District #04",
-      list_price: 540000,
-      hero_image_url: null,
-      gallery: [],
-    };
-    const demoComps = [
-      { id: "c1", address: "1509 W Pepper Pl", comp_status: "closed", sold_price: 520000, sold_date: "2026-02-13", approx_sqft: 1863, price_per_sqft: 279.12 },
-      { id: "c2", address: "1209 W Pepper Pl", comp_status: "closed", sold_price: 530000, sold_date: "2026-03-05", approx_sqft: 1956, price_per_sqft: 270.96 },
-      { id: "c3", address: "2021 W 2nd Pl", comp_status: "closed", sold_price: 545000, sold_date: "2026-02-19", approx_sqft: 1884, price_per_sqft: 289.28 },
-      { id: "c4", address: "1027 S Siesta Ln, Tempe", comp_status: "closed", sold_price: 605000, sold_date: "2026-03-18", approx_sqft: 1912, price_per_sqft: 316.42 },
-    ];
+    const demoDeal = modelDeal?.deal || MODEL_DEAL_FALLBACK.deal;
+
+    // The model deal's own comps, from the record. Leaving the old
+    // invented ones here would have put four Pepper Place addresses
+    // under a Dolphin header — a comp set that describes a different
+    // house is worse than an empty one, because it looks answered.
+    const demoComps = modelDeal?.comps || [];
 
     return (
       <div>
@@ -99,7 +123,7 @@ export default function ClubProFormaIndex() {
         </div>
 
         <ClubProForma
-          initialInputs={pepperPlaceInputs()}
+          initialInputs={modelDealInputs(modelDeal)}
           audience={showDemo}
           deal={isBuyer ? demoDeal : null}
           comps={isBuyer ? demoComps : []}

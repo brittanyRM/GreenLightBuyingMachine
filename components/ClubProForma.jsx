@@ -33,7 +33,6 @@ import {
 import ClubAssumptions from "./ClubAssumptions";
 import BuyerComps from "./BuyerComps";
 import BuyerMap from "./BuyerMap";
-import ViewPicker from "./ViewPicker";
 import SectionNav from "./SectionNav";
 import SyndicationPanel from "./SyndicationPanel";
 import ProvenancePanel from "./ProvenancePanel";
@@ -283,7 +282,9 @@ export default function ClubProForma({
     });
   }, [enabledViews, deal, marketReport]);
 
-  const [views, setViews] = useState(() => {
+  // Read once. Nothing sets it any more — the tiles that did are gone —
+  // but a ?views= link still pins a subset, so the value is still read.
+  const [views] = useState(() => {
     if (typeof window !== "undefined") {
       const raw = new URLSearchParams(window.location.search).get("views");
       if (raw != null) {
@@ -300,10 +301,22 @@ export default function ClubProForma({
   // because it was forwarded from a firm that has it or because
   // someone typed it. Intersect rather than trust.
   const allowedIds = useMemo(() => new Set(visibleSections.map((s) => s.id)), [visibleSections]);
-  const effectiveViews = useMemo(
-    () => new Set([...views].filter((v) => allowedIds.has(v))),
-    [views, allowedIds]
-  );
+  // Every section the firm is entitled to, always on.
+  //
+  // The tiles used to filter the page and the section bar navigated it,
+  // which meant two controls for one question and a buyer having to
+  // switch something on before they could jump to it. The bar does the
+  // whole job: the page carries everything, and you move through it.
+  //
+  // ?views= is still honoured when it names a subset, so links already
+  // sent that pin particular sections keep working.
+  const effectiveViews = useMemo(() => {
+    const fromUrl = [...views].filter((v) => allowedIds.has(v));
+    const pinned =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("views") != null;
+    return pinned && fromUrl.length ? new Set(fromUrl) : new Set(allowedIds);
+  }, [views, allowedIds]);
   const [printing, setPrinting] = useState(false);
 
   // The pro forma section carried eight blocks and several said the
@@ -344,14 +357,6 @@ export default function ClubProForma({
     window.history.replaceState(null, "", url.pathname + (qs ? "?" + qs : "") + url.hash);
   }, [effectiveViews, visibleSections, isBuyer]);
 
-  const toggleView = (id) =>
-    setViews((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  const showAllViews = () => setViews(new Set(visibleSections.map((s) => s.id)));
-  const onlyView = (id) => setViews(new Set([id]));
 
   // A PDF is read differently from a screen. Before the print dialog
   // opens, drop the section filter so the file carries the whole
@@ -677,15 +682,6 @@ export default function ClubProForma({
           standardLabel={scenarioLocked ? "Green Light underwriting standard" : null}
         />
 
-        {isBuyer && (
-          <ViewPicker
-            sections={visibleSections}
-            selected={effectiveViews}
-            onToggle={toggleView}
-            onAll={showAllViews}
-            onOnly={onlyView}
-          />
-        )}
 
         {/* The tiles choose what is on the page; this moves you around
             it. With six sections showing, reaching the comps meant

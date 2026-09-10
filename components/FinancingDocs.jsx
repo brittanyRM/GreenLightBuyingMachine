@@ -47,7 +47,7 @@ export function PayoffTable({ deal, form, result }) {
   const freeMonths = Math.floor((Number(result?.prepaidDays) || 0) / 30);
 
   return (
-    <div className="print-section bg-white p-6 text-neutral-900 sm:p-10">
+    <div className="print-doc print-section bg-white p-6 text-neutral-900 sm:p-10">
       <Band note="Payoff figures — lender and internal use only" />
 
       <div className="text-[15px] font-bold">Payoff at exit</div>
@@ -230,7 +230,7 @@ export function SourcesUses({ deal, form, result }) {
   );
 
   return (
-    <div className="print-section bg-white p-6 text-neutral-900 sm:p-10">
+    <div className="print-doc print-section bg-white p-6 text-neutral-900 sm:p-10">
       <Band note="Sources and uses — lender and internal use only" />
 
       <div className="text-[15px] font-bold">Sources and uses</div>
@@ -297,7 +297,7 @@ export function TitleEmail({ deal, form, result, meta = {} }) {
     "w-full rounded border border-neutral-300 px-2 py-1 text-[12px] outline-none focus:border-neutral-500";
 
   return (
-    <div className="bg-white p-6 text-neutral-900 sm:p-10">
+    <div className="print-doc bg-white p-6 text-neutral-900 sm:p-10">
       <div className="no-print">
         <Band note="Contains loan terms — send to escrow and the lender only" />
 

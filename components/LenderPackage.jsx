@@ -17,6 +17,8 @@
 // ============================================================
 
 import { useState } from "react";
+import { ClosingStatement, defaultBuyerClosingLines } from "./ClosingStatement";
+import { pppCostForDown } from "../lib/proforma";
 
 const GREEN = "#00A651";
 
@@ -92,7 +94,10 @@ export default function LenderPackage({
     "w-full rounded border border-neutral-300 px-2 py-1 text-[12px] outline-none focus:border-neutral-500";
 
   return (
-    <div className="bg-white p-6 text-neutral-900 sm:p-10">
+    // print-doc gives this the Letter width and margins the pro forma
+    // already uses. Without it the package printed at whatever width
+    // the screen happened to be and clipped at the right edge.
+    <div className="print-doc bg-white p-6 text-neutral-900 sm:p-10">
       {/* Borrower details aren't ours to know, so they're typed here
           rather than guessed from the deal. */}
       <div className="no-print mb-5 rounded border border-neutral-200 bg-neutral-50 px-4 py-3">
@@ -306,6 +311,31 @@ export default function LenderPackage({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* The buyer's estimated closing statement, on the same package.
+          Their transaction, their loan, their charges — none of our
+          basis. Lenders ask for cash to close, and answering it in the
+          submission saves a round trip. */}
+      {price > 0 && (
+        <div className="print-page mt-10 border-t-4 border-neutral-900 pt-6">
+          <ClosingStatement
+            deal={deal}
+            form={{ purchasePrice: price, earnestMoney: 5000 }}
+            result={null}
+            lines={defaultBuyerClosingLines({
+              deal,
+              downPct: Number(borrower.downPct) / 100,
+              pppCost: pppCostForDown(Number(borrower.downPct) / 100),
+            })}
+            meta={{
+              buyer: borrower.entity,
+              lender: borrower.lender,
+              prepared: new Date(),
+            }}
+            audience="buyer"
+          />
         </div>
       )}
 

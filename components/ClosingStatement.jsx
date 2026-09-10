@@ -63,7 +63,12 @@ function Row({ label, sellerDebit, sellerCredit, buyerDebit, buyerCredit, bold }
   );
 }
 
-export function ClosingStatement({ deal, form, result, lines = [], meta = {} }) {
+export function ClosingStatement({ deal, form, result, lines = [], meta = {}, audience = "internal" }) {
+  // The acquisition statement carries our basis and must stay marked.
+  // The buyer's own statement carries none of it and goes to their
+  // lender — banding it Confidential would be both wrong and alarming
+  // to the person it is addressed to.
+  const isBuyerFacing = audience === "buyer";
   const price = Number(form?.purchasePrice) || Number(deal?.purchase_price) || 0;
   const earnest = Number(form?.earnestMoney) || 0;
 
@@ -87,23 +92,23 @@ export function ClosingStatement({ deal, form, result, lines = [], meta = {} }) 
     .join("\n");
 
   return (
-    <div className="print-section bg-white p-6 text-neutral-900 sm:p-10">
+    <div className="print-doc print-section bg-white p-6 text-neutral-900 sm:p-10">
       {/* Prints. It was inside no-print, which meant the marking
           vanished at exactly the moment the document became a PDF
-          someone could attach to an email — the only moment it matters.
-          This carries acquisition cost and lender terms; a buyer
-          reading it learns the margin. */}
-      <div
-        className="print-keep mb-4 flex items-center gap-2 rounded px-4 py-2"
-        style={{ backgroundColor: INK }}
-      >
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
-          Confidential — not for buyer distribution
-        </span>
-        <span className="text-[10px] text-neutral-400">
-          Internal estimate; escrow issues the statement of record
-        </span>
-      </div>
+          someone could attach to an email — the only moment it matters. */}
+      {!isBuyerFacing && (
+        <div
+          className="print-keep mb-4 flex items-center gap-2 rounded px-4 py-2"
+          style={{ backgroundColor: INK }}
+        >
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
+            Confidential — not for buyer distribution
+          </span>
+          <span className="text-[10px] text-neutral-400">
+            Internal estimate; escrow issues the statement of record
+          </span>
+        </div>
+      )}
 
       <div className="mb-1 text-center text-[15px] font-bold">
         Estimated Closing Statement
@@ -243,7 +248,7 @@ export function ClosingStatement({ deal, form, result, lines = [], meta = {} }) 
         <div className="mt-1 text-[10.5px] leading-relaxed text-neutral-600">
           Buyer debits {usd(buyerDebit)} less credits {usd(buyerCredit)}
           {earnest ? `, which include the ${usd(earnest)} deposit` : ""}.
-          {result?.totalNeed
+          {!isBuyerFacing && result?.totalNeed
             ? ` The gap-funding worksheet asks for ${usd(result.totalNeed)}, which
                includes prepaid interest the settlement statement does not carry.`
             : ""}
@@ -326,6 +331,60 @@ export function defaultClosingLines({ deal, form, result }) {
   add("Escrow Charges", "Investor Escrow Discount", { buyerCredit: 290 });
 
   add("Miscellaneous Charges", "Homeowner's Insurance Premium", { buyerDebit: 2461 });
+
+  return L;
+}
+
+// ============================================================
+// The buyer's side.
+//
+// A different transaction from defaultClosingLines above. That one is
+// Green Light acquiring the house — our price, our rehab, our 17%
+// bridge. This is the buyer purchasing it turnkey with a DSCR loan,
+// and it carries none of our figures: the sale price is the list
+// price, the loan is theirs, and our basis appears nowhere.
+//
+// Safe to send to the buyer's lender. That is the point of it.
+// ============================================================
+export function defaultBuyerClosingLines({ deal, downPct = 0.15, rate, pppCost = 0, earnest = 5000 }) {
+  const price = Number(deal?.list_price) || 0;
+  const loan = price * (1 - downPct);
+
+  const L = [];
+  const add = (section, label, fields) => L.push({ section, label, ...fields });
+
+  add("Primary Charges & Credits", "Sale Price of Property", {
+    sellerCredit: price,
+    buyerDebit: price,
+  });
+  if (earnest) add("Primary Charges & Credits", "Earnest Deposit", { buyerCredit: earnest });
+
+  if (loan) {
+    add("Loan Charges", "Loan Amount", { buyerCredit: loan });
+    // 1% is the origination on the Magnus statement. Lenders differ and
+    // this is editable — it is a starting figure, not a quote.
+    add("Loan Charges", "Origination Fee", { buyerDebit: loan * 0.01 });
+  }
+  add("Loan Charges", "Appraisal Fee", { buyerDebit: 800 });
+  add("Loan Charges", "Underwriting Fee", { buyerDebit: 1495 });
+  if (pppCost) {
+    // The prepayment penalty is bought at close on these DSCR loans.
+    // It is the line most often left off an estimate and it is five
+    // figures.
+    add("Loan Charges", "Prepayment Penalty (3% fixed, 5-year)", { buyerDebit: pppCost });
+  }
+  add("Loan Charges", "Prepaid Interest (to the 1st)", { buyerDebit: 0 });
+
+  add("Title Charges", "Lender's Title Policy", { buyerDebit: 1249 });
+  add("Title Charges", "Owner's Title Policy", { buyerDebit: 1135 });
+  add("Title Charges", "Lender's Endorsements", { buyerDebit: 300 });
+
+  add("Escrow Charges", "Settlement or Closing Fee", { buyerDebit: 1460 });
+  add("Escrow Charges", "Processing Fee", { buyerDebit: 550 });
+  add("Escrow Charges", "CPL Fee", { buyerDebit: 25 });
+
+  add("Miscellaneous Charges", "Homeowner's Insurance Premium", { buyerDebit: 2461 });
+  add("Miscellaneous Charges", "Property Tax Proration", { buyerDebit: 0 });
 
   return L;
 }

@@ -366,7 +366,10 @@ export default function DealPage({ params }) {
                 Print / save PDF
               </button>
             </div>
-            <div className="mx-auto max-w-3xl p-4 sm:p-8">
+            {/* 8.5in on screen too, so what you see is the page you
+                get — the package was rendering to whatever width the
+                monitor had and reading nothing like the print. */}
+            <div className="mx-auto w-full max-w-[8.5in] p-4 shadow-xl sm:p-0 sm:py-8">
               <LenderPackage
                 deal={deal}
                 market={market}

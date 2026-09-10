@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { listDeals, supabase } from "../../lib/queries";
 import { usd } from "../../lib/proformaClub";
-import { totalBaths } from "../../lib/proforma";
+import { totalBaths, displayBedrooms } from "../../lib/proforma";
 
 const GREEN = "#00A651";
 
@@ -73,7 +73,7 @@ export default function ClubProFormaIndex() {
                   </div>
                   <div className="text-[11px] text-neutral-500">
                     {d.city}, {d.state} {d.zip}
-                    {d.bedrooms ? ` · ${d.bedrooms} bed` : ""}
+                    {displayBedrooms(d) ? ` · ${displayBedrooms(d)} bed` : ""}
                     {totalBaths(d) ? ` / ${totalBaths(d)} bath` : ""}
                     {!d.list_price ? " · no list price set" : ""}
                   </div>

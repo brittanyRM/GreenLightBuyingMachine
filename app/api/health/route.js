@@ -153,7 +153,7 @@ export async function GET(req) {
   // ---------- data completeness ----------
   const { data: deals } = await admin()
     .from("deals")
-    .select("id, slug, address_line, status, list_price, bedrooms, bathrooms, ensuite_count, post_reno_sqft, finished_sqft, hero_image_url, marketed_floor_plan_url, zip")
+    .select("id, slug, address_line, status, list_price, bedrooms, bathrooms, ensuite_count, target_bedrooms, target_bathrooms, target_ensuites, post_reno_sqft, finished_sqft, living_area_sqft, hero_image_url, marketed_floor_plan_url, zip")
     .order("updated_at", { ascending: false });
 
   const forSale = (deals || []).filter((d) => d.status === "for_sale");
@@ -161,6 +161,49 @@ export async function GET(req) {
   // Assignment grants visibility too, so "no deals for sale" stopped
   // meaning "the portal is empty". Reporting it as a failure while a
   // buyer had an assigned deal sent us looking in the wrong place.
+  // Records that can't describe a real house.
+  //
+  // Every screen faithfully reproduces whatever the record says, so a
+  // wrong record is wrong everywhere at once and nothing objects. These
+  // are the combinations that cannot be true rather than merely
+  // missing, which is why they're checked across all deals and not
+  // just the ones for sale.
+  for (const d of deals || []) {
+    const beds = Number(d.target_bedrooms || d.bedrooms) || 0;
+    const baths = Number(d.target_bathrooms || d.bathrooms) || 0;
+    const ens = Number(d.target_ensuites ?? d.ensuite_count) || 0;
+    const problems = [];
+
+    if (ens > baths && baths > 0)
+      problems.push(`${ens} ensuites but only ${baths} bathrooms`);
+
+    // An ensuite bathroom serves one bedroom. If every bathroom is an
+    // ensuite, the shared bedrooms have none.
+    if (baths > 0 && ens >= baths && beds > ens)
+      problems.push(
+        `all ${baths} bathrooms are ensuite, leaving ${beds - ens} shared bedrooms with none`
+      );
+
+    // Green Light's houses run about 2.25 bedrooms per bathroom. Past
+    // three, it is usually the pre-conversion bath count that never
+    // got updated to the target — which is what makes it worth saying
+    // rather than a matter of taste.
+    if (beds > 0 && baths > 0 && beds / baths > 3)
+      problems.push(
+        `${beds} bedrooms to ${baths} bathrooms — check this is the conversion target and not the as-is count`
+      );
+
+    if (problems.length) {
+      add(
+        "Data",
+        `${d.address_line || d.slug} — configuration`,
+        false,
+        problems.join("; "),
+        "Check target bedrooms, bathrooms and ensuites on the Record tab. Every document reads these."
+      );
+    }
+  }
+
   const { data: liveAssigned } = await admin()
     .from("deal_assignments")
     .select("deal_id, org_id, status, expires_at");
@@ -188,7 +231,10 @@ export async function GET(req) {
     const missing = [];
     if (!d.list_price) missing.push("list price (sharing is blocked without it)");
     if (!d.post_reno_sqft && !d.finished_sqft) missing.push("square footage");
-    if (!d.bedrooms) missing.push("bedrooms");
+    // The target count, not the as-is one. Every document prices the
+    // conversion, so a deal with no pre-conversion figure on file is
+    // complete as long as the target is set.
+    if (!(d.target_bedrooms || d.bedrooms)) missing.push("bedrooms");
     if (!d.hero_image_url) missing.push("hero photo");
     if (!d.marketed_floor_plan_url) missing.push("marketed floor plan");
 

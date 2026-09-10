@@ -8,11 +8,13 @@ const GREEN = "#00A651";
 
 // Hidden on the login screen and on public buyer links — a buyer
 // shouldn't see internal navigation.
+// /p/ stays listed even though the route is gone — an old link should
+// land on a 404 without the app chrome around it, not with a nav bar
+// implying it's a page that exists.
 const HIDDEN = ["/login", "/p/", "/s/", "/buyers"];
 
 const LINKS = [
   { href: "/", label: "Deals" },
-  { href: "/proforma-club", label: "Pro forma" },
   { href: "/crm", label: "CRM" },
   { href: "/admin/buyers", label: "Buyers" },
   { href: "/settings", label: "Settings" },

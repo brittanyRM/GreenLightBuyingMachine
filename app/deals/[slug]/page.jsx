@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { getDealBundle, marketIsStale, supabase } from "../../../lib/queries";
 import { computeProForma, usd } from "../../../lib/proforma";
 import ConversionSketch from "../../../components/ConversionSketch";
-import ProForma from "../../../components/ProForma";
 import DealFlyer from "../../../components/DealFlyer";
 import BuyerMap from "../../../components/BuyerMap";
 import FloorPlanRender from "../../../components/FloorPlanRender";
@@ -20,7 +19,6 @@ const GREEN = "#00A651";
 const TABS = [
   { id: "sketch", label: "Sketch" },
   { id: "plan", label: "Plan" },
-  { id: "proforma", label: "Pro forma" },
   { id: "flyer", label: "Flyer" },
   { id: "map", label: "Map" },
   { id: "research", label: "Research" },
@@ -183,20 +181,6 @@ export default function DealPage({ params }) {
                 defaults={defaults}
               />
             </ErrorBoundary>
-          </div>
-        )}
-        {tab === "proforma" && (
-          <div>
-            <div className="no-print flex justify-end px-4 pt-4 sm:px-8">
-              <button
-                onClick={() => window.print()}
-                className="rounded px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-white"
-                style={{ backgroundColor: GREEN }}
-              >
-                Print / save PDF
-              </button>
-            </div>
-            <ProForma deal={deal} rooms={rooms} market={market} comps={comps} orgRows={orgRows} />
           </div>
         )}
         {tab === "flyer" && (

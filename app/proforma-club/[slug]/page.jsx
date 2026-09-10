@@ -37,7 +37,11 @@ export default function ClubProFormaDeal({ params }) {
   const [recipient, setRecipient] = useState("");
   const [label, setLabel] = useState("");
   const [expiresDays, setExpiresDays] = useState("");
-  const [allowAdjust, setAllowAdjust] = useState(true);
+  // Off by default. A shared pro forma is what we publish; letting a
+  // recipient move the assumptions is a deliberate choice for a
+  // particular conversation, not the thing that happens when nobody
+  // thinks about it. See migration 041.
+  const [allowAdjust, setAllowAdjust] = useState(false);
   const [share, setShare] = useState(null);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);
@@ -576,7 +580,10 @@ export default function ClubProFormaDeal({ params }) {
         // activeInputs is derived from the current model.
         key={preview ? "buyer" : "seller"}
         initialInputs={activeInputs}
-        backHref="/proforma-club"
+        // Back to the deal this sheet belongs to. It used to point at
+        // a list page, which duplicated Deals and is gone — sending
+        // someone from a deal to a list of deals was a detour anyway.
+        backHref={`/deals/${params.slug}`}
         backLabel="All deals"
         audience={preview ? "buyer" : "seller"}
         deal={preview ? deal : null}

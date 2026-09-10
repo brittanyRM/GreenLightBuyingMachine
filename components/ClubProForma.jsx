@@ -612,6 +612,13 @@ export default function ClubProForma({
             value={multiple(s.leveredMoic)}
             sub={`${usd(s.leveredProfit)} profit`}
           />
+          {/* The sheet's own basis. This page is built on the itemised
+              GLBM model — the expense-basis note below says so, and the
+              cash flow table, the IRR and the equity multiple all come
+              from it. The dial used to read the deal engine instead,
+              putting 2.23 here against 2.16 six pixels below, both
+              labelled DSCR at the same occupancy. Both are defensible;
+              showing both without saying which is which is not. */}
           <Stat
             label="DSCR"
             value={s.year1Dscr.toFixed(2)}
@@ -659,7 +666,7 @@ export default function ClubProForma({
           value={occupancyOverride}
           modelled={modelInputs.scenarios[activeScenario].income.occupancyPct}
           onChange={setOccupancyOverride}
-          dscr={core ? core.dscr : s.year1Dscr}
+          dscr={s.year1Dscr}
           capped={occupancyOverride != null && occupancyOverride >= 0.99}
           marketOccupancy={market ? Number(market.avg_occupancy) : null}
           // With the case picker gone from the buyer sheet, the dial is

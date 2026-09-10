@@ -34,6 +34,7 @@ import ClubAssumptions from "./ClubAssumptions";
 import BuyerComps from "./BuyerComps";
 import BuyerMap from "./BuyerMap";
 import ViewPicker from "./ViewPicker";
+import SectionNav from "./SectionNav";
 import SyndicationPanel from "./SyndicationPanel";
 import ProvenancePanel from "./ProvenancePanel";
 import {
@@ -686,6 +687,20 @@ export default function ClubProForma({
           />
         )}
 
+        {/* The tiles choose what is on the page; this moves you around
+            it. With six sections showing, reaching the comps meant
+            scrolling past the whole pro forma. */}
+        {isBuyer && (
+          <SectionNav
+            sections={visibleSections}
+            visible={effectiveViews}
+            // Clicking a section that isn't showing turns it on rather
+            // than doing nothing. The bar lists everything the firm can
+            // see, so every entry has to go somewhere.
+            onReveal={(id) => setViews((prev) => new Set([...prev, id]))}
+          />
+        )}
+
         {occupancyOverride != null && (
           <div
             className="print-section border-b-2 px-6 py-2.5 sm:px-8"
@@ -744,6 +759,7 @@ export default function ClubProForma({
             switches on, so they sit under the numbers rather than pushing
             them down the page. */}
 
+        {isBuyer && show("summary") && <span id="sec-summary" className="block scroll-mt-24" />}
         {isBuyer && show("summary") && <IncludedBar defaults={defaults} />}
 
         {isBuyer && show("diligence") && (
@@ -758,6 +774,7 @@ export default function ClubProForma({
           />
         )}
 
+        {isBuyer && show("flyer") && <span id="sec-flyer" className="block scroll-mt-24" />}
         {isBuyer && show("flyer") && deal && (
           <PropertyGallery
             gallery={deal.gallery}
@@ -1141,10 +1158,12 @@ export default function ClubProForma({
           {/* Guarded on deal for the same reason the flyer is: with no
               subject there is nothing to centre on and the map renders
               empty. A market-level sheet has no house, so no map. */}
+          {isBuyer && show("map") && <span id="sec-map" className="block scroll-mt-24" />}
           {isBuyer && show("map") && deal && (
             <BuyerMap deal={deal} markets={nearbyMarkets} comps={comps} subjectMarket={market} />
           )}
 
+          {isBuyer && show("comps") && <span id="sec-comps" className="block scroll-mt-24" />}
           {isBuyer && show("comps") && (
             <BuyerComps
               subject={{ price: cap.purchasePrice, sqft: p.sqft, beds: p.beds }}
@@ -1472,6 +1491,7 @@ export default function ClubProForma({
         </div>
 
         {isBuyer && deal && <Readiness deal={deal} sqft={p.sqft} />}
+        {isBuyer && show("syndication") && <span id="sec-syndication" className="block scroll-mt-24" />}
         {isBuyer && show("syndication") && (
           <SyndicationPanel
             price={inputs.capitalization.purchasePrice}
@@ -1526,9 +1546,12 @@ export default function ClubProForma({
           />
         )}
 
+        {isBuyer && show("diligence") && <span id="sec-diligence" className="block scroll-mt-24" />}
         {isBuyer && show("diligence") && <SupportingDocuments documents={documents} />}
 
+        {isBuyer && show("padsplit") && <span id="sec-padsplit" className="block scroll-mt-24" />}
         {isBuyer && core && show("padsplit") && <MarketPanel market={market} deal={deal} />}
+        {isBuyer && show("research") && <span id="sec-research" className="block scroll-mt-24" />}
         {isBuyer && show("research") && (
           marketReport || ranReport ? (
             <MarketReport

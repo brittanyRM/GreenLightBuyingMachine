@@ -428,6 +428,13 @@ export default function ClubProForma({
   // asked to choose between.
   const scenarioLocked = true;
 
+  // A report the buyer ran themselves, held until the page reloads.
+  // It is already saved — this just avoids making them refresh to see
+  // what they just asked for.
+  const [ranReport, setRanReport] = useState(null);
+  const [researching, setResearching] = useState(false);
+  const [researchError, setResearchError] = useState(null);
+
   // orgRows is [{key, value}]. The rate resolvers want a plain object,
   // and passing the array would look fine and silently fall back to
   // the built-in tiers — the same failure the comment above records.
@@ -1515,12 +1522,60 @@ export default function ClubProForma({
         {isBuyer && show("diligence") && <SupportingDocuments documents={documents} />}
 
         {isBuyer && core && show("padsplit") && <MarketPanel market={market} deal={deal} />}
-        {isBuyer && show("research") && marketReport && (
-          <MarketReport
-            report={marketReport}
-            city={city || deal?.city || marketReport?.city}
-            state={state || deal?.state || marketReport?.state}
-          />
+        {isBuyer && show("research") && (
+          marketReport || ranReport ? (
+            <MarketReport
+              report={ranReport || marketReport}
+              city={city || deal?.city || marketReport?.city}
+              state={state || deal?.state || marketReport?.state}
+            />
+          ) : (
+            /* No report for this city yet. Rather than an empty
+               section, the buyer can run it — and because it writes to
+               the same table the team reads, running it fills the
+               section in on the deal too. */
+            <div className="print-section px-8 pb-4">
+              <div className="rounded-lg border border-neutral-200 bg-white px-5 py-4">
+                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-neutral-500">
+                  Market research
+                </div>
+                <p className="mt-1 max-w-2xl text-[12.5px] leading-relaxed text-neutral-600">
+                  Nobody has researched {deal?.city || "this city"} yet — population,
+                  incomes, renter share, rents and the main employers. It takes
+                  under a minute and is kept, so it is here next time and on any
+                  other house in the same city.
+                </p>
+                <button
+                  onClick={async () => {
+                    setResearching(true);
+                    setResearchError(null);
+                    try {
+                      const res = await fetch("/api/buyer/market-research", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ slug: deal?.slug }),
+                      });
+                      const j = await res.json();
+                      if (!res.ok) throw new Error(j.error || "Couldn't run it.");
+                      setRanReport(j.report);
+                    } catch (e) {
+                      setResearchError(e.message);
+                    } finally {
+                      setResearching(false);
+                    }
+                  }}
+                  disabled={researching}
+                  className="mt-3 rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-50"
+                  style={{ backgroundColor: GREEN }}
+                >
+                  {researching ? "Researching…" : `Research ${deal?.city || "this city"}`}
+                </button>
+                {researchError && (
+                  <div className="mt-2 text-[12px] text-red-700">{researchError}</div>
+                )}
+              </div>
+            </div>
+          )
         )}
 
         {isBuyer && deal && (

@@ -694,10 +694,15 @@ export default function ClubProForma({
           <SectionNav
             sections={visibleSections}
             visible={effectiveViews}
-            // Clicking a section that isn't showing turns it on rather
-            // than doing nothing. The bar lists everything the firm can
-            // see, so every entry has to go somewhere.
-            onReveal={(id) => setViews((prev) => new Set([...prev, id]))}
+            address={p.name || p.address}
+            location={[p.city, p.state, p.zip].filter(Boolean).join(" ")}
+            config={p.beds && p.baths ? `${p.beds}/${p.baths}` : null}
+            gross={
+              y1?.income?.grossScheduledRent
+                ? `${usd(y1.income.grossScheduledRent / 12)}/mo`
+                : null
+            }
+            price={cap?.purchasePrice ? usd(cap.purchasePrice) : null}
           />
         )}
 

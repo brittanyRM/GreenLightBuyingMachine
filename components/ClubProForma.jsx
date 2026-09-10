@@ -319,6 +319,15 @@ export default function ClubProForma({
   }, [views, allowedIds]);
   const [printing, setPrinting] = useState(false);
 
+  // Which section the bar has selected. Defaults to the first the firm
+  // is entitled to, so a firm without Summary still lands somewhere.
+  const [activeSection, setActiveSection] = useState(null);
+  useEffect(() => {
+    if (activeSection && effectiveViews.has(activeSection)) return;
+    const first = visibleSections.find((sec) => effectiveViews.has(sec.id));
+    if (first) setActiveSection(first.id);
+  }, [visibleSections, effectiveViews, activeSection]);
+
   // The pro forma section carried eight blocks and several said the
   // same thing twice: a ranked expense stack under a table of those
   // expenses, an equity curve beside an investor-position table, a
@@ -338,7 +347,13 @@ export default function ClubProForma({
   const show = (name) => {
     if (!isBuyer) return true;
     if (!allowedIds.has(name)) return false;
-    return printing || effectiveViews.has(name);
+    // One at a time. Everything at once made a sheet a buyer had to
+    // scroll through to find anything, which is what the bar is for.
+    // Printing still emits every entitled section — a PDF is read
+    // start to finish, not navigated.
+    if (printing) return true;
+    if (isBuyer) return name === activeSection && effectiveViews.has(name);
+    return effectiveViews.has(name);
   };
 
   // Reflect the selection in the URL without adding history entries —
@@ -600,6 +615,15 @@ export default function ClubProForma({
         </div>
         )}
 
+        {isBuyer && (
+          <SectionNav
+            sections={visibleSections}
+            visible={effectiveViews}
+            active={activeSection}
+            onSelect={setActiveSection}
+          />
+        )}
+
         {!isBuyer && (
         <div className="print-section grid grid-cols-2 gap-4 border-b border-neutral-200 px-6 py-5 sm:grid-cols-4 sm:px-8">
           <Stat
@@ -686,21 +710,6 @@ export default function ClubProForma({
         {/* The tiles choose what is on the page; this moves you around
             it. With six sections showing, reaching the comps meant
             scrolling past the whole pro forma. */}
-        {isBuyer && (
-          <SectionNav
-            sections={visibleSections}
-            visible={effectiveViews}
-            address={p.name || p.address}
-            location={[p.city, p.state, p.zip].filter(Boolean).join(" ")}
-            config={p.beds && p.baths ? `${p.beds}/${p.baths}` : null}
-            gross={
-              y1?.income?.grossScheduledRent
-                ? `${usd(y1.income.grossScheduledRent / 12)}/mo`
-                : null
-            }
-            price={cap?.purchasePrice ? usd(cap.purchasePrice) : null}
-          />
-        )}
 
         {occupancyOverride != null && (
           <div
@@ -759,8 +768,6 @@ export default function ClubProForma({
             The pro forma above is the sheet. These are additions a buyer
             switches on, so they sit under the numbers rather than pushing
             them down the page. */}
-
-        {isBuyer && show("summary") && <span id="sec-summary" className="block scroll-mt-24" />}
         {isBuyer && show("summary") && <IncludedBar defaults={defaults} />}
 
         {isBuyer && show("diligence") && (
@@ -774,8 +781,6 @@ export default function ClubProForma({
             onAdjust={() => setShowAssumptions(true)}
           />
         )}
-
-        {isBuyer && show("flyer") && <span id="sec-flyer" className="block scroll-mt-24" />}
         {isBuyer && show("flyer") && deal && (
           <PropertyGallery
             gallery={deal.gallery}
@@ -1159,12 +1164,9 @@ export default function ClubProForma({
           {/* Guarded on deal for the same reason the flyer is: with no
               subject there is nothing to centre on and the map renders
               empty. A market-level sheet has no house, so no map. */}
-          {isBuyer && show("map") && <span id="sec-map" className="block scroll-mt-24" />}
           {isBuyer && show("map") && deal && (
             <BuyerMap deal={deal} markets={nearbyMarkets} comps={comps} subjectMarket={market} />
           )}
-
-          {isBuyer && show("comps") && <span id="sec-comps" className="block scroll-mt-24" />}
           {isBuyer && show("comps") && (
             <BuyerComps
               subject={{ price: cap.purchasePrice, sqft: p.sqft, beds: p.beds }}
@@ -1492,7 +1494,6 @@ export default function ClubProForma({
         </div>
 
         {isBuyer && deal && <Readiness deal={deal} sqft={p.sqft} />}
-        {isBuyer && show("syndication") && <span id="sec-syndication" className="block scroll-mt-24" />}
         {isBuyer && show("syndication") && (
           <SyndicationPanel
             price={inputs.capitalization.purchasePrice}
@@ -1546,13 +1547,8 @@ export default function ClubProForma({
             sqft={deal?.finished_sqft || deal?.post_reno_sqft || deal?.living_area_sqft}
           />
         )}
-
-        {isBuyer && show("diligence") && <span id="sec-diligence" className="block scroll-mt-24" />}
         {isBuyer && show("diligence") && <SupportingDocuments documents={documents} />}
-
-        {isBuyer && show("padsplit") && <span id="sec-padsplit" className="block scroll-mt-24" />}
         {isBuyer && core && show("padsplit") && <MarketPanel market={market} deal={deal} />}
-        {isBuyer && show("research") && <span id="sec-research" className="block scroll-mt-24" />}
         {isBuyer && show("research") && (
           marketReport || ranReport ? (
             <MarketReport

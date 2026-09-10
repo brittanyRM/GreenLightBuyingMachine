@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/queries";
 import { LoanApplication, PromissoryNote } from "../../../components/LoanDocs";
+import { ClosingStatement, defaultClosingLines } from "../../../components/ClosingStatement";
 import {
   GAP_DEFAULTS,
   LOAN_STEPS,
@@ -75,7 +76,20 @@ export default function FinancingPage({ params }) {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
-  const [doc, setDoc] = useState(null); // null | "app" | "note"
+  const [doc, setDoc] = useState(null);
+  // Closing-statement lines. Seeded from the deal and the worksheet the
+  // first time the statement is opened, then edited freely — the
+  // defaults are a starting point, not an answer.
+  const [closingLines, setClosingLines] = useState(null);
+  const [closingMeta, setClosingMeta] = useState({
+    buyer: "",
+    seller: "",
+    lender: "",
+    escrowAgent: "",
+    escrowNumber: "",
+    closing: "",
+    disbursement: "",
+  }); // null | "app" | "note"
 
   useEffect(() => {
     (async () => {
@@ -228,6 +242,17 @@ export default function FinancingPage({ params }) {
             {doc === "app" ? "Promissory note →" : "Loan application →"}
           </button>
           <button
+            onClick={() => {
+              if (!closingLines) {
+                setClosingLines(defaultClosingLines({ deal, form, result }));
+              }
+              setDoc("closing");
+            }}
+            className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900"
+          >
+            Closing statement →
+          </button>
+          <button
             onClick={() => window.print()}
             className="ml-auto rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white"
             style={{ backgroundColor: GREEN }}
@@ -237,15 +262,164 @@ export default function FinancingPage({ params }) {
         </div>
 
         <div className="mx-auto max-w-3xl shadow-xl">
-          {doc === "app" ? (
+          {doc === "app" && (
             <LoanApplication
               deal={deal}
               form={form}
               result={result}
               lender={form.firstLenderName || "Sound Capital LLC"}
             />
-          ) : (
-            <PromissoryNote deal={deal} form={form} result={result} />
+          )}
+          {doc === "note" && <PromissoryNote deal={deal} form={form} result={result} />}
+          {doc === "closing" && (
+            <>
+              <div className="no-print border-b-2 border-neutral-900 bg-white px-6 py-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
+                  Parties &amp; escrow
+                </div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  {[
+                    ["buyer", "Buyer (entity + address)"],
+                    ["seller", "Seller"],
+                    ["lender", "Lender"],
+                    ["escrowAgent", "Escrow / title agency"],
+                    ["escrowNumber", "Escrow number"],
+                    ["disbursement", "Disbursement date"],
+                  ].map(([k, label]) => (
+                    <label key={k} className="block">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-500">
+                        {label}
+                      </span>
+                      <input
+                        value={closingMeta[k] || ""}
+                        onChange={(e) =>
+                          setClosingMeta((m) => ({ ...m, [k]: e.target.value }))
+                        }
+                        className="mt-0.5 w-full rounded border border-neutral-300 px-2 py-1 text-[12px]"
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
+                    Charges
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() =>
+                        setClosingLines((l) => [
+                          ...(l || []),
+                          { section: "Miscellaneous Charges", label: "" },
+                        ])
+                      }
+                      className="rounded border border-neutral-300 px-2 py-1 text-[11px] font-semibold"
+                    >
+                      Add a line
+                    </button>
+                    <button
+                      onClick={() =>
+                        setClosingLines(defaultClosingLines({ deal, form, result }))
+                      }
+                      className="rounded border border-neutral-300 px-2 py-1 text-[11px] font-semibold"
+                    >
+                      Reset to defaults
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-2 max-h-80 overflow-y-auto rounded border border-neutral-200">
+                  <table className="w-full text-[11.5px]">
+                    <thead className="sticky top-0 bg-neutral-900 text-white">
+                      <tr>
+                        <th className="px-2 py-1 text-left font-semibold">Section</th>
+                        <th className="px-2 py-1 text-left font-semibold">Charge</th>
+                        <th className="px-2 py-1 text-right font-semibold">Buyer debit</th>
+                        <th className="px-2 py-1 text-right font-semibold">Buyer credit</th>
+                        <th className="px-2 py-1 text-right font-semibold">Seller debit</th>
+                        <th className="px-2 py-1 text-right font-semibold">Seller credit</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(closingLines || []).map((row, i) => {
+                        const upd = (k, v) =>
+                          setClosingLines((l) =>
+                            l.map((r, j) =>
+                              j === i
+                                ? { ...r, [k]: k === "label" || k === "section" ? v : Number(v) || 0 }
+                                : r
+                            )
+                          );
+                        return (
+                          <tr key={i} className={i % 2 ? "bg-neutral-50" : "bg-white"}>
+                            <td className="px-1 py-0.5">
+                              <select
+                                value={row.section || "Primary Charges & Credits"}
+                                onChange={(e) => upd("section", e.target.value)}
+                                className="w-full rounded border border-neutral-200 px-1 py-0.5 text-[11px]"
+                              >
+                                {[
+                                  "Primary Charges & Credits",
+                                  "Loan Charges",
+                                  "Title Charges",
+                                  "Escrow Charges",
+                                  "Miscellaneous Charges",
+                                ].map((sname) => (
+                                  <option key={sname} value={sname}>
+                                    {sname}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-1 py-0.5">
+                              <input
+                                value={row.label || ""}
+                                onChange={(e) => upd("label", e.target.value)}
+                                className="w-full rounded border border-neutral-200 px-1 py-0.5 text-[11px]"
+                              />
+                            </td>
+                            {["buyerDebit", "buyerCredit", "sellerDebit", "sellerCredit"].map((k) => (
+                              <td key={k} className="px-1 py-0.5">
+                                <input
+                                  value={row[k] || ""}
+                                  onChange={(e) => upd(k, e.target.value)}
+                                  inputMode="decimal"
+                                  className="w-24 rounded border border-neutral-200 px-1 py-0.5 text-right text-[11px] tabular-nums"
+                                />
+                              </td>
+                            ))}
+                            <td className="px-1 py-0.5 text-right">
+                              <button
+                                onClick={() =>
+                                  setClosingLines((l) => l.filter((_, j) => j !== i))
+                                }
+                                className="text-[11px] text-neutral-400 hover:text-red-700"
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-[10.5px] text-neutral-500">
+                  Defaults are standard Arizona charges taken from a Magnus Title
+                  statement. Title sets the real figures — edit these to match
+                  the estimate they send.
+                </p>
+              </div>
+
+            <ClosingStatement
+              deal={deal}
+              form={form}
+              result={result}
+              lines={closingLines || []}
+              meta={{ ...closingMeta, closing: closingMeta.closing || form.closingDate }}
+            />
+            </>
           )}
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import LenderAssumptions from "../../components/LenderAssumptions";
 import { useSearchParams } from "next/navigation";
 import { supabase, upsertMarket, getSettings, saveSetting } from "../../lib/queries";
 
@@ -157,6 +158,12 @@ export default function SettingsPage() {
         <Suspense fallback={null}>
           <StatusBanner />
         </Suspense>
+
+        {/* Lender pricing. Sits above the mailbox because it changes
+            far more often and every outgoing document depends on it. */}
+        <section>
+          <LenderAssumptions />
+        </section>
 
         {/* Google Workspace */}
         <section>

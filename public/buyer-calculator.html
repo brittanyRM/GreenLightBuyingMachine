@@ -1241,6 +1241,29 @@
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
         if (!j) { return; }
+
+        /* Lender pricing from settings, so this file and the pro forma
+           can't quote different rates. Applied only where the visitor
+           hasn't set their own — boot() has already loaded any saved or
+           URL values into the fields, so overwriting them here would
+           throw away what someone typed. */
+        if (j.lending && j.lending.tiers && j.lending.tiers.length === 3) {
+          TIERS = j.lending.tiers;
+          var touched = null;
+          try { touched = JSON.parse(localStorage.getItem("glbm_calc") || "null"); } catch (e) {}
+          var urlHas = deserialize() || {};
+
+          if (!(touched && touched.rate) && urlHas.rate == null) {
+            D.rate = TIERS[2][1];
+            if ($("i-rate")) { $("i-rate").value = D.rate; }
+          }
+          if (j.lending.pppCost != null && !(touched && touched.ppp) && urlHas.ppp == null) {
+            D.ppp = j.lending.pppCost;
+            if ($("i-ppp")) { $("i-ppp").value = D.ppp; }
+          }
+          render();
+        }
+
         MK.markets = (j.markets || []).filter(function (m) { return m.zip; });
         MK.reports = j.reports || [];
         if (MK.markets.length || MK.reports.length) {

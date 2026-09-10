@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { admin } from "../../../../lib/supabaseAdmin";
+import { rateTiers, pppCostForDown, PPP_KEY, RATE_KEYS } from "../../../../lib/proforma";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ const REPORT_FIELDS =
 
 export async function GET() {
   try {
-    const [{ data: markets, error: mErr }, { data: reports, error: rErr }] =
+    const [{ data: markets, error: mErr }, { data: reports, error: rErr }, { data: orgRows }] =
       await Promise.all([
         admin()
           .from("padsplit_market")
@@ -36,15 +37,38 @@ export async function GET() {
           .select(REPORT_FIELDS)
           .eq("active", true)
           .order("city"),
+        // Lender pricing, so the standalone calculator quotes the same
+        // rates as the pro forma. Only the pricing keys are selected —
+        // org_assumptions also holds figures that aren't a buyer's
+        // business.
+        admin()
+          .from("org_assumptions")
+          .select("key, value")
+          .in("key", [...Object.values(RATE_KEYS), PPP_KEY]),
       ]);
 
     if (mErr) throw new Error(mErr.message);
 
     // A missing market_reports table or an empty one is not an error —
     // the calculator simply doesn't offer the research panel.
+    const org = {};
+    for (const r of orgRows || []) if (r && r.key != null) org[r.key] = r.value;
+    const tiers = rateTiers(org);
+
     return NextResponse.json({
       markets: markets || [],
       reports: rErr ? [] : reports || [],
+      // Percentages, matching how the calculator writes rates in its
+      // own fields — converting in one place beats each caller
+      // remembering whether 6.875 or 0.06875 came back.
+      lending: {
+        tiers: [
+          [15, +(tiers[0.15] * 100).toFixed(3)],
+          [20, +(tiers[0.2] * 100).toFixed(3)],
+          [25, +(tiers[0.25] * 100).toFixed(3)],
+        ],
+        pppCost: pppCostForDown(0.25, 15000, org),
+      },
     });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

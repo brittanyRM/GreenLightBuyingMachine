@@ -427,6 +427,15 @@ export default function ClubProForma({
   // result.base changes. They are simply no longer a thing anyone is
   // asked to choose between.
   const scenarioLocked = true;
+
+  // orgRows is [{key, value}]. The rate resolvers want a plain object,
+  // and passing the array would look fine and silently fall back to
+  // the built-in tiers — the same failure the comment above records.
+  const orgMap = useMemo(() => {
+    const out = {};
+    for (const r of orgRows || []) if (r && r.key != null) out[r.key] = r.value;
+    return out;
+  }, [orgRows]);
   const requestedScenario = scenarioLocked ? "glbm" : scenario;
   const activeScenario = modelInputs?.scenarios?.[requestedScenario]
     ? requestedScenario
@@ -708,6 +717,10 @@ export default function ClubProForma({
                 modelInputs.capitalization.purchasePrice *
                 modelInputs.capitalization.closingCostPct,
               termMonths: modelInputs.debt.amortizationMonths,
+              // Rate tiers and the prepayment penalty come from
+              // settings when they are set there, so the buyer sheet
+              // and the calculator can't quote different rates.
+              org: orgMap,
             })}
           />
         )}

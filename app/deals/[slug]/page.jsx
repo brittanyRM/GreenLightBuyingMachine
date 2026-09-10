@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getDealBundle, marketIsStale, supabase } from "../../../lib/queries";
-import { computeProForma, usd } from "../../../lib/proforma";
+import { computeProForma, resolveRooms, roomRate, usd } from "../../../lib/proforma";
 import ConversionSketch from "../../../components/ConversionSketch";
 import DealFlyer from "../../../components/DealFlyer";
 import BuyerMap from "../../../components/BuyerMap";
@@ -13,6 +13,7 @@ import DealForm from "../../../components/DealForm";
 import CompImport from "../../../components/CompImport";
 import ShareAndAssign from "../../../components/ShareAndAssign";
 import EvidencePicker from "../../../components/EvidencePicker";
+import LenderPackage from "../../../components/LenderPackage";
 import MarketResearch from "../../../components/MarketResearch";
 import EmailComposer from "../../../components/EmailComposer";
 
@@ -28,6 +29,7 @@ const TABS = [
   { id: "research", label: "Research" },
   { id: "email", label: "Email" },
   { id: "record", label: "Record" },
+  { id: "lender", label: "Lender pack" },
 ];
 
 // Tabs that navigate. Both are standalone documents with their own
@@ -350,6 +352,38 @@ export default function DealPage({ params }) {
                 onSaved={load}
               />
             </ErrorBoundary>
+          </div>
+        )}
+
+        {tab === "lender" && (
+          <div>
+            <div className="no-print flex justify-end px-4 pt-4 sm:px-8">
+              <button
+                onClick={() => window.print()}
+                className="rounded px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-white"
+                style={{ backgroundColor: GREEN }}
+              >
+                Print / save PDF
+              </button>
+            </div>
+            <div className="mx-auto max-w-3xl p-4 sm:p-8">
+              <LenderPackage
+                deal={deal}
+                market={market}
+                comps={comps}
+                rooms={resolveRooms(rooms, deal).map((r) => ({
+                  ...r,
+                  weeklyRate: roomRate(r, market, deal?.assumption_overrides || {}, deal),
+                }))}
+                // Annual, because the engine holds these monthly and a
+                // lender package quoting a monthly NOI as annual is the
+                // kind of error that gets a file declined.
+                gross={p.grossAnnual}
+                noi={p.noi * 12}
+                tiers={p.financingOptions}
+                occupancyPct={1 - (p.vacancy ?? 0.05)}
+              />
+            </div>
           </div>
         )}
 

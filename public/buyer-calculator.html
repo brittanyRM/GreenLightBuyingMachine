@@ -214,6 +214,28 @@
        sit on it, so without this the bar goes white and takes the logo
        with it — a blank space where the branding should be. */
     .glb .masthead{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+
+    /* The whole input column was printing: file pickers, dropdowns,
+       "Paste a URL, or upload", the capital preset buttons. A printed
+       projection is a document someone reads, not a form they fill —
+       and interleaved with the results it pushed the right-hand column
+       off the page, which is why figures came out clipped mid-word. */
+    .glb .inputs{display:none !important;}
+
+    /* One column once the inputs are gone, so nothing is squeezed into
+       a 352px gutter that no longer exists. */
+    .glb .layout{display:block !important;}
+    .glb .results{width:100% !important;}
+
+    /* Nothing should run off the sheet. The map and the wider tables
+       were the two that did. */
+    .glb .results *{max-width:100% !important;}
+    .glb table{table-layout:auto;width:100%;}
+    .glb .panel{break-inside:avoid;page-break-inside:avoid;}
+
+    /* An interactive map prints as a grey rectangle at best, and takes
+       a third of a page doing it. */
+    .glb #map-panel{display:none !important;}
   }
 </style>
 
@@ -241,7 +263,7 @@
 <div class="layout">
 
   <!-- ===================== INPUTS ===================== -->
-  <div>
+  <div class="inputs">
     <div class="panel">
       <h3>Branding</h3>
       <div class="row"><label>Buyer logo <small>Paste a URL, or upload</small></label>
@@ -363,7 +385,7 @@
   </div>
 
   <!-- ===================== RESULTS ===================== -->
-  <div>
+  <div class="results">
     <div class="kpis">
       <div class="kpi" id="k-cf"><div class="k">Monthly cash flow</div><div class="v" id="v-cf">—</div><div class="n" id="n-cf">&nbsp;</div></div>
       <div class="kpi" id="k-coc"><div class="k">Cash on cash</div><div class="v" id="v-coc">—</div><div class="n" id="n-coc">&nbsp;</div></div>

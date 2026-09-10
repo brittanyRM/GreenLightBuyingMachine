@@ -22,6 +22,8 @@ const usd = (n) =>
       })
     : "—";
 
+// Prints, deliberately. A confidential marking that disappears when
+// the page becomes a PDF is marking the one copy nobody can forward.
 function Band({ note }) {
   return (
     <div
@@ -29,7 +31,7 @@ function Band({ note }) {
       style={{ backgroundColor: INK }}
     >
       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
-        Confidential
+        Confidential — not for buyer distribution
       </span>
       <span className="text-[10px] text-neutral-400">{note}</span>
     </div>
@@ -46,9 +48,7 @@ export function PayoffTable({ deal, form, result }) {
 
   return (
     <div className="print-section bg-white p-6 text-neutral-900 sm:p-10">
-      <div className="no-print">
-        <Band note="Payoff figures — lender and internal use only" />
-      </div>
+      <Band note="Payoff figures — lender and internal use only" />
 
       <div className="text-[15px] font-bold">Payoff at exit</div>
       <div className="mt-0.5 text-[11px] text-neutral-600">
@@ -168,9 +168,7 @@ export function SourcesUses({ deal, form, result }) {
 
   return (
     <div className="print-section bg-white p-6 text-neutral-900 sm:p-10">
-      <div className="no-print">
-        <Band note="Sources and uses — lender and internal use only" />
-      </div>
+      <Band note="Sources and uses — lender and internal use only" />
 
       <div className="text-[15px] font-bold">Sources and uses</div>
       <div className="mt-0.5 text-[11px] text-neutral-600">{deal?.address_line}</div>

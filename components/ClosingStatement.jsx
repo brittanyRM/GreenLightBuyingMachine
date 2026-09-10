@@ -88,18 +88,21 @@ export function ClosingStatement({ deal, form, result, lines = [], meta = {} }) 
 
   return (
     <div className="print-section bg-white p-6 text-neutral-900 sm:p-10">
-      <div className="no-print">
-        <div
-          className="print-keep mb-4 flex items-center gap-2 rounded px-4 py-2"
-          style={{ backgroundColor: INK }}
-        >
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
-            Confidential
-          </span>
-          <span className="text-[10px] text-neutral-400">
-            Internal estimate — escrow issues the statement of record
-          </span>
-        </div>
+      {/* Prints. It was inside no-print, which meant the marking
+          vanished at exactly the moment the document became a PDF
+          someone could attach to an email — the only moment it matters.
+          This carries acquisition cost and lender terms; a buyer
+          reading it learns the margin. */}
+      <div
+        className="print-keep mb-4 flex items-center gap-2 rounded px-4 py-2"
+        style={{ backgroundColor: INK }}
+      >
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
+          Confidential — not for buyer distribution
+        </span>
+        <span className="text-[10px] text-neutral-400">
+          Internal estimate; escrow issues the statement of record
+        </span>
       </div>
 
       <div className="mb-1 text-center text-[15px] font-bold">

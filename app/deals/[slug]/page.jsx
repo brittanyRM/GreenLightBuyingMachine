@@ -12,6 +12,7 @@ import ProForma from "../../../components/ProForma";
 import DealForm from "../../../components/DealForm";
 import CompImport from "../../../components/CompImport";
 import ShareAndAssign from "../../../components/ShareAndAssign";
+import EvidencePicker from "../../../components/EvidencePicker";
 import MarketResearch from "../../../components/MarketResearch";
 import EmailComposer from "../../../components/EmailComposer";
 
@@ -39,7 +40,6 @@ const TABS = [
 // against and it meant nothing to anyone else. It is the sheet a buyer
 // is sent, so that is what it is called.
 const LINK_TABS = [
-  { id: "buyer-sheet", label: "Buyer sheet", href: (slug) => `/proforma-club/${slug}` },
   { id: "financing", label: "Financing", href: (slug) => `/financing/${slug}` },
 ];
 
@@ -358,6 +358,7 @@ export default function DealPage({ params }) {
                 dealLabel={deal?.address_line}
                 listPrice={deal?.list_price}
               />
+              <EvidencePicker dealId={deal?.id} />
               <CompImport slug={params.slug} onImported={load} />
             </div>
           </>

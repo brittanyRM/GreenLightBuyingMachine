@@ -478,14 +478,14 @@
   var D = {
     logo:"", buyer:"", capital:420000, houses:"",
     addr:"", price:518000, sqft:2494,
-    ecount:2, erate:282, scount:7, srate:223, occ:95,
+    ecount:2, erate:282, scount:7, srate:240, occ:95,
     psf:8, pm:8, mnt:2, util:110, ti:0.470,
-    down:25, rate:6.5, term:30, orig:1.5, close:1,
+    down:25, rate:6.875, term:30, orig:1.5, close:1, ppp:15000,
     appr:5, basis:80.8, dep:3.6,
     years:10, rentgrow:3, expgrow:3, capex:5, reinvest:1
   };
   /* tier table: [down%, rate%] — edit to match lender pricing */
-  var TIERS = [[15, 7.75], [20, 6.625], [25, 6.5]];
+  var TIERS = [[15, 8.875], [20, 7.625], [25, 6.875]];
 
   var root = document.querySelector(".glb");
   var $ = function (id) { return document.getElementById(id); };
@@ -544,7 +544,7 @@
     var dep = i.price * (i.basis / 100) * (i.dep / 100);
     var appr = i.price * i.appr / 100;
     var gei = cf + princ + dep + appr;
-    var cash = i.price * downPct / 100 + loan * i.orig / 100 + i.price * i.close / 100;
+    var cash = i.price * downPct / 100 + loan * i.orig / 100 + i.price * i.close / 100 + (+i.ppp || 0);
 
     return { rooms:rooms, weekly:weekly, gsr:gsr, vac:vac, oi:oi, e:e, opex:opex, noi:noi,
       loan:loan, ds:ds, cf:cf, princ:princ, dep:dep, appr:appr, gei:gei, cash:cash,

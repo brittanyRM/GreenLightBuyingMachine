@@ -19,11 +19,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/queries";
 import { LoanApplication, PromissoryNote } from "../../../components/LoanDocs";
 import { ClosingStatement, defaultClosingLines } from "../../../components/ClosingStatement";
+import { PayoffTable, SourcesUses, TitleEmail } from "../../../components/FinancingDocs";
 import {
   GAP_DEFAULTS,
   LOAN_STEPS,
   computeGapFunding,
   gapFundingRows,
+  payoffSchedule,
+  sourcesAndUses,
+  titleEmail,
 } from "../../../lib/gapFunding";
 
 const GREEN = "#00A651";
@@ -253,6 +257,33 @@ export default function FinancingPage({ params }) {
             Closing statement →
           </button>
           <button
+            onClick={() => setDoc("payoff")}
+            className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900"
+          >
+            Payoff →
+          </button>
+          <button
+            onClick={() => setDoc("sources")}
+            className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900"
+          >
+            Sources &amp; uses →
+          </button>
+          <button
+            onClick={() => setDoc("email")}
+            className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900"
+          >
+            Email title →
+          </button>
+          <button
+            onClick={() => {
+              if (!closingLines) setClosingLines(defaultClosingLines({ deal, form, result }));
+              setDoc("bundle");
+            }}
+            className="rounded border border-neutral-900 px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-neutral-900"
+          >
+            Full package
+          </button>
+          <button
             onClick={() => window.print()}
             className="ml-auto rounded px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white"
             style={{ backgroundColor: GREEN }}
@@ -271,6 +302,55 @@ export default function FinancingPage({ params }) {
             />
           )}
           {doc === "note" && <PromissoryNote deal={deal} form={form} result={result} />}
+          {doc === "payoff" && <PayoffTable form={form} result={result} deal={deal} />}
+          {doc === "sources" && <SourcesUses form={form} result={result} deal={deal} />}
+          {doc === "email" && (
+            <TitleEmail deal={deal} form={form} result={result} meta={closingMeta} />
+          )}
+
+          {/* Every document in one print. Browsers make one PDF of a
+              page, so the bundle is a page rather than a stitched file
+              — each document forces a page break and prints as it does
+              on its own. Save it, and it can be uploaded to the deal's
+              documents and attached to an email like any other file. */}
+          {doc === "bundle" && (
+            <div>
+              <div className="no-print border-b-2 border-neutral-900 bg-white px-6 py-4">
+                <div className="text-[13px] font-bold">Full financing package</div>
+                <p className="mt-0.5 text-[12px] text-neutral-600">
+                  Loan application, promissory note, sources and uses, payoff
+                  schedule and the estimated closing statement, in that order.
+                  Print or save as PDF — one file, five documents.
+                </p>
+              </div>
+              <div className="print-page">
+                <LoanApplication
+                  deal={deal}
+                  form={form}
+                  result={result}
+                  lender={form.firstLenderName || "Sound Capital LLC"}
+                />
+              </div>
+              <div className="print-page">
+                <PromissoryNote deal={deal} form={form} result={result} />
+              </div>
+              <div className="print-page">
+                <SourcesUses deal={deal} form={form} result={result} />
+              </div>
+              <div className="print-page">
+                <PayoffTable deal={deal} form={form} result={result} />
+              </div>
+              <div className="print-page">
+                <ClosingStatement
+                  deal={deal}
+                  form={form}
+                  result={result}
+                  lines={closingLines || []}
+                  meta={{ ...closingMeta, closing: closingMeta.closing || form.closingDate }}
+                />
+              </div>
+            </div>
+          )}
           {doc === "closing" && (
             <>
               <div className="no-print border-b-2 border-neutral-900 bg-white px-6 py-4">

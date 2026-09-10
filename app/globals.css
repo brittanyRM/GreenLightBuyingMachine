@@ -283,3 +283,17 @@
     display: block !important;
   }
 }
+
+/* Each document in the financing package starts a new sheet. Without
+   this the five run together and a promissory note begins halfway down
+   the page under a loan application. */
+@media print {
+  .print-page {
+    break-after: page;
+    page-break-after: always;
+  }
+  .print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

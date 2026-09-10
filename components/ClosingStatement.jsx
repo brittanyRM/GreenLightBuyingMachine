@@ -273,7 +273,9 @@ export function defaultClosingLines({ deal, form, result }) {
   const docFee = Number(form?.docFee) || 0;
   const rate = Number(form?.ratePct) || 0;
   const stubInterest = Number(result?.stubInterest) || 0;
-  const ltc = (Number(form?.ltcPct) || 90) / 100;
+  // 90 from the form, 0.9 from the library — both arrive here.
+  const rawLtc = Number(form?.ltcPct);
+  const ltc = Number.isFinite(rawLtc) && rawLtc > 0 ? (rawLtc > 1 ? rawLtc / 100 : rawLtc) : 0.9;
 
   const L = [];
   const add = (section, label, fields) => L.push({ section, label, ...fields });

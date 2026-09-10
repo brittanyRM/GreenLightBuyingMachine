@@ -18,6 +18,7 @@ import LenderPackage from "../../../components/LenderPackage";
 // page cannot disagree about what tabs exist. The rendering stays here
 // because this page's bar carries the deal's headline figures too.
 import { DEAL_TABS as TABS, DEAL_LINKS as LINK_TABS } from "../../../components/DealTabs";
+import { calculatorLinkFor } from "../../../lib/gapFunding";
 import MarketResearch from "../../../components/MarketResearch";
 import EmailComposer from "../../../components/EmailComposer";
 
@@ -149,8 +150,18 @@ export default function DealPage({ params }) {
           {/* Static file in public/, so a plain anchor. Opens in its
               own tab — it is a scratchpad you run alongside a deal,
               not somewhere you navigate to and come back from. */}
+          {/* Loaded with this house. Opening a blank calculator from a
+              deal means retyping nine fields off the screen you just
+              left, which is how they stop matching it. */}
           <a
-            href="/buyer-calculator.html"
+            href={calculatorLinkFor({
+              deal,
+              rooms: resolveRooms(rooms, deal).map((r) => ({
+                ...r,
+                weeklyRate: roomRate(r, market, deal?.assumption_overrides || {}, deal),
+              })),
+              occupancyPct: 1 - (p.vacancy ?? 0.05),
+            })}
             target="_blank"
             rel="noopener"
             className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"

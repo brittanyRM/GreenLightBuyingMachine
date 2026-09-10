@@ -24,6 +24,7 @@ import DealTabs from "../../../components/DealTabs";
 import {
   GAP_DEFAULTS,
   LOAN_STEPS,
+  calculatorLinkFor,
   computeGapFunding,
   gapFundingRows,
   payoffSchedule,
@@ -516,6 +517,7 @@ export default function FinancingPage({ params }) {
         active="financing"
         address={deal.address_line}
         price={deal.list_price ? usd(deal.list_price) : null}
+        calculatorHref={calculatorLinkFor({ deal })}
       />
     <div className="mx-auto max-w-5xl px-5 py-8 font-sans">
       <div className="flex flex-wrap items-end justify-between gap-3">

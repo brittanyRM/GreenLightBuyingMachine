@@ -32,7 +32,16 @@ export const DEAL_LINKS = [
   { id: "financing", label: "Financing", href: (slug) => `/financing/${slug}` },
 ];
 
-export default function DealTabs({ slug, active, onSelect, address, price }) {
+export default function DealTabs({
+  slug,
+  active,
+  onSelect,
+  address,
+  price,
+  // Where the Calculator link points. From a deal it carries that
+  // house; from the nav it opens blank. Same tool, different intention.
+  calculatorHref = "/buyer-calculator.html",
+}) {
   const tabClass = (isActive) =>
     `px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
       isActive ? "text-white" : "text-neutral-500 hover:text-neutral-300"
@@ -98,12 +107,17 @@ export default function DealTabs({ slug, active, onSelect, address, price }) {
             deal page keeps it in the run and these two bars should
             read the same. */}
         <a
-          href="/buyer-calculator.html"
+          href={calculatorHref}
           target="_blank"
           rel="noopener"
           className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300"
+          title={
+            calculatorHref === "/buyer-calculator.html"
+              ? "Open the calculator"
+              : "Open the calculator loaded with this property"
+          }
         >
-          Calculator
+          Calculator{calculatorHref === "/buyer-calculator.html" ? "" : " ·"}
         </a>
       </div>
     </div>

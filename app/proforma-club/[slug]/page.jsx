@@ -587,7 +587,7 @@ export default function ClubProFormaDeal({ params }) {
         // a list page, which duplicated Deals and is gone — sending
         // someone from a deal to a list of deals was a detour anyway.
         backHref={`/deals/${params.slug}`}
-        backLabel="All deals"
+        backLabel="Back to deal"
         audience={preview ? "buyer" : "seller"}
         deal={preview ? deal : null}
         comps={preview ? comps || [] : []}

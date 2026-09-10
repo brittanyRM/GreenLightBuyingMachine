@@ -8,8 +8,10 @@ import DealFlyer from "../../../components/DealFlyer";
 import BuyerMap from "../../../components/BuyerMap";
 import FloorPlanRender from "../../../components/FloorPlanRender";
 import ErrorBoundary from "../../../components/ErrorBoundary";
+import ProForma from "../../../components/ProForma";
 import DealForm from "../../../components/DealForm";
 import CompImport from "../../../components/CompImport";
+import ShareAndAssign from "../../../components/ShareAndAssign";
 import MarketResearch from "../../../components/MarketResearch";
 import EmailComposer from "../../../components/EmailComposer";
 
@@ -19,6 +21,7 @@ const GREEN = "#00A651";
 const TABS = [
   { id: "sketch", label: "Sketch" },
   { id: "plan", label: "Plan" },
+  { id: "proforma", label: "Pro forma" },
   { id: "flyer", label: "Flyer" },
   { id: "map", label: "Map" },
   { id: "research", label: "Research" },
@@ -183,6 +186,10 @@ export default function DealPage({ params }) {
             </ErrorBoundary>
           </div>
         )}
+        {tab === "proforma" && (
+          <ProForma deal={deal} rooms={rooms} market={market} comps={comps} orgRows={orgRows} />
+        )}
+
         {tab === "flyer" && (
           <div className="p-4 sm:p-8">
             <div className="no-print mb-3 flex justify-end">
@@ -343,6 +350,14 @@ export default function DealPage({ params }) {
                 short clipboard format while this one reads the full
                 summary report. */}
             <div className="mx-auto max-w-4xl space-y-4 px-5 pb-10">
+              {/* Sharing and assignment sit with the record because
+                  that is where you are when you decide a house is ready
+                  to go out — not behind a sheet you have to open first. */}
+              <ShareAndAssign
+                slug={params.slug}
+                dealLabel={deal?.address_line}
+                listPrice={deal?.list_price}
+              />
               <CompImport slug={params.slug} onImported={load} />
             </div>
           </>

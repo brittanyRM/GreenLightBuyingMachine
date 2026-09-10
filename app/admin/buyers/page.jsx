@@ -10,7 +10,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react";
-import { apiFetch } from "../../../lib/queries";
+import { apiFetch, listDeals } from "../../../lib/queries";
 
 // apiFetch returns a raw Response, defaults to POST when no method is
 // given, and does not serialise the body. Reading `.orgs` straight off
@@ -99,6 +99,12 @@ export default function BuyerAdmin() {
   const [optDraft, setOptDraft] = useState({});
   const [editingOpt, setEditingOpt] = useState(null);
   const [assignments, setAssignments] = useState(null);
+  // Deals, so an assignment can be made from here as well as from a
+  // deal's Record tab. Looking at a firm and wanting to give them a
+  // house is the same operation from the other end.
+  const [dealList, setDealList] = useState([]);
+  const [newAssign, setNewAssign] = useState({ slug: "", org_id: "", status: "offered" });
+  const [newAssignMsg, setNewAssignMsg] = useState(null);
   const [needsAssign, setNeedsAssign] = useState(false);
   const [requests, setRequests] = useState(null);
   const [reply, setReply] = useState({});
@@ -121,6 +127,9 @@ export default function BuyerAdmin() {
       try {
         const a = await api("/api/buyer/admin/assign");
         setAssignments(a.assignments || []);
+        listDeals()
+          .then((d) => setDealList(d || []))
+          .catch(() => setDealList([]));
         setNeedsAssign(!!a.unavailable);
       } catch {
         setAssignments([]);
@@ -237,6 +246,19 @@ export default function BuyerAdmin() {
       });
       setBoxOpen((s2) => ({ ...s2, [orgId]: false }));
     });
+
+  const createAssignment = async () => {
+    setNewAssignMsg(null);
+    try {
+      await api("/api/buyer/admin/assign", { method: "POST", body: newAssign });
+      const a = await api("/api/buyer/admin/assign");
+      setAssignments(a.assignments || []);
+      setNewAssignMsg("Assigned.");
+      setNewAssign((n) => ({ ...n, slug: "" }));
+    } catch (e) {
+      setNewAssignMsg(e.message || "Couldn't assign.");
+    }
+  };
 
   const removeAssignment = (id) =>
     run(() => api("/api/buyer/admin/assign", { method: "DELETE", body: { id } }));
@@ -843,6 +865,65 @@ export default function BuyerAdmin() {
               <strong>Migration 026 hasn&rsquo;t been run.</strong> Assignments
               are unavailable until you run{" "}
               <code>026_assignments_and_financing.sql</code>.
+            </div>
+          )}
+
+          {!needsAssign && (
+            <div className="mb-4 rounded border border-neutral-200 bg-white px-4 py-3">
+              <div className="text-[12px] font-bold text-neutral-900">
+                Assign a property
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_10rem_auto]">
+                <select
+                  value={newAssign.slug}
+                  onChange={(e) => setNewAssign((n) => ({ ...n, slug: e.target.value }))}
+                  className="rounded border border-neutral-300 px-2 py-1.5 text-[13px]"
+                >
+                  <option value="">Choose a property…</option>
+                  {dealList.map((d) => (
+                    <option key={d.id} value={d.slug}>
+                      {d.address_line}
+                      {d.city ? `, ${d.city}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={newAssign.org_id}
+                  onChange={(e) => setNewAssign((n) => ({ ...n, org_id: e.target.value }))}
+                  className="rounded border border-neutral-300 px-2 py-1.5 text-[13px]"
+                >
+                  <option value="">Choose a firm…</option>
+                  {(orgs || []).map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={newAssign.status}
+                  onChange={(e) => setNewAssign((n) => ({ ...n, status: e.target.value }))}
+                  className="rounded border border-neutral-300 px-2 py-1.5 text-[13px]"
+                >
+                  <option value="offered">Offered</option>
+                  <option value="reserved">Reserved</option>
+                  <option value="exclusive">Exclusive</option>
+                </select>
+                <button
+                  onClick={createAssignment}
+                  disabled={!newAssign.slug || !newAssign.org_id}
+                  className="rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-40"
+                  style={{ backgroundColor: GREEN }}
+                >
+                  Assign
+                </button>
+              </div>
+              {newAssignMsg && (
+                <div className="mt-2 text-[11.5px] text-neutral-700">{newAssignMsg}</div>
+              )}
+              <p className="mt-2 text-[11px] text-neutral-500">
+                An assigned firm sees the property in their portal whatever its
+                status. Reserved and exclusive also hide it from everyone else.
+              </p>
             </div>
           )}
 

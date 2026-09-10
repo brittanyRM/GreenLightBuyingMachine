@@ -14,23 +14,16 @@ import CompImport from "../../../components/CompImport";
 import ShareAndAssign from "../../../components/ShareAndAssign";
 import EvidencePicker from "../../../components/EvidencePicker";
 import LenderPackage from "../../../components/LenderPackage";
+// The tab list lives in DealTabs so the deal page and the financing
+// page cannot disagree about what tabs exist. The rendering stays here
+// because this page's bar carries the deal's headline figures too.
+import { DEAL_TABS as TABS, DEAL_LINKS as LINK_TABS } from "../../../components/DealTabs";
 import MarketResearch from "../../../components/MarketResearch";
 import EmailComposer from "../../../components/EmailComposer";
 
 const GREEN = "#00A651";
 
 // Tabs that swap the panel below. Everything here renders in place.
-const TABS = [
-  { id: "sketch", label: "Sketch" },
-  { id: "plan", label: "Plan" },
-  { id: "proforma", label: "Pro forma" },
-  { id: "flyer", label: "Flyer" },
-  { id: "map", label: "Map" },
-  { id: "research", label: "Research" },
-  { id: "email", label: "Email" },
-  { id: "record", label: "Record" },
-  { id: "lender", label: "Lender pack" },
-];
 
 // Tabs that navigate. Both are standalone documents with their own
 // print layout and share flow, so they stay separate routes rather
@@ -41,9 +34,6 @@ const TABS = [
 // "Club sheet" was the internal name for the format this was modelled
 // against and it meant nothing to anyone else. It is the sheet a buyer
 // is sent, so that is what it is called.
-const LINK_TABS = [
-  { id: "financing", label: "Financing", href: (slug) => `/financing/${slug}` },
-];
 
 export default function DealPage({ params }) {
   const [bundle, setBundle] = useState(null);
@@ -53,6 +43,15 @@ export default function DealPage({ params }) {
   const [geocoding, setGeocoding] = useState(false);
   const [geoMsg, setGeoMsg] = useState(null);
   const [tab, setTab] = useState("sketch");
+
+  // Opened from another page — the financing tabs link back with ?tab=.
+  // Read from location rather than useSearchParams, which would need a
+  // Suspense boundary this page doesn't otherwise want.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t && TABS.some((x) => x.id === t)) setTab(t);
+  }, []);
   const [sketchFile, setSketchFile] = useState(null);
   const [error, setError] = useState(null);
 

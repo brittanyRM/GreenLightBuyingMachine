@@ -20,6 +20,7 @@ import { supabase } from "../../../lib/queries";
 import { LoanApplication, PromissoryNote } from "../../../components/LoanDocs";
 import { ClosingStatement, defaultClosingLines } from "../../../components/ClosingStatement";
 import { PayoffTable, SourcesUses, TitleEmail } from "../../../components/FinancingDocs";
+import DealTabs from "../../../components/DealTabs";
 import {
   GAP_DEFAULTS,
   LOAN_STEPS,
@@ -507,6 +508,15 @@ export default function FinancingPage({ params }) {
   }
 
   return (
+    <>
+      {/* The deal's own navigation. This page is about a house and had
+          no way back to it except the browser button. */}
+      <DealTabs
+        slug={params.slug}
+        active="financing"
+        address={deal.address_line}
+        price={deal.list_price ? usd(deal.list_price) : null}
+      />
     <div className="mx-auto max-w-5xl px-5 py-8 font-sans">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -722,5 +732,6 @@ export default function FinancingPage({ params }) {
         </section>
       </div>
     </div>
+    </>
   );
 }

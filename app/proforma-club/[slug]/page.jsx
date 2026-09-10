@@ -37,11 +37,14 @@ export default function ClubProFormaDeal({ params }) {
   const [recipient, setRecipient] = useState("");
   const [label, setLabel] = useState("");
   const [expiresDays, setExpiresDays] = useState("");
-  // Off by default. A shared pro forma is what we publish; letting a
-  // recipient move the assumptions is a deliberate choice for a
-  // particular conversation, not the thing that happens when nobody
-  // thinks about it. See migration 041.
-  const [allowAdjust, setAllowAdjust] = useState(false);
+  // On by default, as migration 022 intended: a buyer evaluating a
+  // house tests it against their own assumptions, and figures they can
+  // push on are figures they trust. The sheet labels itself the moment
+  // anything is changed, so an adjusted number can't be mistaken for
+  // one we published, and edits never write back to the frozen inputs.
+  //
+  // The toggle is here to lock a particular link, not as the norm.
+  const [allowAdjust, setAllowAdjust] = useState(true);
   const [share, setShare] = useState(null);
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState(null);

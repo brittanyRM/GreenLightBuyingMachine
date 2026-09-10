@@ -360,7 +360,20 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
                     <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
                       {(selected.kind === "comp"
                         ? [
-                            ["Sold", usd0(selected.data.sold_price || selected.data.list_price)],
+                            // Status first. A closed sale and an active
+                            // listing are different kinds of evidence,
+                            // and a price with no status on it reads as
+                            // a sale whether or not it was one.
+                            [
+                              "Status",
+                              selected.data.comp_status
+                                ? String(selected.data.comp_status).replace("_", " ")
+                                : "closed",
+                            ],
+                            [
+                              selected.data.sold_price ? "Sold" : "Asking",
+                              usd0(selected.data.sold_price || selected.data.list_price),
+                            ],
                             ["Beds", selected.data.bedrooms],
                             ["Baths", selected.data.bathrooms],
                             ["Sq ft", selected.data.approx_sqft ? Number(selected.data.approx_sqft).toLocaleString() : null],
@@ -372,6 +385,14 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
                                 ? new Date(selected.data.sold_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })
                                 : null,
                             ],
+                            [
+                              "Distance",
+                              selected.data.distance_miles
+                                ? `${Number(selected.data.distance_miles).toFixed(2)} mi`
+                                : null,
+                            ],
+                            ["Days on market", selected.data.cdom ?? selected.data.adom],
+                            ["MLS", selected.data.mls_number],
                           ]
                         : [
                             [
@@ -404,18 +425,65 @@ export default function BuyerMap({ deal, markets = [], comps = [], subjectMarket
                           </div>
                         ))}
                     </div>
+
+                    {/* What the comp actually says about this house.
+                        A price on its own is a fact about someone
+                        else's property; the comparison is the reason
+                        it's on the page. */}
+                    {selected.kind === "comp" &&
+                      (() => {
+                        const cp = Number(
+                          selected.data.sold_price || selected.data.list_price
+                        );
+                        const sp = Number(deal?.list_price);
+                        if (!cp || !sp) return null;
+                        const diff = (sp - cp) / cp;
+                        const sqft = Number(
+                          deal?.finished_sqft || deal?.post_reno_sqft || deal?.living_area_sqft
+                        );
+                        const cSqft = Number(selected.data.approx_sqft);
+                        return (
+                          <div className="mt-2 border-t border-neutral-200 pt-2 text-[11.5px] leading-relaxed text-neutral-700">
+                            This house is asking {usd0(sp)} —{" "}
+                            <strong>
+                              {Math.abs(diff * 100).toFixed(0)}%{" "}
+                              {diff < 0 ? "below" : "above"}
+                            </strong>{" "}
+                            this one.
+                            {sqft && cSqft ? (
+                              <>
+                                {" "}
+                                Per square foot: ${Math.round(sp / sqft)} against $
+                                {Math.round(cp / cSqft)}.
+                              </>
+                            ) : cSqft ? null : (
+                              <> This comp has no square footage recorded, so a per-foot comparison isn&rsquo;t possible.</>
+                            )}
+                            {selected.data.notes ? ` ${selected.data.notes}.` : ""}
+                          </div>
+                        );
+                      })()}
+
+                    {selected.kind === "comp" && (selected.data.source || selected.data.observed_on) && (
+                      <div className="mt-1.5 text-[10px] text-neutral-500">
+                        {selected.data.source || "Source not recorded"}
+                        {selected.data.observed_on
+                          ? ` · pulled ${new Date(selected.data.observed_on).toLocaleDateString()}`
+                          : ""}
+                      </div>
+                    )}
                   </div>
                 )}
 
                 <div className="grid gap-3 lg:grid-cols-[1fr_300px]">
                   <div
                     ref={holder}
-                    className="h-[560px] w-full overflow-hidden rounded-lg border border-neutral-200"
+                    className="h-[420px] w-full overflow-hidden rounded-lg border border-neutral-200 sm:h-[480px]"
                     style={{ background: "#EEF2F0" }}
                   />
 
                   {/* The numbers, readable without hovering anything. */}
-                  <div className="max-h-[560px] overflow-y-auto rounded-lg border border-neutral-200">
+                  <div className="max-h-[420px] overflow-y-auto rounded-lg border border-neutral-200 sm:max-h-[480px]">
                     {showMarkets && plottableMarkets.length > 0 && (
                       <div>
                         <div className="sticky top-0 border-b border-neutral-200 bg-neutral-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-neutral-500">

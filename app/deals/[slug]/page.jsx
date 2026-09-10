@@ -20,6 +20,7 @@ import LenderPackage from "../../../components/LenderPackage";
 import { DEAL_TABS as TABS, DEAL_LINKS as LINK_TABS } from "../../../components/DealTabs";
 import { calculatorLinkFor } from "../../../lib/gapFunding";
 import MarketResearch from "../../../components/MarketResearch";
+import { MarketReport } from "../../../components/ClubPresentation";
 import EmailComposer from "../../../components/EmailComposer";
 
 const GREEN = "#00A651";
@@ -84,7 +85,7 @@ export default function DealPage({ params }) {
     );
   if (!bundle) return <div className="p-8 font-sans text-sm text-neutral-500">Loading…</div>;
 
-  const { deal, rooms, comps, market, orgRows, documents, defaults } = bundle;
+  const { deal, rooms, comps, market, orgRows, documents, defaults, marketReport } = bundle;
   const p = computeProForma({ deal, rooms, market, comps, orgRows });
   const stale = marketIsStale(market);
 
@@ -354,6 +355,20 @@ export default function DealPage({ params }) {
               deal here picks it up. Saved reports appear on the buyer sheet
               under the <span className="font-semibold">Market research</span> tile.
             </p>
+            {/* What the buyer sees, from the same component their sheet
+                renders. The runner below is the internal half — this is
+                the output, and seeing both means never wondering
+                whether they match. */}
+            {marketReport && (
+              <div className="overflow-hidden rounded border border-neutral-200 bg-white">
+                <MarketReport
+                  report={marketReport}
+                  city={deal?.city}
+                  state={deal?.state}
+                />
+              </div>
+            )}
+
             <ErrorBoundary label="Market research">
               <MarketResearch
                 city={deal?.city}

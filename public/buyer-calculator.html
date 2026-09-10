@@ -316,6 +316,8 @@
         <div class="ctrl suf"><input id="i-orig" inputmode="decimal"><span class="suf2">%</span></div></div>
       <div class="row"><label>Closing costs <small>Of price</small></label>
         <div class="ctrl suf"><input id="i-close" inputmode="decimal"><span class="suf2">%</span></div></div>
+      <div class="row"><label>Prepayment penalty <small>Bought at close</small></label>
+        <div class="ctrl"><input id="i-ppp" inputmode="numeric"></div></div>
     </div>
 
     <div class="panel">
@@ -902,6 +904,7 @@
       r2("Loan amount <small>" + pct(100 - i.down, 0) + " LTV at " + pct(i.rate, 3) + "</small>", money(m.loan)) +
       r2("Origination <small>" + pct(i.orig, 1) + " of loan</small>", money(m.loan * i.orig / 100)) +
       r2("Closing costs <small>" + pct(i.close, 0) + " of price</small>", money(i.price * i.close / 100)) +
+      (+i.ppp ? r2("Prepayment penalty <small>3% fixed, 5-year</small>", money(+i.ppp)) : "") +
       r2("<b>Total cash to close</b>", "<b>" + money(m.cash) + "</b>", "sum") +
       r2("Per bedroom", money(m.rooms ? m.cash / m.rooms : 0)) +
       (i.sqft ? r2("Per sq ft", "$" + (i.price / i.sqft).toFixed(0)) : "");

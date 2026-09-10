@@ -178,12 +178,96 @@ export default function BuyerDeal({ params }) {
     noi = 0;
   }
 
+
+  // Rendered inside the sheet rather than after it. Nothing here is
+  // read by any calculation — the route that stores it says so, and
+  // the table is scoped to this firm's org_id.
+  const yoursPanel = (
+        <div className="mt-4 rounded border border-neutral-200 bg-white p-5">
+          <h2 className="text-[15px] font-bold text-neutral-900">Your documents</h2>
+          <p className="mt-1 text-[13px] leading-snug text-neutral-600">
+            Your own comps, market pulls or notes on this property. Only your
+            team can see them, and nothing here changes the underwriting above —
+            it&rsquo;s a place to keep your working papers with the deal.
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {[
+              ["comps", "Comps"],
+              ["market", "Market data"],
+              ["other", "Other"],
+            ].map(([kind, label]) => (
+              <label
+                key={kind}
+                className="cursor-pointer rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-700 ring-1 ring-neutral-300 hover:text-neutral-900"
+              >
+                + {label}
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    uploadFile(e.target.files?.[0], kind);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            ))}
+            {uploading && <span className="text-[12px] text-neutral-500">Uploading…</span>}
+            {uploadError && (
+              <span className="text-[12px] text-red-700">{uploadError}</span>
+            )}
+            <span className="text-[11px] text-neutral-400">
+              PDF, PNG, JPEG or CSV · up to 15 MB
+            </span>
+          </div>
+
+          {uploads?.length > 0 && (
+            <div className="mt-4">
+              {uploads.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex items-center gap-3 border-b border-neutral-100 py-2 last:border-b-0"
+                >
+                  <span className="text-[14px] text-neutral-400">▤</span>
+                  <a
+                    href={u.public_url || "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="min-w-0 flex-1 truncate text-[13px] text-neutral-900 underline-offset-2 hover:underline"
+                  >
+                    {u.label || "Document"}
+                  </a>
+                  <span className="text-[10px] uppercase tracking-wider text-neutral-400">
+                    {u.kind}
+                  </span>
+                  <span className="text-[11px] text-neutral-400">
+                    {new Date(u.created_at).toLocaleDateString()}
+                  </span>
+                  <button
+                    onClick={() => removeUpload(u.id)}
+                    className="text-[11px] text-neutral-500 underline underline-offset-2 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+  );
+
   return (
     <div className="min-h-screen bg-neutral-100 font-sans">
       <BuyerNav buyer={buyer} />
 
       <ClubProForma
         initialInputs={inputs}
+        // The firm's own papers, shown under their own tab inside the
+        // sheet. They used to sit below everything, past the pro forma,
+        // the comps and the map — somewhere nobody scrolled to.
+        yoursPanel={yoursPanel}
+        canRunResearch
         backHref="/buyers"
         backLabel="All properties"
         audience="buyer"
@@ -540,78 +624,6 @@ export default function BuyerDeal({ params }) {
           </div>
         )}
 
-        <div className="mt-4 rounded border border-neutral-200 bg-white p-5">
-          <h2 className="text-[15px] font-bold text-neutral-900">Your documents</h2>
-          <p className="mt-1 text-[13px] leading-snug text-neutral-600">
-            Your own comps, market pulls or notes on this property. Only your
-            team can see them, and nothing here changes the underwriting above —
-            it&rsquo;s a place to keep your working papers with the deal.
-          </p>
-
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            {[
-              ["comps", "Comps"],
-              ["market", "Market data"],
-              ["other", "Other"],
-            ].map(([kind, label]) => (
-              <label
-                key={kind}
-                className="cursor-pointer rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-neutral-700 ring-1 ring-neutral-300 hover:text-neutral-900"
-              >
-                + {label}
-                <input
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.csv"
-                  className="hidden"
-                  onChange={(e) => {
-                    uploadFile(e.target.files?.[0], kind);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            ))}
-            {uploading && <span className="text-[12px] text-neutral-500">Uploading…</span>}
-            {uploadError && (
-              <span className="text-[12px] text-red-700">{uploadError}</span>
-            )}
-            <span className="text-[11px] text-neutral-400">
-              PDF, PNG, JPEG or CSV · up to 15 MB
-            </span>
-          </div>
-
-          {uploads?.length > 0 && (
-            <div className="mt-4">
-              {uploads.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center gap-3 border-b border-neutral-100 py-2 last:border-b-0"
-                >
-                  <span className="text-[14px] text-neutral-400">▤</span>
-                  <a
-                    href={u.public_url || "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="min-w-0 flex-1 truncate text-[13px] text-neutral-900 underline-offset-2 hover:underline"
-                  >
-                    {u.label || "Document"}
-                  </a>
-                  <span className="text-[10px] uppercase tracking-wider text-neutral-400">
-                    {u.kind}
-                  </span>
-                  <span className="text-[11px] text-neutral-400">
-                    {new Date(u.created_at).toLocaleDateString()}
-                  </span>
-                  <button
-                    onClick={() => removeUpload(u.id)}
-                    className="text-[11px] text-neutral-500 underline underline-offset-2 hover:text-red-700"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         {financing?.locked && (
           <div className="mt-4 rounded border border-dashed border-neutral-300 bg-white px-5 py-4 text-[13px] text-neutral-600">

@@ -78,20 +78,22 @@ const GREEN = "#00A651";
 // Light's evidence while the other is a third party's. Separate tiles,
 // separately labelled.
 const SECTIONS = [
-  { id: "summary", label: "Summary", hint: "the deal in one screen" },
+  // The order a buyer reads in: the numbers, then the house, then the
+  // city, then the neighbourhood. Diligence and syndication last —
+  // they matter once someone is already interested.
+  { id: "summary", label: "Pro forma", hint: "income, costs, coverage, returns" },
   { id: "flyer", label: "Flyer", hint: "photos, specs, floor plan, finishes" },
+  { id: "research", label: "Market research", hint: "city demographics, jobs, incomes" },
+  { id: "map", label: "Map", hint: "the house, nearby PadSplit ZIPs and the comps" },
   { id: "comps", label: "Comps", hint: "recent sales near this house" },
   { id: "padsplit", label: "PadSplit market", hint: "ZIP room rates and occupancy" },
-  // Split out of the two tiles that used to carry them. The map was
-  // filed under comps because it plots comparable sales, but a buyer
-  // asking "where is this" and a buyer asking "what did the
-  // neighbours get" are two questions. Market research sat under
-  // PadSplit market for the same reason — one is PadSplit's data for
-  // the ZIP, the other is city demographics from elsewhere.
-  { id: "map", label: "Map", hint: "the house and the PadSplit ZIPs around it" },
-  { id: "research", label: "Market research", hint: "city demographics, jobs, incomes" },
-  { id: "syndication", label: "Syndication", hint: "raise, waterfall, break-even" },
   { id: "diligence", label: "Diligence", hint: "documents and assumptions" },
+  { id: "syndication", label: "Syndication", hint: "raise, waterfall, break-even" },
+  // The buyer's own working papers. Not governed by enabled_views —
+  // a firm's own documents are not ours to entitle — and it only
+  // appears when the surface actually supplies the panel, which the
+  // portal does and a share link does not.
+  { id: "yours", label: "Your documents", hint: "your comps, pulls and notes" },
 ];
 
 // Lit on arrival: the deal itself. The pro forma always renders, and
@@ -236,6 +238,13 @@ export default function ClubProForma({
   // browser only — nothing is written back, and the sheet marks
   // itself as adjusted so their number can't be read as ours.
   allowAdjust = false,
+  // The buyer's own documents panel, supplied by the portal. A share
+  // link has no signed-in firm, so it passes nothing and the section
+  // does not appear.
+  yoursPanel = null,
+  // Whether this surface can run market research. The portal can; a
+  // share link cannot.
+  canRunResearch = false,
 }) {
   const isBuyer = audience === "buyer";
   // The model is editable now, so it's state rather than a frozen
@@ -272,15 +281,20 @@ export default function ClubProForma({
       ? new Set(enabledViews)
       : new Set(SECTIONS.filter((s) => s.id !== "syndication").map((s) => s.id));
     return SECTIONS.filter((s) => {
+      // Their own documents, not something we grant.
+      if (s.id === "yours") return !!yoursPanel;
       if (!allowed.has(s.id)) return false;
       // A tile that can never render is worse than a missing tile: it
       // reads as broken. Drop the ones with nothing behind them on
       // this particular sheet.
       if (s.id === "map" && !deal) return false;
-      if (s.id === "research" && !marketReport) return false;
+      // Kept even with no report on file. A buyer can run it themselves
+      // from inside the section, and hiding the tab made that button
+      // unreachable — the one case it exists for.
+      if (s.id === "research" && !marketReport && !canRunResearch) return false;
       return true;
     });
-  }, [enabledViews, deal, marketReport]);
+  }, [enabledViews, deal, marketReport, yoursPanel, canRunResearch]);
 
   // Read once. Nothing sets it any more — the tiles that did are gone —
   // but a ?views= link still pins a subset, so the value is still read.
@@ -566,7 +580,25 @@ export default function ClubProForma({
   return (
     <div className="bg-neutral-100 p-4 font-sans sm:p-8">
       <div className="print-doc mx-auto max-w-4xl bg-white shadow-xl">
-        {isBuyer && deal ? (
+        {isBuyer && (
+          <SectionNav
+            sections={visibleSections}
+            visible={effectiveViews}
+            active={activeSection}
+            onSelect={setActiveSection}
+            address={p.name || p.address}
+            location={[p.city, p.state, p.zip].filter(Boolean).join(" ")}
+            config={p.beds && p.baths ? `${p.beds}/${p.baths}` : null}
+            gross={
+              y1?.income?.grossScheduledRent
+                ? `${usd(y1.income.grossScheduledRent / 12)}/mo`
+                : null
+            }
+            price={cap?.purchasePrice ? usd(cap.purchasePrice) : null}
+          />
+        )}
+
+        {isBuyer && deal && show("summary") ? (
           <FlyerMasthead
             deal={deal}
             beds={p.beds}
@@ -615,14 +647,6 @@ export default function ClubProForma({
         </div>
         )}
 
-        {isBuyer && (
-          <SectionNav
-            sections={visibleSections}
-            visible={effectiveViews}
-            active={activeSection}
-            onSelect={setActiveSection}
-          />
-        )}
 
         {!isBuyer && (
         <div className="print-section grid grid-cols-2 gap-4 border-b border-neutral-200 px-6 py-5 sm:grid-cols-4 sm:px-8">
@@ -1608,6 +1632,10 @@ export default function ClubProForma({
               </div>
             </div>
           )
+        )}
+
+        {isBuyer && show("yours") && yoursPanel && (
+          <div className="print-section px-6 pb-6 sm:px-8">{yoursPanel}</div>
         )}
 
         {isBuyer && deal && (

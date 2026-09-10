@@ -187,7 +187,18 @@ export default function DealPage({ params }) {
           </div>
         )}
         {tab === "proforma" && (
-          <ProForma deal={deal} rooms={rooms} market={market} comps={comps} orgRows={orgRows} />
+          <div>
+            <div className="no-print flex justify-end px-4 pt-4 sm:px-8">
+              <button
+                onClick={() => window.print()}
+                className="rounded px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-white"
+                style={{ backgroundColor: GREEN }}
+              >
+                Print / save PDF
+              </button>
+            </div>
+            <ProForma deal={deal} rooms={rooms} market={market} comps={comps} orgRows={orgRows} />
+          </div>
         )}
 
         {tab === "flyer" && (
